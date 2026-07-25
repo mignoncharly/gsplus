@@ -149,6 +149,18 @@ export const adminLoginSchema = z.object({
   password: z.string().min(8).max(200),
 });
 
+export const notificationResolutionSchema = z.object({
+  resolution: z.enum([
+    'OBSOLETE',
+    'DUPLICATE',
+    'PERMANENTLY_FAILED',
+    'ACTIONABLE_REVIEW_REQUIRED',
+    'REPLACED',
+  ]),
+  note: z.string().trim().min(10).max(1000),
+  replacementEventId: z.string().trim().min(1).max(100).optional(),
+});
+
 const packageSlug = z
   .string()
   .trim()

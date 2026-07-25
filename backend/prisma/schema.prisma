@@ -341,32 +341,38 @@ model MediaItem {
 }
 
 model NotificationEvent {
-  id                String             @id @default(cuid())
-  reservationId     String?
-  leadId            String?
-  channel           String
-  type              String
-  recipient         String
-  idempotencyKey    String?            @unique
-  providerMessageId String?
-  providerStatus    String?
-  status            NotificationStatus @default(PENDING)
-  attemptCount      Int                @default(0)
-  maxAttempts       Int                @default(5)
-  lastAttemptAt     DateTime?
-  nextAttemptAt     DateTime?
-  lockedAt          DateTime?
-  lastWebhookAt     DateTime?
-  deliveredAt       DateTime?
-  error             String?
-  metadata          Json?
-  sentAt            DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  reservation       Reservation?       @relation(fields: [reservationId], references: [id])
-  lead              Lead?              @relation(fields: [leadId], references: [id])
+  id                 String             @id @default(cuid())
+  reservationId      String?
+  leadId             String?
+  channel            String
+  type               String
+  recipient          String
+  idempotencyKey     String?            @unique
+  providerMessageId  String?
+  providerStatus     String?
+  status             NotificationStatus @default(PENDING)
+  attemptCount       Int                @default(0)
+  maxAttempts        Int                @default(5)
+  lastAttemptAt      DateTime?
+  nextAttemptAt      DateTime?
+  lockedAt           DateTime?
+  lastWebhookAt      DateTime?
+  deliveredAt        DateTime?
+  error              String?
+  resolution         String?
+  resolutionNote     String?
+  resolvedAt         DateTime?
+  resolvedBy         String?
+  replacementEventId String?
+  metadata           Json?
+  sentAt             DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  reservation        Reservation?       @relation(fields: [reservationId], references: [id])
+  lead               Lead?              @relation(fields: [leadId], references: [id])
 
   @@unique([channel, providerMessageId])
+  @@index([status, resolvedAt])
   @@index([reservationId])
   @@index([leadId])
   @@index([status])

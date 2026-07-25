@@ -490,6 +490,42 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
   });
 };
 
+export const resolveNotificationEvent = async (
+  id: string,
+  input: {
+    resolution: 'OBSOLETE' | 'DUPLICATE' | 'PERMANENTLY_FAILED' | 'ACTIONABLE_REVIEW_REQUIRED' | 'REPLACED';
+    note: string;
+    replacementEventId?: string;
+  },
+  resolvedBy: string,
+) => {
+  const event = await prisma.notificationEvent.findUnique({ where: { id } });
+  if (!event) throw new HttpError(404, 'NOTIFICATION_NOT_FOUND', 'Notification not found.');
+  if (event.status !== NotificationStatus.FAILED) {
+    throw new HttpError(409, 'NOTIFICATION_NOT_FAILED', 'Only a failed notification can receive a dead-letter disposition.');
+  }
+  if (input.resolution === 'REPLACED') {
+    if (!input.replacementEventId || input.replacementEventId === id) {
+      throw new HttpError(400, 'NOTIFICATION_REPLACEMENT_INVALID', 'A distinct replacement notification is required.');
+    }
+    const replacement = await prisma.notificationEvent.findUnique({ where: { id: input.replacementEventId }, select: { id: true } });
+    if (!replacement) throw new HttpError(400, 'NOTIFICATION_REPLACEMENT_INVALID', 'The replacement notification does not exist.');
+  } else if (input.replacementEventId) {
+    throw new HttpError(400, 'NOTIFICATION_REPLACEMENT_UNEXPECTED', 'A replacement is valid only for the REPLACED disposition.');
+  }
+
+  return prisma.notificationEvent.update({
+    where: { id },
+    data: {
+      resolution: input.resolution,
+      resolutionNote: input.note,
+      resolvedAt: new Date(),
+      resolvedBy,
+      replacementEventId: input.replacementEventId ?? null,
+    },
+  });
+};
+
 export const retryNotificationEvent = async (id: string) => {
   const event = await prisma.notificationEvent.findUnique({ where: { id } });
   if (!event) throw new HttpError(404, 'NOTIFICATION_NOT_FOUND', 'Notification not found.');
@@ -498,6 +534,9 @@ export const retryNotificationEvent = async (id: string) => {
   }
   if (event.status === NotificationStatus.PROCESSING) {
     throw new HttpError(409, 'NOTIFICATION_IN_PROGRESS', 'This notification is currently being processed.');
+  }
+  if (event.resolution && event.resolution !== 'ACTIONABLE_REVIEW_REQUIRED') {
+    throw new HttpError(409, 'NOTIFICATION_RESOLUTION_BLOCKS_RETRY', 'This dead-letter disposition does not allow retry.');
   }
   if (event.channel === 'email' && !env.EMAIL_DELIVERY_ENABLED) {
     throw new HttpError(409, 'NOTIFICATION_CHANNEL_DISABLED', 'E-mail delivery is not enabled.');
@@ -514,6 +553,11 @@ export const retryNotificationEvent = async (id: string) => {
       lockedAt: null,
       error: null,
       providerStatus: 'queued',
+      resolution: null,
+      resolutionNote: null,
+      resolvedAt: null,
+      resolvedBy: null,
+      replacementEventId: null,
     },
   });
 };

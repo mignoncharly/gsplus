@@ -17,7 +17,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "install:production": "npm ci --omit=dev --ignore-scripts && npm rm --no-save --omit=dev --ignore-scripts prisma typescript"
+    "install:production": "npm ci --omit=dev --ignore-scripts && npm rm --no-save --omit=dev --ignore-scripts prisma typescript",
+    "notifications:classify-historical": "node scripts/classify-historical-notifications.mjs"
   },
   "keywords": [],
   "author": "",

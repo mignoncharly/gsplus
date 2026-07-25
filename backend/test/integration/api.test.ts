@@ -840,6 +840,60 @@ describe('phase 4 notification administration and webhooks', () => {
     }
   });
 
+  it('records explicit dead-letter dispositions and blocks unsafe retries', async () => {
+    const agent = await loginAdmin();
+    const obsolete = await prisma.notificationEvent.create({
+      data: {
+        channel: 'email',
+        type: 'lead_created_admin',
+        recipient: 'dead-letter@example.test',
+        idempotencyKey: `dead-letter:${randomUUID()}`,
+        status: NotificationStatus.FAILED,
+        error: 'EMAIL_DELIVERY_FAILED',
+      },
+    });
+
+    const classified = await agent
+      .patch(`/api/admin/notifications/${obsolete.id}/resolve`)
+      .send({ resolution: 'OBSOLETE', note: 'Historical test event is no longer relevant.' })
+      .expect(200);
+    expect(classified.body.data.resolution).toBe('OBSOLETE');
+    expect(classified.body.data.resolvedAt).toBeTruthy();
+    expect(classified.body.data.resolvedBy).toBeTruthy();
+    await agent.post(`/api/admin/notifications/${obsolete.id}/retry`).expect(409);
+
+    const actionable = await prisma.notificationEvent.create({
+      data: {
+        channel: 'email',
+        type: 'lead_created_admin',
+        recipient: 'reviewed@example.test',
+        idempotencyKey: `dead-letter:${randomUUID()}`,
+        status: NotificationStatus.FAILED,
+        error: 'EMAIL_DELIVERY_FAILED',
+      },
+    });
+    await agent
+      .patch(`/api/admin/notifications/${actionable.id}/resolve`)
+      .send({
+        resolution: 'ACTIONABLE_REVIEW_REQUIRED',
+        note: 'This individual event was reviewed and may be retried explicitly.',
+      })
+      .expect(200);
+
+    const previous = env.EMAIL_DELIVERY_ENABLED;
+    env.EMAIL_DELIVERY_ENABLED = true;
+    try {
+      await agent.post(`/api/admin/notifications/${actionable.id}/retry`).expect(202);
+    } finally {
+      env.EMAIL_DELIVERY_ENABLED = previous;
+    }
+    const retried = await prisma.notificationEvent.findUniqueOrThrow({ where: { id: actionable.id } });
+    expect(retried.status).toBe(NotificationStatus.PENDING);
+    expect(retried.resolution).toBeNull();
+    expect(retried.resolvedAt).toBeNull();
+    expect(await prisma.auditLog.count({ where: { action: 'notification.resolve' } })).toBe(2);
+  });
+
   it('verifies webhook signatures and records provider delivery status', async () => {
     const event = await prisma.notificationEvent.create({
       data: {

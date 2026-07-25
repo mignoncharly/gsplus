@@ -209,6 +209,14 @@ export const getAdminNotifications = async () => {
   return payload.data;
 };
 
+export const resolveAdminNotification = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/notifications/${id}/resolve`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
 export const retryAdminNotification = async (id) => {
   const payload = await apiFetch(`/api/admin/notifications/${id}/retry`, {
     method: 'POST',

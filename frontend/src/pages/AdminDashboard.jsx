@@ -42,6 +42,7 @@ import {
   loginAdmin,
   logoutAdmin,
   mediaUrl,
+  resolveAdminNotification,
   retryAdminNotification,
   rescheduleAdminReservation,
   syncAdminReservationCalendar,
@@ -99,12 +100,21 @@ const calendarErrorLabel = (code) => ({
   CALENDAR_OPERATION_SUPERSEDED: 'Opération remplacée par un état plus récent',
   CALENDAR_STATUS_NOT_SYNCABLE: 'Statut non synchronisable',
   CALENDAR_PROVIDER_FAILED: 'Échec technique du fournisseur calendrier',
+  CALENDAR_LEGACY_PROVIDER_FAILURE: 'Ancien échec fournisseur — détails historiques indisponibles',
   CALENDAR_PROVIDER_ID_MISSING: 'Identifiant fournisseur manquant',
   CALENDAR_EVENT_TYPE_INVALID: 'Type d’événement calendrier invalide',
   CALENDAR_EVENT_TYPE_MISSING: 'Type d’événement calendrier absent',
   CALENDAR_DURATION_UNSUPPORTED: 'Durée non prise en charge par le calendrier',
   CALENDAR_EVENT_TYPE_NOT_FOUND: 'Type d’événement configuré introuvable',
 }[code] || code || 'Aucune erreur');
+
+const notificationResolutionLabel = (code) => ({
+  OBSOLETE: 'Obsolète — ne pas renvoyer',
+  DUPLICATE: 'Doublon',
+  PERMANENTLY_FAILED: 'Échec définitif',
+  ACTIONABLE_REVIEW_REQUIRED: 'Examen requis avant renvoi',
+  REPLACED: 'Remplacée par une autre notification',
+}[code] || 'Non classée');
 
 const pageTransition = {
   initial: { opacity: 0, y: 15 },
@@ -400,6 +410,23 @@ const AdminDashboard = () => {
   const updateLeadStatus = (lead, status) => {
     if (!window.confirm(`Passer cette demande au statut « ${statusLabel(status)} » ?`)) return;
     return runAction('Mise à jour de la demande', () => updateAdminLead(lead.id, { status }));
+  };
+
+  const classifyNotification = async (item, resolution) => {
+    const defaultNote = resolution === 'OBSOLETE'
+      ? 'Événement historique devenu sans objet; aucun renvoi autorisé.'
+      : 'Événement potentiellement pertinent; examen individuel requis avant tout renvoi.';
+    const note = window.prompt('Note obligatoire de classification :', defaultNote)?.trim();
+    if (!note) return;
+    if (!window.confirm('Enregistrer cette classification sans envoyer de message ?')) return;
+    await runAction('Classification notification', () =>
+      resolveAdminNotification(item.id, { resolution, note }),
+    );
+  };
+
+  const retryNotification = async (item) => {
+    if (!window.confirm('Réessayer uniquement cette notification ? Aucun autre échec historique ne sera renvoyé.')) return;
+    await runAction(`Réessai notification ${item.id}`, () => retryAdminNotification(item.id));
   };
 
   const syncReservationCalendar = async (reservation) => {
@@ -1063,6 +1090,7 @@ const AdminDashboard = () => {
                         <th>Statut</th>
                         <th>Tentatives</th>
                         <th>Rapport d'erreur</th>
+                        <th>Disposition</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -1085,15 +1113,37 @@ const AdminDashboard = () => {
                             {item.error || 'Aucune erreur détectée'}
                           </td>
                           <td>
-                            {item.status === 'FAILED' ? (
+                            <strong>{notificationResolutionLabel(item.resolution)}</strong>
+                            {item.resolutionNote && <small>{item.resolutionNote}</small>}
+                            {item.resolvedAt && <small>Classée le {dateTime(item.resolvedAt)}</small>}
+                          </td>
+                          <td>
+                            {item.status !== 'FAILED' ? '—' : !item.resolution ? (
+                              <div style={{ display: 'grid', gap: '0.4rem' }}>
+                                <button
+                                  className="btn btn-secondary admin-sm-btn"
+                                  disabled={Boolean(busyActions['notifications:Classification notification'])}
+                                  onClick={() => classifyNotification(item, 'OBSOLETE')}
+                                >
+                                  Classer obsolète
+                                </button>
+                                <button
+                                  className="btn btn-secondary admin-sm-btn"
+                                  disabled={Boolean(busyActions['notifications:Classification notification'])}
+                                  onClick={() => classifyNotification(item, 'ACTIONABLE_REVIEW_REQUIRED')}
+                                >
+                                  À examiner
+                                </button>
+                              </div>
+                            ) : item.resolution === 'ACTIONABLE_REVIEW_REQUIRED' ? (
                               <button
                                 className="btn btn-secondary admin-sm-btn"
                                 disabled={Boolean(busyActions[`notifications:Réessai notification ${item.id}`])}
-                                onClick={() => runAction(`Réessai notification ${item.id}`, () => retryAdminNotification(item.id))}
+                                onClick={() => retryNotification(item)}
                               >
-                                <RefreshCw size={12} /> Réessayer
+                                <RefreshCw size={12} /> Réessayer après examen
                               </button>
-                            ) : '—'}
+                            ) : 'Classée — aucun renvoi'}
                           </td>
                         </tr>
                       ))}

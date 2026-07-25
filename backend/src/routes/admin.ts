@@ -6,6 +6,7 @@ import {
   queuePaymentVerifiedNotification,
   queueReservationRescheduledNotification,
   queueReservationStatusNotification,
+  resolveNotificationEvent,
   retryNotificationEvent,
 } from '../emails/notifications.js';
 import { PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
@@ -48,6 +49,7 @@ import {
   mediaUpdateSchema,
   mediaUploadSchema,
   mediaUploadFieldsSchema,
+  notificationResolutionSchema,
   packageCreateSchema,
   packageDuplicateSchema,
   packageUpdateSchema,
@@ -558,6 +560,22 @@ router.get(
     });
 
     res.json({ data: notifications });
+  }),
+);
+
+router.patch(
+  '/notifications/:id/resolve',
+  validate('params', idParamsSchema),
+  validate('body', notificationResolutionSchema),
+  asyncHandler(async (req, res) => {
+    const adminUserId = res.locals.admin?.id;
+    if (!adminUserId) throw new HttpError(401, 'UNAUTHORIZED', 'Authentication required.');
+    const notification = await resolveNotificationEvent(routeParam(req.params.id), req.body, adminUserId);
+    await writeAuditLog(adminUserId, 'notification.resolve', 'NotificationEvent', notification.id, {
+      resolution: notification.resolution,
+      replacementEventId: notification.replacementEventId,
+    });
+    res.json({ data: notification });
   }),
 );
 
