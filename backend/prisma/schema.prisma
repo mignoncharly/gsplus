@@ -1,0 +1,412 @@
+// This is your Prisma schema file,
+// learn more about it here: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AdminRole {
+  OWNER
+  STAFF
+}
+
+enum ReservationStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  FAILED
+  EXPIRED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum LeadType {
+  CONTACT
+  B2B
+  QUOTE
+}
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  WON
+  LOST
+  ARCHIVED
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model AdminUser {
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  passwordHash           String
+  name                   String
+  role                   AdminRole               @default(STAFF)
+  isActive               Boolean                 @default(true)
+  sessionVersion         Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  auditLogs              AuditLog[]
+  packageVersions        PackageVersion[]
+  paymentTransitions     PaymentTransition[]
+  reservationTransitions ReservationTransition[]
+  verifiedPayments       Payment[]               @relation("PaymentVerifiedBy")
+}
+
+model Customer {
+  id               String        @id @default(cuid())
+  firstName        String
+  lastName         String
+  phone            String
+  email            String?
+  birthDate        DateTime?
+  gender           String?
+  discoveryChannel String?
+  consentImage     Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  reservations     Reservation[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Package {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  category           String
+  description        String?
+  price              Int
+  currency           String              @default("XAF")
+  durationMin        Int
+  deliveryLabel      String?
+  options            Json?
+  legalText          String?
+  legalApprovedAt    DateTime?
+  version            Int                 @default(1)
+  isPromo            Boolean             @default(false)
+  isRange            Boolean             @default(false)
+  isActive           Boolean             @default(true)
+  isArchived         Boolean             @default(false)
+  archivedAt         DateTime?
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  reservationIntents ReservationIntent[]
+  reservations       Reservation[]
+  versions           PackageVersion[]
+
+  @@index([isActive, isArchived, sortOrder])
+}
+
+model PackageVersion {
+  id              String        @id @default(cuid())
+  packageId       String
+  version         Int
+  name            String
+  category        String
+  description     String?
+  price           Int
+  currency        String        @default("XAF")
+  durationMin     Int
+  deliveryLabel   String?
+  options         Json?
+  legalText       String?
+  legalApprovedAt DateTime?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  package         Package       @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdBy       AdminUser?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  reservations    Reservation[]
+
+  @@unique([packageId, version])
+  @@index([packageId, createdAt])
+  @@index([createdById])
+}
+
+model Reservation {
+  id                String                  @id @default(cuid())
+  reference         String                  @unique
+  customerId        String
+  packageId         String
+  packageVersionId  String
+  startAt           DateTime
+  endAt             DateTime
+  status            ReservationStatus       @default(PENDING_CONFIRMATION)
+  statusReason      String?
+  statusChangedAt   DateTime                @default(now())
+  version           Int                     @default(1)
+  expiresAt         DateTime?
+  paymentChoice     String?
+  notes             String?
+  extraInfo         String?
+  acceptedTermsAt   DateTime?
+  consentImage      Boolean                 @default(false)
+  whatsappConsentAt DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  customer          Customer                @relation(fields: [customerId], references: [id])
+  package           Package                 @relation(fields: [packageId], references: [id])
+  packageVersion    PackageVersion          @relation(fields: [packageVersionId], references: [id])
+  payments          Payment[]
+  transitions       ReservationTransition[]
+  notifications     NotificationEvent[]
+  calendarSyncLogs  CalendarSyncLog[]
+  reservationIntent ReservationIntent?
+
+  @@index([startAt, endAt])
+  @@index([status])
+  @@index([customerId])
+  @@index([packageId])
+  @@index([packageVersionId])
+  @@index([expiresAt])
+}
+
+model ReservationIntent {
+  id             String       @id @default(cuid())
+  idempotencyKey String       @unique
+  reference      String       @unique
+  packageId      String
+  startAt        DateTime
+  endAt          DateTime
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  reservationId  String?      @unique
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  package        Package      @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  reservation    Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([startAt, endAt, expiresAt])
+  @@index([packageId])
+}
+
+model ReservationTransition {
+  id            String      @id @default(cuid())
+  reservationId String
+  fromStatus    String?
+  toStatus      String
+  reason        String?
+  actorType     String      @default("SYSTEM")
+  adminUserId   String?
+  oldStartAt    DateTime?
+  oldEndAt      DateTime?
+  newStartAt    DateTime?
+  newEndAt      DateTime?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  adminUser     AdminUser?  @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([adminUserId])
+}
+
+model Payment {
+  id                       String              @id @default(cuid())
+  reservationId            String
+  amount                   Int
+  method                   String
+  transactionRef           String?
+  transactionRefNormalized String?
+  paymentPhone             String?
+  status                   PaymentStatus       @default(PENDING)
+  statusReason             String?
+  statusChangedAt          DateTime            @default(now())
+  version                  Int                 @default(1)
+  verifiedAt               DateTime?
+  verifiedById             String?
+  refundAmount             Int?
+  refundedAt               DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  reservation              Reservation         @relation(fields: [reservationId], references: [id])
+  verifiedBy               AdminUser?          @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  transitions              PaymentTransition[]
+
+  @@unique([method, transactionRefNormalized])
+  @@index([reservationId])
+  @@index([transactionRef])
+  @@index([paymentPhone])
+  @@index([verifiedById])
+}
+
+model PaymentTransition {
+  id          String     @id @default(cuid())
+  paymentId   String
+  fromStatus  String?
+  toStatus    String
+  reason      String?
+  actorType   String     @default("SYSTEM")
+  adminUserId String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  payment     Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId, createdAt])
+  @@index([adminUserId])
+}
+
+model Lead {
+  id                String              @id @default(cuid())
+  submissionKey     String?             @unique
+  type              LeadType
+  status            LeadStatus          @default(NEW)
+  name              String
+  email             String?
+  phone             String?
+  company           String?
+  rccm              String?
+  subject           String?
+  message           String
+  source            String?
+  whatsappConsentAt DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  notifications     NotificationEvent[]
+
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  startAt   DateTime
+  endAt     DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startAt, endAt])
+}
+
+model BusinessHour {
+  id        String   @id @default(cuid())
+  dayOfWeek Int
+  opensAt   String
+  closesAt  String
+  isClosed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dayOfWeek])
+}
+
+model MediaItem {
+  id                String   @id @default(cuid())
+  title             String
+  altText           String?
+  url               String
+  storagePath       String?
+  thumbnailUrl      String?
+  category          String?
+  width             Int?
+  height            Int?
+  mimeType          String?
+  fileSize          Int?
+  thumbnailWidth    Int?
+  thumbnailHeight   Int?
+  thumbnailFileSize Int?
+  objectPosition    String?
+  isFeatured        Boolean  @default(false)
+  isPublished       Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@index([category])
+}
+
+model NotificationEvent {
+  id                String             @id @default(cuid())
+  reservationId     String?
+  leadId            String?
+  channel           String
+  type              String
+  recipient         String
+  idempotencyKey    String?            @unique
+  providerMessageId String?
+  providerStatus    String?
+  status            NotificationStatus @default(PENDING)
+  attemptCount      Int                @default(0)
+  maxAttempts       Int                @default(5)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?
+  lockedAt          DateTime?
+  lastWebhookAt     DateTime?
+  deliveredAt       DateTime?
+  error             String?
+  metadata          Json?
+  sentAt            DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  reservation       Reservation?       @relation(fields: [reservationId], references: [id])
+  lead              Lead?              @relation(fields: [leadId], references: [id])
+
+  @@unique([channel, providerMessageId])
+  @@index([reservationId])
+  @@index([leadId])
+  @@index([status])
+  @@index([status, nextAttemptAt])
+  @@index([status, lockedAt])
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([entityType, entityId])
+}
+
+model CalendarSyncLog {
+  id              String       @id @default(cuid())
+  reservationId   String?
+  provider        String       @default("cal_com")
+  action          String       @default("UPSERT")
+  idempotencyKey  String?      @unique
+  externalEventId String?
+  providerStatus  String?
+  status          String       @default("PENDING")
+  attemptCount    Int          @default(0)
+  maxAttempts     Int          @default(5)
+  lastAttemptAt   DateTime?
+  lockedAt        DateTime?
+  error           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  reservation     Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([reservationId, createdAt])
+  @@index([externalEventId])
+  @@index([status, lockedAt])
+}

@@ -1,0 +1,215 @@
+{
+  "generatedAt": "2026-07-24T19:59:42.002Z",
+  "assets": [
+    {
+      "source": "hero_banner.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/hero-banner-640.webp",
+          "width": 640,
+          "height": 640,
+          "mimeType": "image/webp",
+          "bytes": 24948
+        },
+        {
+          "url": "/images/optimized/hero-banner-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 63632
+        }
+      ]
+    },
+    {
+      "source": "images/engagement.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/engagement-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 64384
+        },
+        {
+          "url": "/images/optimized/engagement-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 234004
+        }
+      ]
+    },
+    {
+      "source": "images/hero.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/about-studio-640.webp",
+          "width": 640,
+          "height": 640,
+          "mimeType": "image/webp",
+          "bytes": 62308
+        },
+        {
+          "url": "/images/optimized/about-studio-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 155888
+        }
+      ]
+    },
+    {
+      "source": "images/portfolio/corporate.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-corporate-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 13276
+        },
+        {
+          "url": "/images/optimized/portfolio-corporate-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 71768
+        }
+      ]
+    },
+    {
+      "source": "images/portfolio/couple.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-couple-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 16056
+        },
+        {
+          "url": "/images/optimized/portfolio-couple-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 69602
+        }
+      ]
+    },
+    {
+      "source": "images/portfolio/maternity.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-maternity-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 11512
+        },
+        {
+          "url": "/images/optimized/portfolio-maternity-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 44866
+        }
+      ]
+    },
+    {
+      "source": "portfolio_portrait_1.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-portrait-1-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 8570
+        },
+        {
+          "url": "/images/optimized/portfolio-portrait-1-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 35980
+        }
+      ]
+    },
+    {
+      "source": "portfolio_portrait_2.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-portrait-2-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 21776
+        },
+        {
+          "url": "/images/optimized/portfolio-portrait-2-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 104784
+        }
+      ]
+    },
+    {
+      "source": "portfolio_portrait_3.png",
+      "sourceWidth": 1024,
+      "sourceHeight": 1024,
+      "derivatives": [
+        {
+          "url": "/images/optimized/portfolio-portrait-3-480.webp",
+          "width": 480,
+          "height": 480,
+          "mimeType": "image/webp",
+          "bytes": 17466
+        },
+        {
+          "url": "/images/optimized/portfolio-portrait-3-1024.webp",
+          "width": 1024,
+          "height": 1024,
+          "mimeType": "image/webp",
+          "bytes": 94920
+        }
+      ]
+    },
+    {
+      "source": "logo.png",
+      "sourceWidth": 3200,
+      "sourceHeight": 3200,
+      "derivatives": [
+        {
+          "url": "/images/optimized/brand-logo-160.webp",
+          "width": 160,
+          "height": 160,
+          "mimeType": "image/webp",
+          "bytes": 5740
+        },
+        {
+          "url": "/images/optimized/brand-logo-320.webp",
+          "width": 320,
+          "height": 320,
+          "mimeType": "image/webp",
+          "bytes": 13826
+        }
+      ]
+    }
+  ]
+}

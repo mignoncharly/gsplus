@@ -1,0 +1,34 @@
+================================================
+  INSTRUCTIONS PRODUCTION GOLDEN STUDIO PLUS
+================================================
+
+Site public :
+https://gsplus.vip
+
+Dashboard admin :
+https://gsplus.vip/admin
+
+API :
+https://gsplus.vip/api/health
+https://gsplus.vip/api/calendar/health
+
+Chemin serveur :
+/var/www/goldenstudioplus
+
+Commandes principales :
+
+cd /var/www/goldenstudioplus/frontend
+npm install
+npm run build
+
+cd /var/www/goldenstudioplus/backend
+npm install
+npm test
+npm run build
+npx prisma migrate deploy
+npx prisma generate
+sudo systemctl restart goldenstudioplus-backend
+sudo systemctl reload nginx
+
+Maintenance detaillee :
+Consultez MAINTENANCE.md.

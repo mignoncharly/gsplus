@@ -1,0 +1,14 @@
+{
+  "name": "golden-studio-plus",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "npm run build --prefix backend",
+    "test:backend": "npm test --prefix backend",
+    "test:frontend": "npm test --prefix frontend",
+    "lint:frontend": "npm run lint --prefix frontend",
+    "test:e2e": "npm run test:e2e --prefix frontend"
+  }
+}

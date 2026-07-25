@@ -1,0 +1,243 @@
+/* === Creative Services Page Styles === */
+.creative-services {
+  min-height: 100vh;
+  background-color: var(--c-bg-dark);
+  position: relative;
+  overflow: hidden;
+  padding: 8rem 0 6rem;
+}
+
+/* Background Glowing Halos */
+.creative-services::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 15% 20%, rgba(197, 146, 58, 0.08), transparent 45rem),
+    radial-gradient(circle at 85% 85%, rgba(42, 123, 136, 0.08), transparent 45rem);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.creative-services .container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Page Header */
+.creative-services-title {
+  font-family: var(--font-heading);
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  text-align: center;
+  margin-bottom: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.creative-services-title span {
+  color: var(--c-gold);
+}
+
+.creative-services-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.05rem;
+  max-width: 650px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Creative Services Cards Grid */
+.creative-services-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin: 4rem 0 5rem;
+}
+
+@media (min-width: 768px) {
+  .creative-services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.creative-service-card {
+  background: rgba(22, 31, 29, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 2.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.75rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.creative-service-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(197, 146, 58, 0.25);
+  box-shadow: 0 20px 40px rgba(197, 146, 58, 0.06), 0 15px 35px rgba(0, 0, 0, 0.3);
+}
+
+.creative-service-icon-wrapper {
+  padding: 1.1rem;
+  background: rgba(197, 146, 58, 0.08);
+  border: 1px solid rgba(197, 146, 58, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.35s ease;
+}
+
+.creative-service-card:hover .creative-service-icon-wrapper {
+  background: var(--grad-gold);
+  border-color: transparent;
+  box-shadow: 0 0 15px rgba(197, 146, 58, 0.4);
+}
+
+.creative-service-card:hover .creative-service-icon-wrapper svg {
+  color: #fff !important;
+  transform: scale(1.05);
+}
+
+.creative-service-card h3 {
+  font-family: var(--font-heading);
+  color: #fff;
+  font-size: 1.3rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.creative-service-card p {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.creative-service-price {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-gold-light);
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background: rgba(197, 146, 58, 0.06);
+  border: 1px solid rgba(197, 146, 58, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+/* Quote Form Card */
+.creative-quote-card {
+  background: rgba(22, 31, 29, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  padding: 3.5rem 3rem;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), var(--shadow-soft);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+@media (max-width: 576px) {
+  .creative-quote-card {
+    padding: 2.5rem 1.5rem;
+  }
+}
+
+.creative-quote-card h2 {
+  font-family: var(--font-heading);
+  color: #fff;
+  font-size: 1.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.creative-quote-card h2 span {
+  color: var(--c-gold);
+}
+
+.creative-quote-subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Form Styles */
+.creative-quote-card .form-input,
+.creative-quote-card select,
+.creative-quote-card textarea {
+  width: 100%;
+  padding: 1.1rem 1.25rem;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  margin-bottom: 1.25rem;
+}
+
+.creative-quote-card .form-input:focus,
+.creative-quote-card select:focus,
+.creative-quote-card textarea:focus {
+  border-color: var(--c-gold) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 0 0 4px rgba(197, 146, 58, 0.15) !important;
+  outline: none;
+}
+
+/* Custom Dropdown Arrow */
+.creative-quote-card select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 1.25rem center;
+  padding-right: 3rem !important;
+}
+
+/* Select options safety */
+.creative-quote-card select option {
+  background-color: #161f1d !important;
+  color: #ffffff !important;
+}
+
+/* Success Validation Panel */
+.quote-success-wrap {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.quote-success-seal {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(197, 146, 58, 0.08);
+  border: 2px solid var(--c-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 2rem;
+  color: var(--c-gold-light);
+  box-shadow: 0 0 25px rgba(197, 146, 58, 0.15);
+}
+
+.quote-success-wrap h3 {
+  font-family: var(--font-heading);
+  color: #fff;
+  font-size: 1.85rem;
+  margin-bottom: 1rem;
+}
+
+.quote-success-wrap p {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 480px;
+  margin: 0 auto 2.5rem;
+}

@@ -1,0 +1,35 @@
+node_modules/
+dist/
+.vite/
+
+# Runtime secrets and local configuration
+.env
+.env.*
+!.env.example
+!.env.test.example
+docs/keys_deploy.md
+credentials/
+*.pem
+*.key
+
+# Recovery archives, database dumps and legacy source packages
+.phase0-backups/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.dump
+
+# Private/runtime media and supplied raw masters
+private-media/
+docs/images_logos/
+uploads/
+
+# Temporary, generated and diagnostic files
+.build-*/
+*.orig
+*.rej
+*.log
+playwright-report/
+test-results/
+.DS_Store

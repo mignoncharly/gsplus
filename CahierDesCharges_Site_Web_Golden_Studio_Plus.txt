@@ -1,0 +1,1562 @@
+CAHIER DES CHARGES
+Site Web Professionnel
+GOLDEN STUDIO PLUS
+
+Studio Photo Premium  |  Douala, Cameroun  |  2026
+
+
+INFORMATIONS DU DOCUMENT
+Version        :  1.0 — Avril 2026
+Statut         :  Document de Referentiel — Exploitable equipe technique
+Redige par     :  Direction Golden Studio Plus + IA Agent Specialise
+Destinataires  :  Equipe de developpement web, Designer UX/UI, Chef de projet
+Contact        :  Golden Studio Plus, Douala, Cameroun — Email : info@gsplus.vip
+
+
+Document confidentiel — usage interne et prestataires agrees
+
+  SOMMAIRE
+1.  PRESENTATION DU PROJET  — Contexte, objectifs, perimetre
+2.  ANALYSE DES BESOINS METIER  — Services, priorites, evolutivite
+3.  CIBLES & PERSONAS  — Profils utilisateurs, comportements
+4.  PARCOURS UTILISATEURS  — Parcours client et administrateur
+5.  USE CASES DETAILLES  — UC-001 a UC-012 (client + admin)
+6.  FONCTIONNALITES DETAILLEES  — 6 modules techniques complets
+7.  ARCHITECTURE TECHNIQUE  — CMS, API, hebergement, securite
+8.  CHARTE GRAPHIQUE & UX  — Design system, mobile-first, typographie
+9.  ASPECTS LEGAUX  — Droit a l'image, RGPD local, CGV
+10.  PLAN DE DEVELOPPEMENT  — Phases, budget estimatif, delais
+11.  KPIs & INDICATEURS DE SUCCES  — Metriques et objectifs
+12.  ANNEXES  — Glossaire, liens, references
+
+  SECTION 1 — PRESENTATION DU PROJET
+  1.1  Contexte
+Golden Studio Plus est un studio photo professionnel base a Douala, Cameroun. En phase de structuration et de croissance acceleree, le studio propose des services de shooting photo premium (portraits, corporate, maternite, evenementiel, anniversaire, fiancailles, pre-mariage) dans un positionnement "premium accessible".
+Le site web doit devenir l'outil central de generation de revenus et d'automatisation des processus. Il doit reflechir l'identite visuelle Afro-Luxe Moderne du studio (palette or/teal/vert foret) et repondre aux usages locaux (mobile-first, WhatsApp, Mobile Money).
+  1.2  Objectifs Strategiques du Site
+#
+Objectif
+Indicateur de succes
+Priorite
+O1
+Generer des reservations en ligne 24h/24
+>= 20 reservations/mois en M3
+CRITIQUE
+O2
+Presenter les offres et tarifs de facon claire
+Taux de rebond < 40%
+CRITIQUE
+O3
+Automatiser les confirmations et rappels
+100% des reservations notifiees auto
+HAUTE
+O4
+Afficher le portfolio pour convaincre
+Temps moyen >2 min sur la page portfolio
+HAUTE
+O5
+Collecter des leads (WhatsApp, formulaire)
+>= 50 leads/mois en M3
+HAUTE
+O6
+Accepter les paiements en ligne (acompte 50%)
+Paiement en ligne operationnel J+30
+HAUTE
+O7
+Etre references sur Google (SEO local Douala)
+Top 3 'studio photo Douala' en M6
+MOYENNE
+O8
+Evoluer vers video/infographie/flyers (Phase 2)
+Services additionnels en M6
+FUTURE
+
+  1.3  Perimetre du Projet — Phase 1 (Lancement)
+
+INCLUS DANS LA PHASE 1
+- Page d'accueil (vitrine, hero section, accroche, CTA WhatsApp)
+- Page Services & Tarifs (grille complete avec prix)
+- Systeme de reservation en ligne (calendrier + formulaire)
+- Paiement en ligne (acompte 50%) — Mobile Money + Carte
+- Portfolio photographique (galerie filtrable)
+- Page A propos / Histoire du studio
+- Blog / Actualites (optionnel Phase 1, critique Phase 2)
+- Dashboard Administrateur (gestion reservations, clients, planning)
+- Systeme de notifications (email + WhatsApp automatiques)
+- Formulaire de contact + lien WhatsApp Business
+- Mentions legales, CGV, Politique de confidentialite
+
+
+HORS PERIMETRE PHASE 1 (roadmap Phase 2 — M6+)
+- Espace client personnalise (connexion, historique commandes, telechargement photos)
+- Boutique en ligne (tirages, produits derives)
+- Services Video / Infographie / Flyers (sous-sections dedicees)
+- Application mobile native
+- Systeme de fidelite numerique
+- Chat en direct (hors WhatsApp)
+
+  1.4  Parties Prenantes
+Partie prenante
+Role
+Responsabilites cles
+Gerant Golden Studio Plus
+Commanditaire / Administrateur
+Valider les specs, gerer les reservations, mettre a jour les contenus
+Equipe de developpement
+Prestataire technique
+Concevoir, developper, deployer et maintenir le site
+Designer UX/UI
+Prestataire design
+Wireframes, maquettes haute fidelite, respect charte graphique
+Chef de projet
+Coordinateur
+Planification, suivi, communication entre les parties
+Clients finaux
+Utilisateurs
+Consulter, reserver, payer, recevoir confirmations
+
+
+  SECTION 2 — ANALYSE DES BESOINS METIER
+  2.1  Catalogue des Services Phase 1
+Code
+Service
+Prix
+Duree seance
+Livraison
+Public cible
+S01
+Flash Social
+5 000 FCFA
+20-30 min
+24h
+Particuliers, usage reseaux
+S02
+Happy Hours
+4 000 FCFA
+20-30 min
+24h
+Mercredi 10h-14h uniquement
+S03
+Pack Decouverte
+10 000 FCFA
+45 min
+48h
+Premiers clients
+S04
+Classic Propre
+18 000 FCFA
+1h
+48h
+Professionnels, Particuliers
+S05
+Pack Signature
+32 000 FCFA
+1h30
+72h
+Premium, executives
+S06
+Corporate LinkedIn
+25 000 FCFA
+45 min
+48h
+Entreprises, professionnels
+S07
+Duo / Couple
+22 000 FCFA
+1h
+48h
+Couples, amis
+S08
+Famille (<=5)
+28 000 FCFA
+1h
+48h
+Familles
+S09
+Groupe Fun
+35 000 FCFA
+1h30
+72h
+Groupes, associations
+S10
+Maternite
+10 000-28 000 FCFA
+1h30
+72h
+Femmes enceintes
+S11
+Bebe / Naissance
+12 000-16 000 FCFA
+1h
+48h
+Nouveau-nes, familles
+S12
+Enfant
+8 000-12 000 FCFA
+45 min
+48h
+Enfants 2-12 ans
+S13
+Anniversaire
+8 000-25 000 FCFA
+1h
+48h
+Toute occasion
+S14
+Fiancailles Decouverte
+25 000 FCFA
+1h30
+72h
+Couples en projet
+S15
+Fiancailles Classic
+35 000 FCFA
+2h
+72h
+Couples en projet
+S16
+Fiancailles Premium
+50 000 FCFA
+3h
+5 jours
+Couples en projet
+S17
+Pre-mariage Decouverte
+40 000 FCFA
+2h
+72h
+Futurs maries
+S18
+Pre-mariage Classic
+60 000 FCFA
+3h
+5 jours
+Futurs maries
+S19
+Pre-mariage Premium
+100 000 FCFA
+Journee
+7 jours
+Futurs maries
+S20
+Event Lite
+80 000 FCFA
+4h
+5 jours
+Entreprises, particuliers
+S21
+Event Standard
+140 000 FCFA
+6h
+7 jours
+Entreprises, mariages
+S22
+Event Premium
+220 000 FCFA
+Journee
+10 jours
+Grandes celebrations
+
+  2.2  Upsells & Services Complementaires
+Service
+Prix
+Conditions
++4 Photos retouchees supplementaires
+10 000 FCFA
+Ajoute a tout pack
+Toile Canvas 20x30 cm
+15 000 FCFA
+Sur commande, livraison +3 jours
+Toile Canvas 30x40 cm
+20 000 FCFA
+Sur commande, livraison +3 jours
+Toile Canvas 40x60 cm
+25 000 FCFA
+Sur commande, livraison +5 jours
+Mini-clip video souvenir (60s)
+15 000 FCFA
+Compatible packs Classic et +
+Bon Cadeau numerique
+10k-50k FCFA
+Valable 6 mois, offrable
+Abonnement Createur Starter
+15 000 FCFA/mois
+1 shooting/mois, 10 photos
+Abonnement Createur Pro
+35 000 FCFA/mois
+3 shootings/mois, 30 photos
+Abonnement Createur VIP
+60 000 FCFA/mois
+Priorite, 5 shootings, usage commercial
+
+  2.3  Services Futurs Phase 2 (M6+)
+Production video (clips, interviews, teasers de fiancailles)
+Infographie et creation de flyers / affiches
+Design de cartes de visite et supports marketing
+Shooting exterieur Douala (plage, Bassin de la Wouri, jardins)
+Photographie aerienne (drone — sous autorisation)
+Formation photo (ateliers mensuels)
+
+  SECTION 3 — CIBLES & PERSONAS
+  3.1  Persona 1 — Cliente Principale (B2C)
+Attribut
+Description
+Nom fictif
+Nadege M.
+Age
+24-35 ans
+Profession
+Employe de bureau, commerante, influenceuse debutante
+Ville
+Douala (Akwa, Bonaberi, Makepe, Bonapriso)
+Appareil
+Smartphone Android (Samsung A-series, Tecno), connexion 4G
+Comportement digital
+Active sur Instagram, WhatsApp, TikTok. Peu presente sur Facebook. Ne sait pas comment naviguer sur un site complexe.
+Motivation
+Avoir de belles photos pour son profil Instagram, marquer un evenement (anniversaire, grossesse, fiancailles)
+Frein principal
+Peur de payer et ne pas savoir ce qu'elle va obtenir. Prefere confirmer via WhatsApp avant d'acheter.
+Canal prefere
+WhatsApp Business, Instagram Stories
+Attente cle
+Voir des exemples du vrai travail, connaitre les prix a l'avance, reserver en 3 clics
+
+  3.2  Persona 2 — Client Corporate (B2B)
+Attribut
+Description
+Nom fictif
+Dieudonné K.
+Age
+30-50 ans
+Profession
+DRH, Responsable Communication, Gerant de PME
+Ville
+Douala (Bonanjo, Akwa, Bonapriso)
+Appareil
+Smartphone + ordinateur portable
+Comportement digital
+LinkedIn, email professionnel, visite des sites avant d'appeler
+Motivation
+Portraits LinkedIn propres pour toute l'equipe, communication professionnelle
+Frein principal
+Budget a justifier en interne, besoin de devis formel et de facture
+Canal prefere
+Email, WhatsApp Business, appel telephone
+Attente cle
+Formulaire de devis detaille, tarif degressif groupe, contrat et facture
+
+  3.3  Persona 3 — Couple Evenementiel (B2C premium)
+Attribut
+Description
+Nom fictif
+Christelle & Paul
+Age
+25-40 ans
+Situation
+Fiancailles prevues dans 2-3 mois, mariage dans 6-12 mois
+Comportement
+Recherchent sur Instagram, comparent plusieurs studios, tres visuels
+Motivation
+Immortaliser les moments de vie importants, avoir des photos dignes d'un magazine
+Frein
+Prix eleves pour le mariage, besoin de voir le portfolio fiancailles/mariage
+Attente cle
+Galerie specialisee Fiancailles/Mariage, pack configurable, consultation gratuite proposee
+
+  3.4  Persona 4 — Administrateur
+Attribut
+Description
+Profil
+Gerant du studio ou assistante administrative
+Competences tech
+Niveau intermediaire : utilise WhatsApp Business, Google Sheets, Canva
+Besoin principal
+Voir toutes les reservations, valider / refuser, modifier le planning
+Contrainte
+Peu de temps disponible : le dashboard doit etre simple et rapide
+Appareil
+Smartphone + tablette ou ordinateur selon disponibilite
+Langue
+Francais exclusivement
+
+
+  SECTION 4 — PARCOURS UTILISATEURS
+  4.1  Parcours Client Complet — Reservation Standard
+Etape
+Action Client
+Action Systeme
+Canal
+1 - Decouverte
+Voit un post Instagram ou un flyer QR code
+—
+Instagram / Offline
+2 - Arrivee site
+Scanne QR code ou clique lien bio Instagram
+Affiche page d'accueil (hero + CTA 'Reserver')
+Navigateur mobile
+3 - Navigation
+Consulte les offres et tarifs
+Page Services avec filtres et grille tarifaire
+Site web
+4 - Visualise portfolio
+Clique sur Portfolio pour voir exemples
+Galerie filtrable par categorie
+Site web
+5 - Choix formule
+Selectionne une offre (ex: Classic 18 000 FCFA)
+Affiche details pack + bouton 'Reserver ce pack'
+Site web
+6 - Choix creneau
+Selecte une date disponible dans le calendrier
+Affiche les creneaux disponibles en temps reel
+Site web
+7 - Formulaire
+Remplit : Nom, Telephone, Email, Notes
+Sauvegarde en base de donnees, statut 'En attente'
+Site web
+8 - Paiement
+Paie l'acompte 50% (Mobile Money ou carte)
+Redirige vers passerelle paiement, creneaux bloque
+Passerelle paiement
+9 - Confirmation auto
+Recoit SMS/WA de confirmation provisoire avec recap
+Envoie WA + email automatique (accusé de reception)
+WhatsApp + Email
+10 - Validation admin
+Attente (max 2h en jours ouvres)
+Admin recoit notification, valide ou refuse
+Dashboard admin
+11 - Confirmation finale
+Recoit WA + email : 'Votre seance est confirmee !'
+Envoi auto avec heure, adresse, conseils de preparation
+WhatsApp + Email
+12 - Rappel J-1
+Recoit rappel la veille a 18h
+Envoi automatique rappel WA + email
+WhatsApp + Email
+13 - Seance
+Se presente au studio
+Gerant prepare le studio selon le planning du jour
+Physique
+14 - Livraison
+Recoit email + lien de telechargement (dans delai annonce)
+Envoi email avec lien securise (valable 7 jours)
+Email
+15 - Suivi J+3
+Recoit message WA de suivi : avis Google + parrainage
+Envoi automatique message post-seance J+3
+WhatsApp
+
+  4.2  Parcours Administrateur — Gestion Reservation
+Etape
+Action Admin
+Action Systeme
+Ecran
+1 - Notification
+Recoit notification push / WA : 'Nouvelle reservation #123'
+Envoi notification instantanee
+Smartphone / Dashboard
+2 - Consultation
+Ouvre le dashboard et consulte les details
+Affiche fiche client complete
+Dashboard
+3 - Verification
+Verifie la disponibilite et le paiement de l'acompte
+Affiche statut paiement (paye / en attente)
+Dashboard
+4 - Decision
+Valide OU refuse avec motif
+Met a jour le statut de la reservation
+Dashboard
+5 - Notification auto
+—
+Envoi auto WA + email au client
+Systeme
+6 - Planning
+Voit la seance ajoutee au calendrier
+Mise a jour automatique du calendrier
+Dashboard / Calendrier
+7 - Preparation
+Consulte la fiche client la veille
+Vue du planning du lendemain
+Dashboard
+8 - Post-seance
+Marque la seance comme 'Realisee'
+Declenche message J+3 automatique
+Dashboard
+9 - Livraison
+Upload les photos livrees dans l'espace client
+Envoi email au client avec lien telechargement
+Dashboard
+
+  4.3  Parcours Client — Demande de Devis Corporate
+Etape
+Action Client
+Action Systeme
+1
+Visite page 'Corporate'
+Affiche l'offre Corporate Day avec tarifs degressifs
+2
+Clique sur 'Demander un devis'
+Affiche formulaire devis (entreprise, nb de personnes, date souhaitee, besoins)
+3
+Remplit et envoie le formulaire
+Stocke la demande, notifie l'admin par WA + email
+4
+Recoit confirmation de reception par WA sous 30 min
+Envoi auto WA : 'Votre demande de devis est bien recue, reponse sous 24h'
+5
+Admin envoie devis personnalise par WA ou email
+Admin utilise template devis depuis le dashboard
+6
+Client accepte et effectue un acompte
+Lien de paiement envoye par WA ou email
+7
+Confirmation mutuelle
+Systeme valide et bloque le creneau
+
+
+  SECTION 5 — USE CASES DETAILLES
+  UC-001  —  CONSULTER LES OFFRES ET TARIFS
+Identifiant
+UC-001
+Acteur principal
+Client
+Objectif
+Visualiser l'ensemble des packs disponibles avec leurs prix, contenu et conditions
+Priorite
+CRITIQUE
+Preconditions
+Le client est sur le site (page Accueil ou Services)
+Flux normal
+1. Le client navigue vers la section 'Nos Packs'
+2. La page affiche tous les services groupes par categorie (Portrait, Famille, Evenement, Maternite, etc.)
+3. Chaque pack affiche : nom, prix, duree seance, nombre de photos livrees, delai
+4. Le client peut filtrer par categorie ou par budget
+5. Le client clique sur 'Voir les details' pour afficher la fiche complete d'un pack
+6. Un bouton 'Reserver ce pack' est affiche sur chaque fiche
+Flux alternatif
+3a. Le client est sur mobile : l'affichage est en liste verticale (une carte par pack)
+5a. Connexion lente : les images chargent en basse resolution (lazy loading)
+Postconditions
+Le client a visualise l'ensemble des offres. Il peut passer a la reservation.
+
+  UC-002  —  RESERVER UNE SEANCE PHOTO
+Identifiant
+UC-002
+Acteur principal
+Client
+Objectif
+Choisir un pack, selectionner une date et valider une reservation
+Priorite
+CRITIQUE
+Preconditions
+Le client a selectionne un pack (UC-001)
+Des creneaux sont disponibles dans le calendrier
+Flux normal
+1. Le client clique sur 'Reserver ce pack'
+2. Le systeme affiche le calendrier des disponibilites
+3. Le client selectionne une date et un creneau horaire
+4. Le systeme affiche le formulaire de reservation (Nom, Prenom, Telephone, Email, Notes speciales)
+5. Le client remplit le formulaire et clique sur 'Continuer'
+6. Le systeme affiche le recapitulatif : pack, date, heure, prix total, acompte a payer (50%)
+7. Le client confirme et est redirige vers le paiement
+Flux alternatif
+3a. Le creneau choisi est deja pris au moment de la validation → afficher un message et proposer d'autres creneaux
+4a. Le client quitte sans valider → ses informations ne sont pas sauvegardees (pas de compte cree)
+5a. Champ email invalide → message d'erreur en temps reel sous le champ
+Postconditions
+La reservation est enregistree avec le statut 'En attente de paiement'. Le creneau est pre-bloque 30 minutes.
+
+  UC-003  —  EFFECTUER LE PAIEMENT DE L'ACOMPTE
+Identifiant
+UC-003
+Acteur principal
+Client
+Objectif
+Payer 50% du montant du pack choisi pour confirmer la reservation
+Priorite
+CRITIQUE
+Preconditions
+La reservation est creee (UC-002)
+Le client a ete redirige vers la page de paiement
+Flux normal
+1. Le systeme affiche la page de paiement securisee avec le montant de l'acompte
+2. Le client choisit son mode de paiement : Mobile Money (MTN, Orange) ou carte bancaire
+3. Le client saisit ses informations de paiement
+4. Le systeme traite la transaction via la passerelle de paiement
+5. Paiement confirme : la reservation passe au statut 'Paiement recu — En attente de validation admin'
+6. Le systeme envoie automatiquement une confirmation provisoire par WhatsApp et email
+Flux alternatif
+4a. Echec du paiement (solde insuffisant, reseau Mobile Money) → message d'erreur + possibility de reessayer ou changer de methode
+4b. Timeout de 30 min depasse → creneau libere, client notifie
+2a. Client ne dispose pas de Mobile Money ni de carte → lien WhatsApp pour paiement manuel coordonne par l'admin
+Postconditions
+Paiement confirme, reservation bloquee, creneau reserve, client et admin notifies.
+
+  UC-004  —  RECEVOIR ET VALIDER UNE RESERVATION (ADMIN)
+Identifiant
+UC-004
+Acteur principal
+Administrateur
+Objectif
+Valider ou refuser une nouvelle reservation recue
+Priorite
+HAUTE
+Preconditions
+Une nouvelle reservation avec paiement confirme est entree dans le systeme
+Flux normal
+1. L'admin recoit une notification WhatsApp et email : 'Nouvelle reservation #ID — [Nom client] — [Pack] — [Date]'
+2. L'admin se connecte au dashboard
+3. Il consulte la fiche reservation : infos client, pack, date, montant paye
+4. Il verifie la disponibilite dans le calendrier
+5. Il clique sur 'Valider'
+6. Le systeme envoie automatiquement un message de confirmation finale au client
+7. Le calendrier est mis a jour
+Flux alternatif
+5a. L'admin refuse (ex: contrainte technique) → saisit le motif → le systeme notifie le client + propose un remboursement ou reprogrammation
+1a. Notification WA non recue → l'admin voit la reservation dans le dashboard en couleur d'alerte
+Postconditions
+Reservation confirmee, client informe, planning a jour. Statut : 'Confirme'.
+
+  UC-005  —  RECEVOIR LES RAPPELS AUTOMATIQUES
+Identifiant
+UC-005
+Acteur principal
+Client
+Objectif
+Etre notifie automatiquement avant la seance
+Priorite
+HAUTE
+Preconditions
+La reservation est confirmee
+La seance est dans moins de 24h
+Flux normal
+1. J-1 a 18h : le systeme envoie automatiquement un rappel WhatsApp au client
+2. Le message rappelle : date, heure, adresse du studio, conseils de preparation (tenue, maquillage)
+3. Le client peut repondre au message WA pour poser une question (renvoye vers l'admin)
+4. J-0 a 8h : envoi optionnel d'un second rappel 'Votre seance est dans quelques heures !'
+Flux alternatif
+1a. Numero WA invalide → envoi email uniquement, flag dans le dashboard pour correction
+Postconditions
+Client rappele, risque de no-show reduit.
+
+  UC-006  —  CONSULTER LE PORTFOLIO
+Identifiant
+UC-006
+Acteur principal
+Client
+Objectif
+Visualiser les exemples de travaux du studio pour prendre sa decision
+Priorite
+HAUTE
+Preconditions
+Le client est sur le site
+Flux normal
+1. Le client navigue vers la section 'Portfolio'
+2. La galerie affiche les photos par categories : Portrait, Maternite, Fiancailles, Corporate, Famille, Anniversaire
+3. Le client peut filtrer par categorie
+4. En cliquant sur une photo, une visionneuse s'ouvre en plein ecran
+5. Sous chaque photo : pack utilise + bouton 'Reserver ce pack'
+6. Un bouton flottant 'Contacter via WhatsApp' est visible a tout moment
+Flux alternatif
+3a. Connexion lente → affichage progressif (lazy loading), images compressees
+Toutes les photos affichees sont accompagnees du consentement client signe
+Postconditions
+Le client a ete convaincu par les exemples. Il peut proceder a la reservation.
+
+  UC-007  —  SOUMETTRE UNE DEMANDE DE DEVIS CORPORATE
+Identifiant
+UC-007
+Acteur principal
+Client Corporate (B2B)
+Objectif
+Obtenir un devis personnalise pour un Corporate Day
+Priorite
+HAUTE
+Preconditions
+Le client visite la page Corporate du site
+Flux normal
+1. Le client remplit le formulaire : Entreprise, Nom du responsable, Telephone, Email, Nombre de personnes, Date souhaitee, Budget indicatif
+2. Le systeme enregistre la demande et notifie l'admin
+3. L'admin recoit WA + email avec les details
+4. Le systeme envoie une confirmation de reception au client dans les 30 minutes
+5. L'admin envoie un devis personnalise sous 24h
+6. Le client accepte et effectue un acompte via lien de paiement
+Flux alternatif
+5a. L'admin ne repond pas sous 24h → relance automatique par email au client
+Postconditions
+Devis envoye et conversation ouverte. Reservation possible a l'etape suivante.
+
+  UC-008  —  ACHETER UN BON CADEAU
+Identifiant
+UC-008
+Acteur principal
+Client
+Objectif
+Offrir une seance photo en bon cadeau numerique
+Priorite
+MOYENNE
+Preconditions
+Le client est sur le site
+Flux normal
+1. Le client navigue vers 'Bons Cadeaux'
+2. Il choisit un montant (10 000 / 20 000 / 32 000 / 50 000 FCFA)
+3. Il remplit : Nom du destinataire, email ou telephone, message personnalise
+4. Il effectue le paiement en ligne
+5. Le systeme genere un bon cadeau PDF au design du studio
+6. Le bon est envoye par email et/ou WhatsApp au destinataire
+7. Le destinataire utilise le code lors de sa reservation
+Flux alternatif
+6a. Email invalide → le bon est envoye uniquement par WA
+Postconditions
+Bon cadeau genere, envoye, utilisable lors d'une reservation.
+
+  UC-009  —  SOUSCRIRE A UN ABONNEMENT CREATEUR
+Identifiant
+UC-009
+Acteur principal
+Client Createur / Influenceur
+Objectif
+Souscrire a une formule mensuelle de shootings recurrents
+Priorite
+MOYENNE
+Preconditions
+Le client a visite la page Abonnements
+Flux normal
+1. Le client consulte les 3 niveaux : Starter 15 000 / Pro 35 000 / VIP 60 000 FCFA/mois
+2. Il clique sur 'Souscrire'
+3. Formulaire : Nom, Telephone, Email, Niveau choisi, Jour prefere dans le mois
+4. Paiement mensuel recurrent (ou manuel mensuel via Mobile Money)
+5. L'admin valide et programme les creneaux mensuels
+6. Le client recoit un email de bienvenue + son planning du mois
+Flux alternatif
+4a. Paiement recurrent non disponible localement → facturation manuelle chaque 1er du mois + notification WA
+Postconditions
+Abonnement actif, planning programme, revenus recurrents garantis.
+
+  UC-010  —  MODIFIER OU ANNULER UNE RESERVATION
+Identifiant
+UC-010
+Acteur principal
+Client
+Objectif
+Reporter ou annuler une seance reservee
+Priorite
+HAUTE
+Preconditions
+Le client a une reservation confirmee
+Flux normal
+1. Le client clique sur le lien 'Modifier ma reservation' dans l'email ou WA de confirmation
+2. Il accede a la fiche de sa reservation (sans login si token unique dans l'URL)
+3. Option A (report) : il choisit un nouveau creneau disponible
+4. Option B (annulation) : il confirme l'annulation et choisit l'option de remboursement
+5. Le systeme applique la politique d'annulation : >48h = remboursement acompte ; <48h = avoir uniquement
+6. Le client et l'admin sont notifies automatiquement
+Flux alternatif
+2a. Token expire → le client doit contacter l'admin via WA
+5a. Litige sur le remboursement → l'admin tranche manuellement depuis le dashboard
+Postconditions
+Reservation modifiee ou annulee, planning mis a jour, client informe.
+
+  UC-011  —  GERER LE PLANNING ET LE CALENDRIER (ADMIN)
+Identifiant
+UC-011
+Acteur principal
+Administrateur
+Objectif
+Visualiser, modifier et exporter le planning des seances
+Priorite
+HAUTE
+Preconditions
+L'admin est connecte au dashboard
+Flux normal
+1. L'admin accede a la vue 'Calendrier' (hebdomadaire ou mensuelle)
+2. Il voit toutes les seances confirmees avec : nom client, pack, heure, duree
+3. Il peut glisser-deposer un creneau pour modifier l'heure (et notifier le client auto)
+4. Il peut bloquer des creneaux (conge, maintenance studio, evenement externe)
+5. Il peut exporter le planning en PDF ou CSV
+Flux alternatif
+3a. Le client n'a pas donne son accord pour le report → systeme envoie une demande de confirmation avant de finaliser
+Postconditions
+Planning jour/semaine/mois toujours a jour et visualisable en un coup d'oeil.
+
+  UC-012  —  LIVRER LES PHOTOS (ADMIN)
+Identifiant
+UC-012
+Acteur principal
+Administrateur
+Objectif
+Envoyer les photos retouchees au client dans le delai annonce
+Priorite
+HAUTE
+Preconditions
+La seance est realisee
+Les photos sont retouchees
+Le delai de livraison est atteint
+Flux normal
+1. L'admin uploade les photos finales dans l'espace de stockage (lien Google Drive ou Wetransfer genere depuis le dashboard)
+2. Il marque la reservation comme 'Photos livrees'
+3. Le systeme envoie automatiquement un email et un WA au client avec le lien de telechargement securise
+4. Le lien est valable 7 jours
+5. J+3 apres la livraison : envoi automatique du message de suivi (avis Google + parrainage)
+Flux alternatif
+4a. Le client n'a pas telecharge dans les 7 jours → envoi d'un rappel automatique J+6
+1a. Taille des photos trop grande → compression automatique en qualite web (max 5 Mo/photo)
+Postconditions
+Client a recu ses photos, satisfaction confirmee, suivi post-seance declenche.
+
+
+  SECTION 6 — FONCTIONNALITES DETAILLEES
+  6.1  Module Vitrine (Front-End Public)
+6.1.1  Page d'Accueil
+Hero section plein ecran : photo premium, tagline principale, 2 CTAs (Reserver / Voir nos packs)
+Section 'Nos Packs' : cartes des 5 packs les plus populaires avec prix, duree, nb photos
+Section 'Pourquoi nous choisir' : 4 arguments visuels (Prix transparents, Livraison 48h, Studio climatise, Photos de qualite)
+Section Portfolio mini-galerie : 6 meilleures photos (lien vers la galerie complete)
+Section Temoignages : 3 avis clients avec photo, nom, pack utilise
+Section Abonnements Createurs : 3 cartes (Starter/Pro/VIP) avec CTA
+Bouton flottant WhatsApp : visible sur toutes les pages, lien wa.me vers le numero pro
+Footer : logo, liens navigation, reseaux sociaux, adresse, horaires, politique de confidentialite
+6.1.2  Page Services & Tarifs
+Presentation en tabs ou accordeons par categorie (Portrait, Famille, Evenement, Maternite, Abonnements)
+Chaque pack : nom, prix, duree, nb photos, options incluses, CTA 'Reserver'
+Tableau comparatif des packs (option desktop)
+Calculateur de prix indicatif (formulaire interactif : type de seance → suggestion de pack)
+Section Bons Cadeaux avec lien de commande
+Mention Happy Hours (mercredi 10h-14h, Flash Social 4 000 FCFA)
+FAQ sur les prix (Puis-je payer en plusieurs fois ? Que se passe-t-il si je suis insatisfait ?)
+6.1.3  Portfolio
+Galerie avec filtres par categorie (Portrait, Maternite, Fiancailles, Corporate, Famille, Anniversaire)
+Grille masonry ou grille uniforme selon design final
+Visionneuse plein ecran (lightbox) avec navigation left/right
+Chaque photo : categorie, pack utilise, CTA 'Reserver ce pack'
+Pagination ou scroll infini (max 50 photos par categorie)
+Toutes les photos doivent etre validees par l'admin avant publication (workflow de moderation)
+Accord de droit a l'image mentionne en pied de galerie
+  6.2  Module Reservation
+Formulaire etape par etape (stepper 4 etapes : Pack > Date > Infos > Paiement)
+Calendrier des disponibilites en temps reel (creneaux libres = vert, bloques = gris)
+Duree de reservation automatiquement calculee selon le pack
+Pre-blocage du creneau 30 minutes a la selection (liberation si paiement non effectue)
+Validation en temps reel des champs obligatoires (nom, telephone camerounais, email)
+Option 'Je veux etre recontacte sur WhatsApp avant de payer' (alternative paiement en ligne)
+Systeme d'options upsell proposes avant paiement (+4 photos, toile, video)
+Recapitulatif final avant paiement (pack, date, heure, montant acompte, politique annulation)
+Confirmation provisoire immediate apres soumission (avant validation admin)
+  6.3  Module Paiement
+
+PASSERELLES DE PAIEMENT REQUISES
+PRIORITAIRE — Mobile Money :
+  - MTN Mobile Money Cameroun (API CinetPay ou Campay)
+  - Orange Money Cameroun (API CinetPay ou Campay)
+COMPLEMENTAIRE — Carte bancaire :
+  - Stripe (international) ou CinetPay (cartes Visa/Mastercard en Afrique)
+MANUEL (backup) :
+  - WhatsApp — l'admin envoie un lien de paiement ou valide apres confirmation de virement
+
+Paiement de l'acompte uniquement (50% du prix total) — le solde est paye en studio
+Page de paiement securisee (HTTPS, token unique, pas de stockage des donnees de carte)
+Confirmation instantanee par email et WhatsApp apres paiement reussi
+Gestion des echecs de paiement : message d'erreur clair + lien WhatsApp de secours
+Tableau de bord admin : voir tous les paiements (date, montant, methode, statut)
+Possibilite d'emettre des remboursements depuis le dashboard (traitement manuel ou automatique)
+Integration avec systeme de facturation simple (export CSV/PDF des transactions mensuel)
+  6.4  Module Notifications
+Declencheur
+Canal
+Destinataire
+Message type
+Delai
+Reservation soumise
+WA + Email
+Client
+Confirmation provisoire avec recapitulatif
+Instantane
+Paiement confirme
+WA + Email
+Admin
+Nouvelle reservation payee — details
+Instantane
+Reservation validee admin
+WA + Email
+Client
+Votre seance est confirmee ! Date, heure, adresse
+Instantane
+Reservation refusee admin
+WA + Email
+Client
+Motif du refus + alternatives proposees
+Instantane
+Rappel J-1 a 18h
+WA + Email
+Client
+Rappel seance demain + conseils preparation
+Automatique
+Rappel J-0 a 8h (optionnel)
+WA
+Client
+Aujourd'hui c'est votre jour Golden Studio !
+Automatique
+Seance realisee
+—
+Admin
+Marquer comme realisee dans le dashboard
+Manuel
+Photos livrees
+WA + Email
+Client
+Vos photos sont pretes — lien telechargement
+Instantane
+Suivi J+3 post-livraison
+WA
+Client
+Avis Google + offre parrainage
+Automatique J+3
+Rappel lien expire (J+6)
+WA + Email
+Client
+Votre lien expire demain — telechargez vos photos
+Automatique
+Abonnement — rappel renouvellement
+WA
+Client
+Votre abonnement expire dans 5 jours
+Automatique J-5
+
+  6.5  Module Back-Office (Dashboard Admin)
+6.5.1  Tableau de Bord Principal
+Vue synthetique : reservations du jour / semaine, CA du mois, nb clients servis, avis Google recents
+Alertes : reservations en attente de validation, paiements en attente, annulations
+Raccourcis rapides : Nouvelle reservation manuelle, Bloquer un creneau, Envoyer un devis
+6.5.2  Gestion des Reservations
+Liste complete des reservations (filtrable par statut : En attente / Confirmee / Realisee / Annulee)
+Fiche reservation complete : infos client, pack, date, montant, statut paiement
+Actions : Valider / Refuser / Reporter / Marquer comme realisee / Livrer
+Reservation manuelle (pour les clients qui payent en especes ou en avance)
+Export CSV des reservations (hebdomadaire, mensuel)
+6.5.3  Calendrier
+Vue hebdomadaire et mensuelle des seances
+Glisser-deposer pour reporter une seance (avec notification auto)
+Bloquer des creneaux (conges, evenements, maintenance)
+Integre avec Cal.com pour la synchronisation des seances
+6.5.4  Gestion Clients & CRM Leger
+Fiche client : historique complet des reservations, montant total depense, nombre de seances
+Labels clients : Nouveau, Regulier, VIP, Abonne
+Export de la liste clients (CSV) pour campagnes WA
+Notes internes admin par client (pas visibles par le client)
+6.5.5  Gestion du Portfolio
+Upload de photos (drag & drop), max 20 Mo par photo, formats JPG/PNG/WEBP
+Attribution de categorie, titre, pack associe
+Statut : Brouillon / Publie — validation avant publication
+Suppression et reordonnancement
+6.5.6  Rapports & Analyses
+Rapport
+Frequence
+Donnees cles
+Bilan hebdomadaire
+Automatique (lundi matin)
+Nb reservations, CA, taux de conversion, nb no-shows
+Bilan mensuel
+Automatique (1er du mois)
+CA total, panier moyen, clients fideles, taux de satisfaction
+Rapport paiements
+Sur demande
+Transactions, remboursements, solde a encaisser en studio
+Rapport portfolio
+Sur demande
+Photos les plus vues, clics vers reservation
+Rapport abonnements
+Sur demande
+Abonnements actifs, revenus recurrents, taux de renouvellement
+
+
+  SECTION 7 — ARCHITECTURE TECHNIQUE
+  7.1  Recommandation CMS / Framework
+Option
+Technologie
+Avantages
+Inconvenients
+Recommandation
+Option A (recommandee)
+WordPress + WooCommerce + plugins (Amelia, WP Fusion)
+Ecosysteme riche, plugins matures, no-code admin, SEO natif, communaute
+Peut etre lent si mal optimise, plugins payants
+OUI — ideal pour Phase 1, evolution simple
+Option B
+Webflow + Memberstack + Zapier
+Design haut de gamme, rapide, CMS integre, mobile-first natif
+Cout mensuel eleve, moins de flexibilite backend
+OUI si budget design prioritaire
+Option C
+Next.js (React) + Supabase/Firebase + Stripe
+Performances maximales, totale liberte, PWA possible
+Necessite developpeur experimente, plus couteux a construire
+Recommande Phase 2 si scalabilite critique
+
+
+CHOIX RECOMMANDE POUR PHASE 1
+WordPress + Amelia (reservations) + WooCommerce (paiements) + CinetPay (Mobile Money)
+
+Justification :
+- Amelia : plugin de reservation professionnel, calendrier, notifications, back-office inclus
+- WooCommerce : gestion paiements, produits, commandes, intégration CinetPay/Campay
+- Administration en francais, interface simple pour l'admin non-technique
+- Hebergement recommande : o2switch (France, RGPD, support francophone, 5 euros/mois)
+- Alternative locale : Camtel Hosting ou Afrihost Cameroun
+
+  7.2  Stack Technique Detaillee
+Couche
+Technologie
+Role
+Frontend
+WordPress + theme Enfant (Elementor Pro ou Divi)
+Interface utilisateur, pages publiques
+Reservation
+Amelia Booking Plugin (ou Simply Schedule)
+Calendrier, creneaux, formulaires, notifications
+Paiement Local
+CinetPay ou Campay (MTN MoMo + Orange Money + Visa)
+Passerelle paiement Cameroun
+Paiement International
+Stripe (optionnel Phase 2)
+Cartes internationales diaspora
+Notifications WA
+WhatsApp Business API (via Twilio ou WA Cloud API directe)
+Messages automatiques WA
+Notifications Email
+SMTP (Gmail App Password ou Brevo/ex-Sendinblue gratuit)
+Emails transactionnels
+CRM Leger
+Google Sheets + Zapier (Phase 1) / HubSpot Free (Phase 2)
+Gestion clients, export leads
+Calendrier
+Cal.com event type + API booking sync
+Planning studio
+Analytics
+Google Analytics 4 + Google Tag Manager
+Mesure des performances
+SEO
+Yoast SEO Plugin + Google Search Console
+Referencement local
+Securite
+SSL Let's Encrypt + Wordfence + Cloudflare CDN
+HTTPS, anti-intrusion, performance
+Hebergement
+o2switch ou Infomaniak (RGPD-compatible)
+Serveur web, base de donnees
+Stockage photos
+Google Drive API ou AWS S3 (livraison) / MediaCloud WP (portfolio)
+Stockage et livraison photos
+
+  7.3  API & Integrations Cles
+7.3.1  API WhatsApp Business
+Fournisseur recommande : Twilio (fiable, documentation FR) ou Meta WhatsApp Cloud API (gratuit jusqu'a 1 000 conversations/mois)
+Templates de messages pre-approuves par Meta : confirmation reservation, rappel J-1, livraison photos, suivi J+3
+Webhook pour recevoir les reponses clients dans le dashboard admin
+Bouton 'Contacter via WhatsApp' sur toutes les pages (wa.me link avec message pre-rempli)
+Integration Zapier pour declencher les messages WA selon les evenements WordPress/Amelia
+7.3.2  API Paiement Mobile Money
+CinetPay (recommande) : supporte MTN MoMo + Orange Money + Cartes Visa/Mastercard
+Alternative : Campay.in (API simple, documentation claire, Cameroun natif)
+Flow paiement : clic 'Payer' → redirection page paiement securisee → retour site avec statut → notification admin
+Webhook de confirmation instantanee (ne pas attendre uniquement le retour utilisateur)
+Page de succes et d'echec distinctes avec messages clairs en francais
+7.3.3  Google Services
+Google Analytics 4 : mesure du trafic, comportement, conversions (reservation = evenement cle)
+Google Search Console : suivi du referencement, corrections d'erreurs
+Google My Business API : synchronisation des avis et horaires
+Cal.com API : synchronisation des reservations avec le planning studio
+Google Drive API : stockage securise et partage des albums clients
+  7.4  Performance & Contraintes Locales
+
+EXIGENCES PERFORMANCE — CONTEXTE CAMEROUN
+Score Google PageSpeed mobile : >= 80 / 100
+Temps de chargement initial : < 3 secondes sur connexion 4G
+Images : format WebP, compression 80%, lazy loading systematique
+Poids page d'accueil : < 2 Mo
+Mode offline partiel : page de reservation cachee localement (PWA optionnel)
+Pas de videos auto-play (consommation data)
+CDN Cloudflare gratuit obligatoire (serveurs en Afrique du Sud disponibles)
+Design mobile-first : 80%+ des visiteurs sur smartphone Android
+Police systeme en fallback (pas de chargement de 5+ polices custom)
+
+  7.5  Securite
+SSL/HTTPS obligatoire sur toutes les pages (Let's Encrypt ou certificat payant)
+Aucune donnee de carte bancaire stockee sur le serveur (tokenisation via CinetPay/Stripe)
+Connexion admin : authentification a 2 facteurs (2FA recommande)
+Sauvegardes automatiques quotidiennes de la base de donnees (plugin UpdraftPlus)
+Protection anti-brute-force sur la page de connexion admin
+En-tetes de securite HTTP (CSP, HSTS, X-Frame-Options)
+Audit de securite avant mise en production (Wordfence Scan + test manuel)
+
+  SECTION 8 — CHARTE GRAPHIQUE & UX
+  8.1  Identite Visuelle — Application Web
+Element
+Specification
+Usage
+Couleur Primaire
+Or #C5923A
+CTAs principaux, badges prix, titres hero, separateurs
+Couleur Or Claire
+Or lumiere #D4AF37
+Hover CTAs, accents decoratifs, icones premium
+Couleur Secondaire
+Teal #2A7B88
+Header, footer, boutons secondaires, barre de navigation
+Couleur Tertiaire
+Vert foret #2C4A3E
+Sections textuelles, accordeons, backgrounds dark
+Fond Principal
+Creme #FFF8E7
+Background pages claires, cartes de pack
+Fond Sombre
+Noir luxe #1A1A1A
+Hero section, sections premium
+Texte Principal
+Gris sombre #2D3748
+Corps de texte, descriptions
+Texte Secondaire
+Gris moyen #4A5568
+Metadata, mentions, footers
+
+  8.2  Typographie Web
+Police
+Usage web
+Taille
+Fallback
+Playfair Display
+H1, titres de sections, headlines
+32-48px desktop / 24-32px mobile
+Georgia, serif
+Montserrat
+Navigation, corps de texte, boutons, labels
+14-16px corps / 10-12px labels
+Arial, sans-serif
+Great Vibes
+Tagline hero, mots emotionnels (1 par section)
+28-36px
+Cursive
+Systeme (fallback)
+Zones a chargement critique (mobile lent)
+Identique ci-dessus
+Arial, sans-serif
+
+  8.3  Mobile-First — Principes UX
+Navigation : menu hamburger sur mobile, sticky header avec logo + bouton WA visible en permanence
+Hero section : texte court (max 10 mots), photo portrait, 1 seul CTA principal (bouton grand format >= 44px hauteur)
+Grille tarifaire : sur mobile = liste verticale une carte par pack, pas de tableau horizontal
+Formulaire de reservation : 1 champ par ecran, stepper visible, clavier numerique sur champ telephone
+Calendrier : version simplifiee mobile (liste des prochains creneaux disponibles plutot que grille mensuelle)
+Images : chargement progressif, pas de slider auto-play, galerie en grille 2 colonnes sur mobile
+Bouton WhatsApp flottant : coin inferieur droit, taille >= 56px, toujours visible sur mobile
+Temps de telechargement : chaque page < 3 secondes sur 4G (exige avant mise en production)
+Pas de pop-up intrusif sur mobile (interdit Google Mobile Usability)
+  8.4  Wireframes — Structure des Pages Cles
+Page
+Sections (de haut en bas)
+Accueil
+Header fixe | Hero (photo + CTA) | Packs populaires | Portfolio mini | Temoignages | Abonnements | Footer
+Services & Tarifs
+Header | Hero section service | Tabs categories | Grille packs | Upsells | Bons cadeaux | FAQ | Footer
+Portfolio
+Header | Hero | Filtres categories | Galerie masonry | Visionneuse lightbox | CTA reservation | Footer
+Reservation
+Header | Stepper 4 etapes | Pack > Date > Infos > Paiement | Recapitulatif | Confirmation | Footer
+A Propos
+Header | Hero histoire | Valeurs | Photos studio | Equipe | Engagement qualite | Footer
+Corporate
+Header | Hero B2B | Offre Corporate Day | Formulaire devis | Temoignages entreprises | Footer
+Contact
+Header | Infos pratiques | Formulaire contact | Carte Google Maps | Bouton WA | Footer
+Dashboard Admin
+Sidebar | Vue d'ensemble | Reservations | Calendrier | Clients | Portfolio | Rapports | Parametres
+
+
+  SECTION 9 — ASPECTS LEGAUX
+  9.1  Droit a l'Image
+
+OBLIGATIONS LEGALES — DROIT A L'IMAGE
+Base legale : Article 226-1 du Code Penal francais (applicable par analogie au Cameroun),
+Loi camerounaise sur les droits de la personnalite.
+
+PRINCIPES :
+1. Toute photo d'une personne identifiable publiee sur le site DOIT faire l'objet d'une autorisation ecrite.
+2. Le consentement doit specifier : l'usage (web, reseaux sociaux, presse), la duree, les supports.
+3. Le consentement est revocable a tout moment — Golden Studio Plus doit retirer la photo dans les 48h.
+4. Les photos de mineurs necessitent l'accord explicite des 2 parents (ou tuteur legal).
+
+9.1.1  Formulaire de Consentement Droit a l'Image (integre au processus de reservation)
+Le formulaire de reservation doit inclure, sur la page recapitulatif avant paiement, une case a cocher distincte (non pre-cochee) :
+
+TEXTE DE LA CLAUSE DE CONSENTEMENT
+[ ] J'autorise Golden Studio Plus a utiliser certaines photos de ma seance (sans mention de mon
+    nom ni informations personnelles) a des fins de communication sur son site web, ses reseaux
+    sociaux (Instagram, Facebook, TikTok) et ses supports marketing (flyers, affiches).
+
+Cette autorisation est valable pour une duree de 2 ans a compter de la date de la seance.
+Je peux retirer mon consentement a tout moment en envoyant un message WhatsApp au studio.
+
+[ ] Je refuse que mes photos soient utilisees a des fins de communication.
+    (Ma reservation sera traitee normalement — le refus n'entraine aucun surcut ni avantage.)
+
+9.1.2  Gestion dans le Dashboard Admin
+Chaque fiche client indique clairement : 'Droit a l'image : Accorde / Refuse / Non specifie'
+Le systeme empeche l'admin de publier dans le portfolio une photo d'un client ayant refuse
+Export possible de la liste des clients ayant accorde leur autorisation
+  9.2  Protection des Donnees Personnelles (RGPD-compatible)
+Le Cameroun ne dispose pas encore d'une loi specifique sur la protection des donnees personnelles au moment de la redaction de ce document. Toutefois, Golden Studio Plus s'engage a appliquer les principes du RGPD europeen par precaution et pour maintenir la confiance des clients.
+Principe
+Application concrete
+Minimisation des donnees
+Ne collecter que : nom, telephone, email, date de naissance (optionnel). Pas de copie CNI sauf si exige.
+Finalite limitee
+Les donnees collectees ne servent qu'a la gestion des reservations et communications liees.
+Droit d'acces
+Tout client peut demander la liste de ses donnees par WA. Reponse obligatoire sous 30 jours.
+Droit a l'effacement
+Tout client peut demander la suppression de son compte et donnees. Conserve uniquement les donnees comptables (5 ans).
+Droit a la portabilite
+Possibilite d'exporter les donnees du client en CSV sur demande.
+Securite
+Donnees chiffrees en base de donnees, acces admin protege par mot de passe fort + 2FA.
+Sous-traitants
+Lister les sous-traitants : CinetPay, Twilio, Google (Analytics), Amelia. Mentionner dans la politique de confidentialite.
+
+  9.3  Pages Legales Obligatoires
+Mentions Legales : Denomination sociale, adresse, responsable de publication, hebergeur, numero de registre du commerce
+Politique de Confidentialite : Donnees collectees, finalites, duree de conservation, droits des utilisateurs, contact DPO
+Conditions Generales de Vente (CGV) : Prix, modalites de paiement, politique d'annulation et remboursement, delais de livraison, litiges
+Politique de Cookies : Types de cookies utilises (analytiques, fonctionnels), consentement obligatoire
+  9.4  Politique d'Annulation & Remboursement
+Delai avant seance
+Annulation par client
+Annulation par le studio
+Report
+> 72h
+Remboursement acompte a 100%
+Remboursement 100% + bon equivalent offert
+Gratuit, 1 fois
+48h-72h
+Remboursement acompte a 50%
+Remboursement 100% + bon equivalent offert
+Gratuit, 1 fois
+24h-48h
+Avoir 100% (bon valable 3 mois)
+Remboursement 100% + bon equivalent offert
+Selon disponibilite
+< 24h
+Aucun remboursement / Avoir 50%
+Remboursement 100% + session gratuite offerte
+Selon disponibilite
+No-show
+Aucun remboursement
+—
+Non applicable
+
+
+  SECTION 10 — PLAN DE DEVELOPPEMENT
+  10.1  Phases de Developpement
+Phase
+Periode
+Livrable
+Technologies
+Phase 0 — Setup
+Semaine 1
+Hebergement, domaine, SSL, WordPress installe, theme de base
+o2switch / Infomaniak, WordPress, Elementor
+Phase 1A — Vitrine
+Semaines 2-3
+Pages : Accueil, Services, Portfolio, A propos, Contact. Design brand book.
+Elementor Pro, ACF, Yoast SEO
+Phase 1B — Reservation
+Semaines 3-4
+Systeme de reservation fonctionnel, calendrier, formulaires, notifications email
+Reservation API interne, SMTP, Cal.com sync
+Phase 1C — Paiement
+Semaines 4-5
+Paiement Mobile Money + carte, webhooks, remboursements
+WooCommerce, CinetPay / Campay
+Phase 1D — WhatsApp
+Semaine 5
+Notifications WA automatiques (confirmation, rappel J-1, livraison)
+Twilio WA API ou Meta Cloud API, Zapier
+Phase 1E — Dashboard Admin
+Semaines 5-6
+Back-office complet : reservations, planning, clients, portfolio, rapports
+Amelia Admin + Custom WP Admin
+Phase 1F — Tests & Optimisation
+Semaine 6-7
+Tests complets, optimisation performance, SEO de base, lancement beta
+PageSpeed, Wordfence, GTMetrix
+Phase 1G — Mise en Production
+Semaine 7-8
+Lancement officiel, formation admin, documentation
+—
+Phase 2 — Espace Client
+M3-M4
+Login client, historique, telechargement photos, fidelite
+WooCommerce Memberships, Memberpress
+Phase 3 — Video & Services Creatifs
+M5-M6
+Pages Video / Infographie / Flyers. Portfolio video. Devis en ligne.
+Extensions WooCommerce, Player video
+
+  10.2  Budget Estimatif
+
+IMPORTANT
+Les tarifs ci-dessous sont des estimations basees sur des prestataires francophones (Afrique/France).
+Les prix reels dependent du profil du prestataire choisi (freelance Douala, agence web, freelance international).
+
+Poste
+Option Economique
+Option Standard
+Option Premium
+Nom de domaine (.com ou .studio)
+15 000 FCFA/an
+15 000 FCFA/an
+15 000 FCFA/an
+Hebergement web (1 an)
+30 000 FCFA/an
+55 000 FCFA/an
+90 000 FCFA/an
+Theme WordPress Premium
+0 (theme gratuit)
+30 000 FCFA (achat)
+50 000 FCFA (Enfant custom)
+Plugin Amelia Booking
+0 (version free)
+75 000 FCFA/an
+75 000 FCFA/an
+Plugin WooCommerce + CinetPay
+0 (open source)
+0 + 1-2% par transaction
+0 + 1-2% par transaction
+API WhatsApp (Twilio)
+0 (gratuit/mois 1)
+~15 000 FCFA/mois
+~30 000 FCFA/mois
+Design UX/UI (maquettes)
+0 (si theme)
+100 000-200 000 FCFA
+300 000+ FCFA
+Developpement (integration totale)
+150 000-300 000
+400 000-700 000 FCFA
+1 000 000+ FCFA
+Formation admin
+0 (auto-formation)
+Inclus dans developpement
+Inclus + support 3 mois
+Maintenance annuelle
+0 (auto)
+50 000-100 000/an
+150 000+/an
+TOTAL LANCEMENT
+~200 000 FCFA
+~700 000-1 000 000 FCFA
+~1 500 000+ FCFA
+
+  10.3  Criteres de Choix du Prestataire
+Maitrise de WordPress + WooCommerce + Amelia prouvee (references demandees)
+Experience avec les API de paiement Mobile Money africaines (CinetPay ou Campay)
+Connaissance du contexte web mobile africain (performance, 4G)
+Disponibilite pour la formation de l'admin et le support post-lancement (3 mois minimum)
+Remise des codes sources, acces hebergement et noms de domaine (jamais garder en otage)
+Contrat clair avec jalons, conditions de paiement et garanties
+
+  SECTION 11 — KPIS & INDICATEURS DE SUCCES
+  11.1  KPIs Site Web
+KPI
+Objectif M1
+Objectif M3
+Objectif M6
+Outil de mesure
+Visites/mois
+300
+1 000
+3 000
+Google Analytics 4
+Taux de rebond
+< 60%
+< 50%
+< 40%
+GA4
+Duree moyenne session
+> 1 min
+> 2 min
+> 3 min
+GA4
+Taux conversion (visite→resa)
+> 3%
+> 5%
+> 8%
+GA4 + Amelia
+Reservations/mois
+10+
+30+
+60+
+Amelia Dashboard
+CA genere par le site
+100k FCFA
+500k FCFA
+1,5M FCFA
+Amelia + CinetPay
+Score Google PageSpeed mobile
+> 70
+> 80
+> 85
+Google PageSpeed
+Avis Google obtenus (cumule)
+10
+25
+50
+Google My Business
+Leads WhatsApp/mois
+20+
+50+
+100+
+WA Business stats
+Abonnements actifs
+2
+8
+20
+WooCommerce
+
+  11.2  Definition du Succes a 6 Mois
+
+CRITERES DE SUCCES GLOBAL
+Le site est considere comme un succes a 6 mois si :
+
+MINIMUM (seuil de viabilite) :
+  - >= 60 reservations/mois generees via le site
+  - Systeme de paiement Mobile Money fonctionnel a 100%
+  - 100% des clients notifies automatiquement (WA + email)
+  - Aucune faille de securite critique detectee
+
+CIBLE (succes confirme) :
+  - CA mensuel issu du site >= 1 500 000 FCFA
+  - Taux de conversion visite → reservation >= 5%
+  - 50+ avis Google 5 etoiles
+  - Admin gere 90% des taches depuis le dashboard (sans passer par WhatsApp manuel)
+
+EXCELLENCE (croissance acceleree) :
+  - 20+ abonnements createurs actifs
+  - Site reference en Top 3 Google 'studio photo Douala'
+  - Phase 2 (espace client) lancee avant M9
+
+
+  SECTION 12 — ANNEXES
+  12.1  Glossaire
+Terme
+Definition
+Acompte
+50% du prix total, paye en ligne a la reservation pour bloquer le creneau
+Amelia
+Plugin WordPress de gestion des reservations et du calendrier
+API
+Interface de Programmation — permet a deux logiciels de communiquer
+CinetPay
+Passerelle de paiement africaine supportant Mobile Money et cartes bancaires
+CMS
+Systeme de Gestion de Contenu (ex: WordPress)
+CRM
+Gestion de la Relation Client — suivi des clients et leads
+Mobile Money
+Paiement via telephone sans compte bancaire (MTN MoMo, Orange Money)
+Mobile-first
+Conception priorisant l'affichage et l'usage sur smartphone
+No-show
+Client absent a sa seance sans prevenir
+PWA
+Progressive Web App — site web avec fonctionnalites d'application mobile
+RGPD
+Reglement General sur la Protection des Donnees (europeen, reference mondiale)
+SEO
+Optimisation pour les moteurs de recherche (Google)
+Stepper
+Interface de formulaire multi-etapes avec indicateur de progression
+Token
+Code unique et temporaire permettant d'identifier une action secuirisee
+Webhook
+Notification automatique envoyee d'un systeme a un autre lors d'un evenement
+WhatsApp Business API
+Version professionnelle de WhatsApp permettant l'envoi automatique de messages
+
+  12.2  Ressources & Liens Utiles
+Brand Book Golden Studio Plus :  https://www.genspark.ai/api/files/s/goB3QizD
+Strategie Marketing Complete :  https://www.genspark.ai/api/files/s/C6FvNWqv
+Plan de Lancement J-30 a J7 :  https://www.genspark.ai/api/files/s/snNLGI05
+Plan Post-Lancement S2 a M3 :  https://www.genspark.ai/api/files/s/BlCFzN4q
+API CinetPay (documentation) :  https://docs.cinetpay.com
+API Campay (documentation) :  https://docs.campay.net
+Amelia Booking Plugin :  https://wpamelia.com
+Twilio WhatsApp API :  https://www.twilio.com/whatsapp
+Meta WhatsApp Cloud API :  https://developers.facebook.com/docs/whatsapp
+Google Analytics 4 :  https://analytics.google.com
+Google PageSpeed Insights :  https://pagespeed.web.dev
+  12.3  Checklist de Validation Avant Mise en Production
+CHECKLIST — SECURITE
+[ ]  HTTPS / SSL actif sur toutes les pages
+[ ]  Mot de passe admin fort + 2FA active
+[ ]  Sauvegarde automatique testee et fonctionnelle
+[ ]  Aucune donnee de paiement stockee sur le serveur
+[ ]  Scan Wordfence sans alerte critique
+CHECKLIST — FONCTIONNEL
+[ ]  Reservation complete testee end-to-end (de la visite au paiement)
+[ ]  Paiement Mobile Money MTN teste avec vrai numero
+[ ]  Paiement Orange Money teste avec vrai numero
+[ ]  Notification WhatsApp recue apres reservation
+[ ]  Email de confirmation recu apres reservation
+[ ]  Rappel J-1 envoye automatiquement (test avec date proche)
+[ ]  Formulaire de refus/annulation fonctionnel
+[ ]  Dashboard admin : validation/refus de reservation fonctionnel
+[ ]  Politique d'annulation appliquee correctement
+CHECKLIST — LEGAL
+[ ]  Page Mentions Legales publiee
+[ ]  Page Politique de Confidentialite publiee
+[ ]  CGV publiees et accessibles depuis le panier
+[ ]  Consentement droit a l'image : case a cocher presente et non pre-cochee
+[ ]  Bandeau cookies (consentement) fonctionnel
+[ ]  Aucune photo publiee sans accord client
+CHECKLIST — PERFORMANCE
+[ ]  Google PageSpeed mobile >= 70
+[ ]  Chargement page d'accueil < 3 secondes (test 4G simule)
+[ ]  Toutes les images en format WebP ou compressees
+[ ]  Lazy loading actif sur les images
+[ ]  CDN Cloudflare configure
+CHECKLIST — SEO & ANALYTICS
+[ ]  Google Analytics 4 installe et evenements de base configures
+[ ]  Google Search Console site verifie
+[ ]  Balises meta title et description sur toutes les pages
+[ ]  Google My Business mis a jour avec lien vers le site
+CHECKLIST — MOBILE
+[ ]  Test sur iPhone (Safari) : toutes les pages OK
+[ ]  Test sur Android (Chrome) : toutes les pages OK
+[ ]  Bouton WhatsApp flottant visible sur mobile
+[ ]  Formulaire de reservation utilisable sur petit ecran
+[ ]  Calendrier utilisable sur mobile
+
+
+NOTES FINALES — RECOMMANDATIONS POUR L'EQUIPE DE DEVELOPPEMENT
+1. PRIORITE ABSOLUE : Le systeme de paiement Mobile Money doit fonctionner avant toute mise en production.
+   C'est le differentiateur cle vs. les concurrents qui n'acceptent que le cash.
+
+2. NE PAS OUBLIER : Le bouton WhatsApp flottant est aussi important que le bouton 'Reserver'.
+   50%+ des conversions proviendront de WhatsApp, surtout en phase de decouverte.
+
+3. MOBILE-FIRST : Tester CHAQUE page sur un vrai smartphone Android (pas uniquement en simulateur).
+   Le site vivra sur les ecrans des clients a 80%.
+
+4. SIMPLE > COMPLEXE : En cas de doute sur une fonctionnalite, choisir l'option la plus simple.
+   Un client camerounais sur mobile veut reserver en moins de 3 minutes.
+
+5. SECURITE DU CONTENU : Ne jamais mettre en ligne une photo sans avoir verifie le droit a l'image.
+   Une seule plainte peut couter plus que le budget du site.
+
+6. EVOLUTIVITE : Coder de facon modulaire. La Phase 2 (espace client, video, infographie) arrivera.
+   Prevoir les hooks et points d'extension des maintenant.
+
+
+Cahier des Charges — Site Web Golden Studio Plus | Version 1.0 | Avril 2026 | Document Confidentiel
