@@ -23,6 +23,13 @@ This matrix is the release contract for the July 2026 remediation. An item is co
 | 9 | Complete | July 2026 legal/editorial publication deployed and verified; see [Phase 9 report](phase-9-legal-editorial-2026-07-24.md). |
 | 10 | Complete | Performance budgets, private static masters, route splitting, crawlable route metadata/schema and reduced-motion safeguards deployed and verified; see [Phase 10 report](phase-10-performance-seo-2026-07-24.md). |
 | 11 | Complete | Security boundary, proxy trust, headers/CSP, CORS, sessions, throttling, honeypots, upload limits, safe errors and dependency evidence deployed and verified; see [Phase 11 report](phase-11-security-hardening-2026-07-24.md). |
+| 12 | Complete | Recoverable baseline, protected credentials without owner-prohibited rotation, private Git baseline and split QA harness; see `phase-12-baseline-secrets-source-control-2026-07-25.md`. |
+| 13 | Complete | All supplied service media and canonical logo derivatives published with protected manifests; see `phase-13-14-media-social-sharing-2026-07-25.md`. |
+| 14 | Complete | Official Facebook/Instagram, distinct business actions and cross-platform sharing metadata deployed; see `phase-13-14-media-social-sharing-2026-07-25.md`. |
+| 15 | Complete with reviewed exception | Runtime/tooling separation, client-only guard and indexing policy complete; React Router RSC-only exception expires 2026-08-25; see `phase-15-dependencies-indexing-qa-2026-07-25.md`. |
+| 16 | Complete for e-mail; WhatsApp deferred | Historical dead letters classified and fresh exactly-once SMTP delivery provider-accepted; see `phase-16-email-outbox-2026-07-25.md`. |
+| 17 | Complete except external payment proof | Real-browser production flows and terminal cleanup reconciled; legitimate payment/Cal.com lifecycle awaits operator sandbox or owner-authorized transaction; see `phase-17-production-acceptance-2026-07-25.md`. |
+| 18 | Pending external/root evidence | All automated matrices pass; Nginx hash sync, mailbox receipt and legitimate payment/calendar evidence remain; see `phase-18-non-legal-readiness-2026-07-25.md`. |
 
 ## Critical findings
 
@@ -30,7 +37,7 @@ This matrix is the release contract for the July 2026 remediation. An item is co
 |---|---|---:|---|
 | C-01 | Public and admin appointment times differ by two hours | 1–2 | One UTC instant displays as the same Douala time in public UI, admin UI, email and calendar. Test browsers in Douala, UTC and Europe/Berlin, including midnight boundaries. |
 | C-02 | Payment reference changes between booking steps and admin | 1–2 | The server creates one unique reference before payment; payment instructions, confirmation, API, database, notifications and admin all reuse it. Idempotent retries cannot create another. |
-| C-03 | Transactional emails fail SMTP authentication | 4 | Delivery works through an idempotent outbox; failures expose a safe error, retry with backoff and cannot duplicate a delivered message. Production provider activation is deferred. |
+| C-03 | Transactional emails fail SMTP authentication | 4 | Delivery works through an idempotent outbox; failures expose a safe error, retry with backoff and cannot duplicate a delivered message. Provider acceptance is proven; owner mailbox receipt remains pending. |
 | C-04 | Admin availability blocks do not reliably affect public slots | 1–2 | Douala-time block create/edit/delete immediately changes public availability; transactional overlap checks prevent concurrent bypass. |
 
 ## High findings
@@ -87,14 +94,17 @@ This matrix is the release contract for the July 2026 remediation. An item is co
 - Rejection, cancellation, rescheduling, refund and restoration require a recorded reason.
 - Calendar/notification failure is visible and retryable but cannot silently rewrite business status.
 
-## Deferred production inputs
+## Deferred or externally gated inputs
 
-Implementation must provide safe feature flags and documentation, but these inputs are intentionally deferred until after Phase 11:
+The following do not authorize invented data or synthetic production verification:
 
-- SMTP provider credentials
-- WhatsApp Business account, credentials, webhook secret and templates
-- Official LinkedIn URL
-- Complete legal company particulars
-- Final publication approval for supplied images
+- WhatsApp Business account, credentials, webhook secret, approved templates and consented test number: deferred by owner.
+- Official LinkedIn company URL: remains hidden until supplied.
+- Complete Golden Studio Plus legal-company particulars: deferred by owner and excluded from non-legal readiness.
+- Operator sandbox or owner-authorized real mobile-money transaction: required for genuine payment verification and dependent Cal.com lifecycle proof.
+- Owner mailbox access: required only to confirm human receipt of the already provider-accepted QA messages.
+- Root privilege: required to copy the versioned Nginx file and reload Nginx with the current JSON-LD CSP hash.
 
-The canonical host is confirmed now as https://gsplus.vip.
+SMTP delivery, supplied-image approval, the canonical logo, Facebook/Instagram publication and the kernel reboot are complete.
+
+The canonical host is https://gsplus.vip.

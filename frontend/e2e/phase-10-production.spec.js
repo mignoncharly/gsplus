@@ -35,6 +35,14 @@ test('all indexable routes return unique crawlable metadata in raw HTML', async 
 
     expect(html, route).toContain(`<link rel="canonical" href="${canonical}"`);
     expect(html, route).toContain(`<meta property="og:url" content="${canonical}"`);
+    expect(html, route).toContain('<meta property="og:type" content="website"');
+    expect(html, route).toContain('<meta property="og:image" content="https://gsplus.vip/images/og-golden-studio-plus-2026.jpg"');
+    expect(html, route).toContain('<meta property="og:image:secure_url" content="https://gsplus.vip/images/og-golden-studio-plus-2026.jpg"');
+    expect(html, route).toContain('<meta property="og:image:type" content="image/jpeg"');
+    expect(html, route).toContain('<meta property="og:image:width" content="1200"');
+    expect(html, route).toContain('<meta property="og:image:height" content="630"');
+    expect(html, route).toContain('<meta name="twitter:card" content="summary_large_image"');
+    expect(html, route).toContain('<meta name="twitter:image" content="https://gsplus.vip/images/og-golden-studio-plus-2026.jpg"');
     expect(html, route).toContain('<script id="local-business-schema" type="application/ld+json">');
     expect(html, route).toMatch(/<h1>[^<]+<\/h1>/);
     expect(html, route).toContain('index, follow, max-image-preview:large');
@@ -46,6 +54,17 @@ test('all indexable routes return unique crawlable metadata in raw HTML', async 
 
   expect(titles.size).toBe(routes.length);
   expect(descriptions.size).toBe(routes.length);
+});
+
+test('production footer publishes the official social profiles and a working share action', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('link', { name: 'Suivre Golden Studio Plus sur Facebook' }))
+    .toHaveAttribute('href', 'https://www.facebook.com/people/Golden-Studio-Plus/61574353412752/');
+  await expect(page.getByRole('link', { name: 'Suivre Golden Studio Plus sur Instagram' }))
+    .toHaveAttribute('href', 'https://www.instagram.com/goldenstudioplus/');
+  await expect(page.getByRole('link', { name: 'Suivre Golden Studio Plus sur LinkedIn' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Partager le site Golden Studio Plus' })).toBeVisible();
 });
 
 test('private, missing, redirect, asset, and master privacy contracts hold in production', async ({ request }) => {

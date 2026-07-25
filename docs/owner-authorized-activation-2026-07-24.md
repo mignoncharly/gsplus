@@ -2,7 +2,7 @@
 
 Date: 2026-07-24 UTC
 
-Status: Application activation complete; image publication, Zoho SMTP activation and verified hosting disclosure are live. WhatsApp, social links, Turnstile and Golden Studio Plus legal particulars are deferred. The authorized kernel reboot remains pending.
+Status: Historical activation record. Current status is governed by `phase-18-non-legal-readiness-2026-07-25.md`: image publication, Zoho SMTP, hosting disclosure, official Facebook/Instagram and the kernel reboot are complete; WhatsApp, LinkedIn, Turnstile and Golden Studio Plus legal particulars remain deferred or unavailable.
 
 ## Authorization
 
@@ -47,7 +47,7 @@ Turnstile was deferred as optional. The backend secret and frontend site key are
 
 ### Official social URLs
 
-The owner deferred social-link publication for later. No placeholder link is published.
+Official Facebook and Instagram profiles are now configured and published. LinkedIn remains hidden until an official company URL is supplied. See `phase-13-14-media-social-sharing-2026-07-25.md`.
 
 ### Legal company particulars
 
@@ -55,7 +55,7 @@ The owner explicitly deferred Golden Studio Plus legal form, share capital, RCCM
 
 ### Kernel reboot
 
-The owner authorized the reboot, but it remains intentionally last so deployment and provider checks can finish first. After all available activations pass, reboot the server into the installed kernel and verify Nginx, PostgreSQL and `goldenstudioplus-backend` return healthy.
+The reboot is complete. The active kernel captured on 2026-07-25 is `6.8.0-136-generic`; Nginx, PostgreSQL and `goldenstudioplus-backend` are active.
 
 ## Recovery evidence
 
