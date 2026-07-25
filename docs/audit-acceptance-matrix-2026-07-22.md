@@ -29,7 +29,7 @@ This matrix is the release contract for the July 2026 remediation. An item is co
 | 15 | Complete with reviewed exception | Runtime/tooling separation, client-only guard and indexing policy complete; React Router RSC-only exception expires 2026-08-25; see `phase-15-dependencies-indexing-qa-2026-07-25.md`. |
 | 16 | Complete for e-mail; WhatsApp deferred | Historical dead letters classified and fresh exactly-once SMTP delivery provider-accepted; see `phase-16-email-outbox-2026-07-25.md`. |
 | 17 | Complete except external payment proof | Real-browser production flows and terminal cleanup reconciled; legitimate payment/Cal.com lifecycle awaits operator sandbox or owner-authorized transaction; see `phase-17-production-acceptance-2026-07-25.md`. |
-| 18 | Pending external/root evidence | All automated matrices pass; Nginx hash sync, mailbox receipt and legitimate payment/calendar evidence remain; see `phase-18-non-legal-readiness-2026-07-25.md`. |
+| 18 | Pending external evidence | All automated matrices and the final Nginx deployment pass; mailbox receipt and legitimate payment/calendar evidence remain; see `phase-18-non-legal-readiness-2026-07-25.md`. |
 
 ## Critical findings
 
@@ -103,7 +103,6 @@ The following do not authorize invented data or synthetic production verificatio
 - Complete Golden Studio Plus legal-company particulars: deferred by owner and excluded from non-legal readiness.
 - Operator sandbox or owner-authorized real mobile-money transaction: required for genuine payment verification and dependent Cal.com lifecycle proof.
 - Owner mailbox access: required only to confirm human receipt of the already provider-accepted QA messages.
-- Root privilege: required to copy the versioned Nginx file and reload Nginx with the current JSON-LD CSP hash.
 
 SMTP delivery, supplied-image approval, the canonical logo, Facebook/Instagram publication and the kernel reboot are complete.
 

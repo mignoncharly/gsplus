@@ -27,18 +27,16 @@ Social card SHA-256: `baefcaca6f2f844836ee147097a21119f2b0d8564f0ff9e12aae4dde48
 
 `GHSA-qwww-vcr4-c8h2` affects React Router RSC/server-action mode. This application is client-only, has no RSC/server actions, and a CI assertion prevents their introduction. The time-limited review is documented in `risk-acceptance-react-router-rsc-2026-07-25.md` and expires 2026-08-25. No forced downgrade or blind `npm audit fix --force` was used.
 
-## Required deployment action
+## Completed Nginx deployment
 
-The versioned Nginx file contains the current JSON-LD hash, but the active root-owned Nginx file still contains the prior hash. The site and all browser tests pass, but the configuration must be synchronized before an unconditional sign-off:
+On 2026-07-25 the owner installed the versioned configuration as both canonical Nginx site files. Independent verification confirmed:
 
-```sh
-sudo cp /var/www/goldenstudioplus/docs/goldenstudioplus-nginx-phase11.conf /etc/nginx/sites-available/goldenstudioplus
-sudo cp /var/www/goldenstudioplus/docs/goldenstudioplus-nginx-phase11.conf /etc/nginx/sites-enabled/goldenstudioplus
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Expected current JSON-LD hash: `sha256-qOCPlG8yA0E2Jlvrk8PYcdHOpii4QSscG+skJV5Yq6M=`. This session cannot modify root-owned Nginx configuration because no privileged credential is available.
+- `sites-available/goldenstudioplus` and `sites-enabled/goldenstudioplus` exactly match the versioned file.
+- Only one regular site file remains under `sites-enabled`.
+- `nginx -t` passed and Nginx reloaded successfully.
+- The live CSP contains `sha256-qOCPlG8yA0E2Jlvrk8PYcdHOpii4QSscG+skJV5Yq6M=`.
+- The public health endpoint passes.
+- The post-reload production browser matrix passes 22/22 across Chromium and WebKit, including strict-CSP execution.
 
 ## Remaining external evidence
 
@@ -47,4 +45,4 @@ Excluding owner-deferred legal and WhatsApp work, two external proofs remain:
 - Owner confirmation that the provider-accepted QA messages arrived in the configured mailbox.
 - An operator sandbox or owner-authorized real mobile-money transaction, followed by Cal.com create/update/delete and reconciliation evidence.
 
-Therefore, the code, content, media, security, indexing, dependency, e-mail outbox and safely testable business flows are complete. The exact phrase “100% of non-legal audit findings closed” must wait for the Nginx sync and the two external proofs above.
+Therefore, the code, content, media, security, indexing, dependency, Nginx deployment, e-mail outbox and safely testable business flows are complete. The exact phrase “100% of non-legal audit findings closed” must wait only for the two external proofs above.
