@@ -18,7 +18,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "install:production": "npm ci --omit=dev --ignore-scripts && npm rm --no-save --omit=dev --ignore-scripts prisma typescript",
-    "notifications:classify-historical": "node scripts/classify-historical-notifications.mjs"
+    "notifications:classify-historical": "node scripts/classify-historical-notifications.mjs",
+    "email:qa-phase16": "node scripts/run-phase16-email-qa.mjs"
   },
   "keywords": [],
   "author": "",
