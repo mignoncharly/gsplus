@@ -118,6 +118,14 @@ test('route splitting, font loading, social image, and reduced-motion safeguards
   assert.equal(bytes.subarray(0, 3).toString('hex'), 'ffd8ff');
 });
 
+test('robots policy exposes admin noindex while excluding non-public API and upload paths', () => {
+  const robots = source('public/robots.txt');
+  assert.doesNotMatch(robots, /Disallow: \/admin/);
+  assert.match(robots, /Disallow: \/api\//);
+  assert.match(robots, /Disallow: \/uploads\//);
+  assert.match(robots, /Sitemap: https:\/\/gsplus\.vip\/sitemap\.xml/);
+});
+
 test('static masters stay private while only responsive derivatives remain public', () => {
   const masterPaths = [
     'hero_banner.png',

@@ -56,6 +56,13 @@ test('private, missing, redirect, asset, and master privacy contracts hold in pr
   expect(adminHtml).not.toContain('rel="canonical"');
   expect(adminHtml).not.toContain('local-business-schema');
 
+  const robots = await request.get('/robots.txt');
+  expect(robots.status()).toBe(200);
+  const robotsText = await robots.text();
+  expect(robotsText).not.toContain('Disallow: /admin');
+  expect(robotsText).toContain('Disallow: /api/');
+  expect(robotsText).toContain('Disallow: /uploads/');
+
   const missing = await request.get('/phase10-missing-route');
   expect(missing.status()).toBe(404);
   expect(await missing.text()).toContain('<meta name="robots" content="noindex, nofollow"');

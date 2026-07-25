@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs && node scripts/check-performance-budgets.mjs",
+    "build": "npm run check:client-only && vite build && node scripts/prerender.mjs && node scripts/check-performance-budgets.mjs",
     "lint": "eslint .",
     "test": "node --test test/*.test.js",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "npm run test:e2e:local",
+    "check:client-only": "node scripts/assert-client-only.mjs",
+    "test:e2e:local": "playwright test --config playwright.local.config.js",
+    "test:e2e:production": "playwright test --config playwright.production.config.js",
+    "test:a11y:production": "playwright test --config playwright.production-a11y.config.js"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",
@@ -19,15 +23,15 @@
     "react-router-dom": "7.18.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "axe-core": "^4.12.1",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.4.0",
     "vite": "^8.0.4"
   }

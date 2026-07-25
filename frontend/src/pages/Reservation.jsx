@@ -628,9 +628,9 @@ const Reservation = () => {
                             const isUnavail = !!unavailReason;
                             const isSelected = formData.time === slot;
                             
-                            let title = '';
-                            if (unavailReason) title = getUnavailableMessage(unavailReason, formData.date, slot);
-                            else title = `${slot} → ${slotInfo.endTime || getEndTime(slot, formData.packDuration)}`;
+                            const title = unavailReason
+                              ? getUnavailableMessage(unavailReason, formData.date, slot)
+                              : `${slot} → ${slotInfo.endTime || getEndTime(slot, formData.packDuration)}`;
                             
                             return (
                               <button

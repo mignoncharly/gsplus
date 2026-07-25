@@ -1,10 +1,10 @@
-import process from 'node:process';
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173';
+const baseURL = 'http://127.0.0.1:4173';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/*-production.spec.js',
   timeout: 45_000,
   expect: { timeout: 8_000 },
   fullyParallel: false,
@@ -13,7 +13,7 @@ export default defineConfig({
     baseURL,
     trace: 'retain-on-failure',
   },
-  webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
+  webServer: {
     command: 'VITE_API_URL=http://127.0.0.1:4173 VITE_INSTAGRAM_URL=https://www.instagram.com/goldenstudioplus/ VITE_FACEBOOK_URL=https://www.facebook.com/people/Golden-Studio-Plus/61574353412752/ VITE_LINKEDIN_URL= npm run dev -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
