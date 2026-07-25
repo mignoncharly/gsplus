@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
-    command: 'VITE_API_URL=http://127.0.0.1:4173 VITE_INSTAGRAM_URL= VITE_FACEBOOK_URL= VITE_LINKEDIN_URL= npm run dev -- --host 127.0.0.1 --port 4173',
+    command: 'VITE_API_URL=http://127.0.0.1:4173 VITE_INSTAGRAM_URL=https://www.instagram.com/goldenstudioplus/ VITE_FACEBOOK_URL=https://www.facebook.com/people/Golden-Studio-Plus/61574353412752/ VITE_LINKEDIN_URL= npm run dev -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120_000,

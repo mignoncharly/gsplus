@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-24T19:59:42.002Z",
+  "generatedAt": "2026-07-25T12:55:21.109Z",
   "assets": [
     {
       "source": "hero_banner.png",
@@ -191,23 +191,23 @@
       ]
     },
     {
-      "source": "logo.png",
-      "sourceWidth": 3200,
-      "sourceHeight": 3200,
+      "source": "vert_gold_blanc.svg",
+      "sourceWidth": 4180,
+      "sourceHeight": 4180,
       "derivatives": [
         {
           "url": "/images/optimized/brand-logo-160.webp",
           "width": 160,
           "height": 160,
           "mimeType": "image/webp",
-          "bytes": 5740
+          "bytes": 5922
         },
         {
           "url": "/images/optimized/brand-logo-320.webp",
           "width": 320,
           "height": 320,
           "mimeType": "image/webp",
-          "bytes": 13826
+          "bytes": 14848
         }
       ]
     }

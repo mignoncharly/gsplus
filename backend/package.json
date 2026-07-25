@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "media:optimize-static": "node scripts/optimize-static-media.mjs",
     "media:stage-supplied": "node scripts/stage-supplied-media.mjs",
+    "media:prepare-phase13": "node scripts/prepare-phase13-media.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",

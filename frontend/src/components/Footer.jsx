@@ -1,17 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Link as LinkIcon, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { AtSign, Camera, Link as LinkIcon, Mail, MapPin, MessageCircle, MessageSquareText, Phone, Share2, Users } from 'lucide-react';
 import { safeExternalHttpsUrl } from '../lib/external-links';
+import { shareSite } from '../lib/share-site';
 import './Footer.css';
 
-
 const configuredSocials = [
-  { name: 'Instagram', href: safeExternalHttpsUrl(import.meta.env.VITE_INSTAGRAM_URL), icon: Camera },
-  { name: 'Facebook', href: safeExternalHttpsUrl(import.meta.env.VITE_FACEBOOK_URL), icon: MessageCircle },
+  { name: 'Instagram', href: safeExternalHttpsUrl(import.meta.env.VITE_INSTAGRAM_URL), icon: AtSign },
+  { name: 'Facebook', href: safeExternalHttpsUrl(import.meta.env.VITE_FACEBOOK_URL), icon: Users },
   { name: 'LinkedIn', href: safeExternalHttpsUrl(import.meta.env.VITE_LINKEDIN_URL), icon: LinkIcon },
 ].filter((item) => item.href);
 
 const Footer = () => {
+  const [shareStatus, setShareStatus] = useState('');
+
+  const handleShare = async () => {
+    const result = await shareSite({
+      navigatorRef: window.navigator,
+      documentRef: window.document,
+      locationRef: window.location,
+    });
+
+    if (result.status === 'shared') setShareStatus('Le menu de partage a été utilisé.');
+    else if (result.status === 'copied') setShareStatus('Lien copié dans le presse-papiers.');
+    else if (result.status === 'failed') setShareStatus('Impossible de copier le lien sur cet appareil.');
+    else setShareStatus('');
+  };
+
   return (
     <footer className="footer bg-dark">
       <div className="container footer-grid">
@@ -30,19 +45,40 @@ const Footer = () => {
             />
           </Link>
           <p className="footer-tagline">L'art de la lumière, l'excellence de l'image. Studio photo premium au cœur de Douala.</p>
-          <div className="footer-shortcuts" aria-label="Contacter et suivre Golden Studio Plus">
-            <a href="https://wa.me/237673026654" target="_blank" rel="noopener noreferrer" aria-label="Contacter Golden Studio Plus sur WhatsApp">
-              <MessageCircle size={20} aria-hidden="true" />
-            </a>
-            <a href="mailto:info@gsplus.vip" aria-label="Envoyer un e-mail à Golden Studio Plus">
-              <Mail size={20} aria-hidden="true" />
-            </a>
-            {configuredSocials.map(({ name, href, icon: Icon }) => (
-              <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Suivre Golden Studio Plus sur ${name}`}>
-                {React.createElement(Icon, { size: 20, 'aria-hidden': true })}
+
+          <div className="footer-actions">
+            <div className="footer-shortcuts" aria-label="Contacter Golden Studio Plus">
+              <a href="https://wa.me/237673026654" target="_blank" rel="noopener noreferrer" aria-label="Contacter Golden Studio Plus sur WhatsApp">
+                <MessageCircle size={20} aria-hidden="true" />
               </a>
-            ))}
+              <a href="mailto:info@gsplus.vip" aria-label="Envoyer un e-mail à Golden Studio Plus">
+                <Mail size={20} aria-hidden="true" />
+              </a>
+            </div>
+
+            <div className="footer-shortcuts" aria-label="Actions du site Golden Studio Plus">
+              <Link to="/portfolio" aria-label="Voir le portfolio Golden Studio Plus">
+                <Camera size={20} aria-hidden="true" />
+              </Link>
+              <Link to="/services-creatifs#devis-creatif" aria-label="Demander un devis pour un service créatif">
+                <MessageSquareText size={20} aria-hidden="true" />
+              </Link>
+              <button type="button" onClick={handleShare} aria-label="Partager le site Golden Studio Plus">
+                <Share2 size={20} aria-hidden="true" />
+              </button>
+            </div>
+
+            {configuredSocials.length > 0 && (
+              <div className="footer-shortcuts" aria-label="Réseaux sociaux Golden Studio Plus">
+                {configuredSocials.map(({ name, href, icon: Icon }) => (
+                  <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Suivre Golden Studio Plus sur ${name}`}>
+                    {React.createElement(Icon, { size: 20, 'aria-hidden': true })}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
+          <p className="footer-share-status" role="status" aria-live="polite">{shareStatus}</p>
         </div>
 
         <div className="footer-col">

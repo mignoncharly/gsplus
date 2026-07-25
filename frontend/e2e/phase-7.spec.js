@@ -199,10 +199,65 @@ test('all contracted viewport widths are free of horizontal overflow', async ({ 
   }
 });
 
-test('footer has no placeholder links and hides unconfigured social networks', async ({ page }) => {
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('footer a[href="#"]')).toHaveCount(0);
-  await expect(page.locator('footer a[href^="https://wa.me/"]')).toHaveCount(1);
-  await expect(page.locator('footer a[href^="mailto:"]')).toHaveCount(2);
-  await expect(page.locator('footer').getByRole('link', { name: /LinkedIn/ })).toHaveCount(0);
+test('footer exposes only genuine contact, business and official social actions', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (value) => { window.__copiedSiteUrl = value; } },
+    });
+  });
+  await page.goto('/services?tracking=phase14', { waitUntil: 'domcontentloaded' });
+
+  const footer = page.locator('footer');
+  await expect(footer.locator('a[href="#"]')).toHaveCount(0);
+  await expect(footer.locator('a[href^="https://wa.me/"]')).toHaveCount(1);
+  await expect(footer.getByRole('link', { name: 'Suivre Golden Studio Plus sur Instagram' })).toHaveAttribute('href', 'https://www.instagram.com/goldenstudioplus/');
+  await expect(footer.getByRole('link', { name: 'Suivre Golden Studio Plus sur Facebook' })).toHaveAttribute('href', 'https://www.facebook.com/people/Golden-Studio-Plus/61574353412752/');
+  await expect(footer.getByRole('link', { name: /LinkedIn/ })).toHaveCount(0);
+  await expect(footer.getByRole('link', { name: 'Voir le portfolio Golden Studio Plus' })).toHaveAttribute('href', '/portfolio');
+  await expect(footer.getByRole('link', { name: 'Demander un devis pour un service créatif' })).toHaveAttribute('href', '/services-creatifs#devis-creatif');
+
+  await footer.getByRole('button', { name: 'Partager le site Golden Studio Plus' }).click();
+  await expect(footer.getByRole('status')).toHaveText('Lien copié dans le presse-papiers.');
+  await expect.poll(() => page.evaluate(() => window.__copiedSiteUrl)).toBe('https://gsplus.vip/services');
+});
+
+test('Design and Impression galleries show every approved responsive realization', async ({ page }) => {
+  await page.goto('/services', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('tab', { name: 'Services de design' }).click();
+  const designGallery = page.locator('.service-realizations');
+  await expect(designGallery.locator('figure')).toHaveCount(9);
+  await expect(designGallery.getByRole('heading', { level: 3 })).toHaveText([
+    'Retouche photo',
+    'Flyers et affiches',
+    'Identité visuelle',
+    'Objets personnalisés',
+  ]);
+  await expect(designGallery.locator('img')).toHaveCount(9);
+
+  await page.getByRole('tab', { name: 'Impression et produits' }).click();
+  const printGallery = page.locator('.service-realizations');
+  await expect(printGallery.locator('figure')).toHaveCount(3);
+  await expect(printGallery.getByRole('heading', { level: 3 })).toHaveText(['Albums', 'Cadres et tirages']);
+
+  const printImages = printGallery.locator('img');
+  for (let index = 0; index < await printImages.count(); index += 1) {
+    const image = printImages.nth(index);
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0);
+  }
+
+  const imageState = await printGallery.locator('img').evaluateAll((images) => images.map((image) => ({
+    complete: image.complete,
+    naturalWidth: image.naturalWidth,
+    src: image.currentSrc,
+    width: image.getAttribute('width'),
+    height: image.getAttribute('height'),
+  })));
+  expect(imageState).toHaveLength(3);
+  expect(imageState.every((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+  expect(imageState.every((image) => image.src.includes('/images/services/'))).toBe(true);
+  expect(imageState.every((image) => image.width === '1024' && image.height === '1024')).toBe(true);
 });

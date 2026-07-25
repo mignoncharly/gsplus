@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 import {
   getRouteMetadata,
   INDEXABLE_ROUTES,
+  SOCIAL_IMAGE_ALT,
+  SOCIAL_IMAGE_HEIGHT,
+  SOCIAL_IMAGE_PATH,
+  SOCIAL_IMAGE_WIDTH,
   LOCAL_BUSINESS_SCHEMA,
   SITE_ORIGIN,
 } from '../src/content/site-metadata.js';
@@ -23,6 +27,10 @@ test('every indexable route has unique metadata on the canonical origin', () => 
     assert.equal(metadata.indexable, true);
     assert.equal(metadata.canonical, `${SITE_ORIGIN}${route.path === '/' ? '' : route.path}`);
     assert.match(metadata.robots, /^index, follow/);
+    assert.equal(metadata.image, SITE_ORIGIN + SOCIAL_IMAGE_PATH);
+    assert.equal(metadata.imageAlt, SOCIAL_IMAGE_ALT);
+    assert.equal(metadata.imageWidth, SOCIAL_IMAGE_WIDTH);
+    assert.equal(metadata.imageHeight, SOCIAL_IMAGE_HEIGHT);
     assert.ok(metadata.title.length >= 30 && metadata.title.length <= 70, route.path);
     assert.ok(metadata.description.length >= 100 && metadata.description.length <= 170, route.path);
     assert.ok(metadata.heading);
@@ -69,6 +77,10 @@ test('build generator emits crawlable route HTML and noindex private HTML', () =
   assert.match(services, /<title>Séances photo et packs à Douala/);
   assert.match(services, /<link rel="canonical" href="https:\/\/gsplus\.vip\/services"/);
   assert.match(services, /<meta property="og:url" content="https:\/\/gsplus\.vip\/services"/);
+  assert.match(services, /<meta property="og:image" content="https:\/\/gsplus\.vip\/images\/og-golden-studio-plus-2026\.jpg"/);
+  assert.match(services, /<meta property="og:image:width" content="1200"/);
+  assert.match(services, /<meta property="og:image:height" content="630"/);
+  assert.match(services, /<meta name="twitter:image:alt" content="Golden Studio Plus/);
   assert.match(services, /<script id="local-business-schema" type="application\/ld\+json">/);
   assert.match(services, /<h1>Séances photo et packs<\/h1>/);
   assert.doesNotMatch(services, /rel="preload" as="image"[^>]+hero-banner/);
@@ -100,7 +112,7 @@ test('route splitting, font loading, social image, and reduced-motion safeguards
   assert.match(html, /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/);
   assert.match(html, /fetchpriority="high"/);
 
-  const socialImage = `${root}public/images/og-golden-studio-plus.jpg`;
+  const socialImage = `${root}public/images/og-golden-studio-plus-2026.jpg`;
   const bytes = readFileSync(socialImage);
   assert.ok(statSync(socialImage).size <= 200_000);
   assert.equal(bytes.subarray(0, 3).toString('hex'), 'ffd8ff');

@@ -41,11 +41,16 @@ export const renderSeoBlock = (metadata) => {
       `    <meta property="og:description" content="${escapeHtml(metadata.description)}" />`,
       `    <meta property="og:url" content="${escapeHtml(metadata.canonical)}" />`,
       `    <meta property="og:image" content="${escapeHtml(metadata.image)}" />`,
-      '    <meta property="og:image:alt" content="Portrait Golden Studio Plus à Douala" />',
+      `    <meta property="og:image:secure_url" content="${escapeHtml(metadata.image)}" />`,
+      `    <meta property="og:image:type" content="${escapeHtml(metadata.imageType)}" />`,
+      `    <meta property="og:image:width" content="${metadata.imageWidth}" />`,
+      `    <meta property="og:image:height" content="${metadata.imageHeight}" />`,
+      `    <meta property="og:image:alt" content="${escapeHtml(metadata.imageAlt)}" />`,
       '    <meta name="twitter:card" content="summary_large_image" />',
       `    <meta name="twitter:title" content="${escapeHtml(metadata.title)}" />`,
       `    <meta name="twitter:description" content="${escapeHtml(metadata.description)}" />`,
       `    <meta name="twitter:image" content="${escapeHtml(metadata.image)}" />`,
+      `    <meta name="twitter:image:alt" content="${escapeHtml(metadata.imageAlt)}" />`,
       `    <script id="local-business-schema" type="application/ld+json">${safeJson(LOCAL_BUSINESS_SCHEMA)}</script>`,
     );
   }

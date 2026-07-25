@@ -1,5 +1,9 @@
 export const SITE_ORIGIN = 'https://gsplus.vip';
-export const SOCIAL_IMAGE_PATH = '/images/og-golden-studio-plus.jpg';
+export const SOCIAL_IMAGE_PATH = '/images/og-golden-studio-plus-2026.jpg';
+export const SOCIAL_IMAGE_ALT = 'Golden Studio Plus — studio photo premium à Douala';
+export const SOCIAL_IMAGE_WIDTH = 1200;
+export const SOCIAL_IMAGE_HEIGHT = 630;
+export const SOCIAL_IMAGE_TYPE = 'image/jpeg';
 
 export const INDEXABLE_ROUTES = [
   {
@@ -100,6 +104,10 @@ export const getRouteMetadata = (pathname) => {
       ...route,
       canonical: `${SITE_ORIGIN}${path === '/' ? '' : path}`,
       image: `${SITE_ORIGIN}${SOCIAL_IMAGE_PATH}`,
+      imageAlt: SOCIAL_IMAGE_ALT,
+      imageWidth: SOCIAL_IMAGE_WIDTH,
+      imageHeight: SOCIAL_IMAGE_HEIGHT,
+      imageType: SOCIAL_IMAGE_TYPE,
       robots: 'index, follow, max-image-preview:large',
       indexable: true,
     };

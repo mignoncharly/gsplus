@@ -19,7 +19,7 @@ const assets = [
   ['portfolio-portrait-1', 'portfolio_portrait_1.png', [480, 1024]],
   ['portfolio-portrait-2', 'portfolio_portrait_2.png', [480, 1024]],
   ['portfolio-portrait-3', 'portfolio_portrait_3.png', [480, 1024]],
-  ['brand-logo', 'logo.png', [160, 320]],
+  ['brand-logo', '../supplied-masters/logo/vert_gold_blanc.svg', [160, 320]],
 ];
 
 await fs.mkdir(outputDir, { recursive: true });
@@ -36,7 +36,7 @@ for (const [name, relativeSource, widths] of assets) {
     const info = await sharp(source)
       .rotate()
       .resize({ width, withoutEnlargement: true })
-      .webp({ quality: width <= 640 ? 78 : 84, effort: 4 })
+      .webp({ quality: name === 'brand-logo' ? 74 : width <= 640 ? 78 : 84, effort: 4 })
       .toFile(output);
 
     derivatives.push({

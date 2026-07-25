@@ -62,9 +62,13 @@ const RouteMetadata = () => {
       upsertMeta('meta[property="og:description"]', { property: 'og:description', content: metadata.description });
       upsertMeta('meta[property="og:url"]', { property: 'og:url', content: metadata.canonical });
       upsertMeta('meta[property="og:image"]', { property: 'og:image', content: metadata.image });
+      upsertMeta('meta[property="og:image:secure_url"]', { property: 'og:image:secure_url', content: metadata.image });
+      upsertMeta('meta[property="og:image:type"]', { property: 'og:image:type', content: metadata.imageType });
+      upsertMeta('meta[property="og:image:width"]', { property: 'og:image:width', content: String(metadata.imageWidth) });
+      upsertMeta('meta[property="og:image:height"]', { property: 'og:image:height', content: String(metadata.imageHeight) });
       upsertMeta('meta[property="og:image:alt"]', {
         property: 'og:image:alt',
-        content: 'Portrait Golden Studio Plus à Douala',
+        content: metadata.imageAlt,
       });
       upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
       upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: metadata.title });
@@ -73,6 +77,7 @@ const RouteMetadata = () => {
         content: metadata.description,
       });
       upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: metadata.image });
+      upsertMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: metadata.imageAlt });
     } else {
       document.head.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"]').forEach((tag) => tag.remove());
     }

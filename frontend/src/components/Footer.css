@@ -77,7 +77,8 @@
   gap: 1rem;
 }
 
-.footer-shortcuts a {
+.footer-shortcuts a,
+.footer-shortcuts button {
   width: 44px;
   height: 44px;
   background: #24302d;
@@ -90,7 +91,9 @@
 }
 
 .footer-shortcuts a:hover,
-.footer-shortcuts a:focus-visible {
+.footer-shortcuts a:focus-visible,
+.footer-shortcuts button:hover,
+.footer-shortcuts button:focus-visible {
   background: var(--c-gold-light);
   color: #0d1311;
   transform: translateY(-3px);
@@ -154,4 +157,23 @@
     grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
     gap: clamp(2rem, 3vw, 4rem);
   }
+}
+
+.footer-actions {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.footer-shortcuts button {
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.footer-share-status {
+  min-height: 1.4rem;
+  margin: 0.75rem 0 0;
+  color: var(--c-gold-light);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }

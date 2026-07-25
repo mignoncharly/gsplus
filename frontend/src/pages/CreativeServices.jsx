@@ -132,6 +132,7 @@ const CreativeServices = () => {
 
         {/* Quote Form Card */}
         <Motion.div 
+          id="devis-creatif"
           className="creative-quote-card"
           initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}

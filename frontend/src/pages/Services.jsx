@@ -5,6 +5,7 @@ import { Camera, Palette, Printer, Image as ImageIcon, FileText, LayoutTemplate,
 import { getPackages, submitQuoteRequest } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
 import { packageView, shootingCategories as packageCategories } from '../lib/packages';
+import ServiceGallery from '../components/ServiceGallery';
 import './Services.css';
 
 const fadeIn = {
@@ -357,6 +358,12 @@ const Services = () => {
                     ))}
                   </Motion.div>
 
+                  <ServiceGallery
+                    section="design"
+                    title="Exemples de design réalisés au studio"
+                    description="Retouche, communication, identité visuelle et objets personnalisés : découvrez une sélection organisée de projets Golden Studio Plus."
+                  />
+
                   <div className="devis-section">
                     <div className="devis-section__bg" />
                     <div className="devis-section__content">
@@ -401,6 +408,12 @@ const Services = () => {
                       </Motion.div>
                     ))}
                   </Motion.div>
+
+                  <ServiceGallery
+                    section="print"
+                    title="Exemples d’impression et de produits"
+                    description="Albums, cadres et tirages : découvrez trois réalisations imprimées et préparées par Golden Studio Plus."
+                  />
 
                   <div className="devis-section">
                     <div className="devis-section__bg" />

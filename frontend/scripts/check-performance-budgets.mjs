@@ -50,7 +50,7 @@ const totalCssBytes = cssFiles.reduce((total, name) => total + sizes[name], 0);
 const entryJsGzipBytes = gzipSync(entryBuffer).byteLength;
 const hero640Bytes = await fileBytes(resolve(distDir, 'images/optimized/hero-banner-640.webp'));
 const hero1024Bytes = await fileBytes(resolve(distDir, 'images/optimized/hero-banner-1024.webp'));
-const socialImageBytes = await fileBytes(resolve(distDir, 'images/og-golden-studio-plus.jpg'));
+const socialImageBytes = await fileBytes(resolve(distDir, 'images/og-golden-studio-plus-2026.jpg'));
 const entryReductionPercent = Number(((1 - entryBuffer.byteLength / baselineEntryBytes) * 100).toFixed(1));
 
 const checks = [

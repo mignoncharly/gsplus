@@ -64,7 +64,7 @@ test('private, missing, redirect, asset, and master privacy contracts hold in pr
   expect(www.status()).toBe(301);
   expect(www.headers().location).toBe('https://gsplus.vip/services');
 
-  const social = await request.get('/images/og-golden-studio-plus.jpg');
+  const social = await request.get('/images/og-golden-studio-plus-2026.jpg');
   expect(social.status()).toBe(200);
   expect(social.headers()['content-type']).toContain('image/jpeg');
   expect((await social.body()).byteLength).toBeLessThanOrEqual(200_000);
