@@ -112,6 +112,16 @@ const published = await prisma.$transaction(async (tx) => {
       objectPosition: 'center center',
       isFeatured: item.isFeatured,
       isPublished: item.isPublished,
+      rightsBasis: 'OWNER_APPROVED_CATALOG',
+      rightsEvidence: {
+        manifest: 'private-media/phase8-curated/manifest.json',
+        approvedAt: manifest.approvedAt,
+        approvalBasis: manifest.approvalBasis,
+        source: item.source,
+        assetUrl: item.url,
+      },
+      publishedAt: new Date(manifest.approvedAt),
+      unpublishedAt: null,
       sortOrder: item.sortOrder,
     };
     const media = existing

@@ -693,3 +693,21 @@ LEG-05 est terminé et `VALIDÉ-PROD`. LEG-06 « Inventaire des traceurs et pré
 - Production frontend-only : rapport `passed: true`, confidentialité, admin et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 374587, `NRestarts=63`, actif; base inchangée 27/27.
 
 LEG-06 est terminé et `VALIDÉ-PROD`. LEG-07 « Respect effectif du droit à l’image sur les médias » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 24/25 phases terminées (96 %), 1 restante.
+
+## 36. Exécution LEG-07 « Respect effectif du droit à l’image sur les médias » — 8 août 2026
+
+État : `VALIDÉ-PROD`; chaque publication est désormais justifiée par une autorisation de catalogue propriétaire ou par un accord client courant relié au contenu exact, et tout retrait cesse automatiquement la nouvelle utilisation concernée.
+
+- Modèle de droits : `MediaItem` porte la base, la preuve, la réservation et les dates de publication/dépublication; `MediaConsentUsage` relie un média précis à la réservation, à l’accord, à la finalité et à la portée autorisées.
+- Publication sûre : création en brouillon par défaut, référence de réservation obligatoire pour un média client, actions réservées à `OWNER` et refus de publication sans accord `GRANTED` courant pour `PORTFOLIO_AND_PROMOTION`/`WEBSITE`.
+- Garde base de données : trigger différé contre toute publication sans base valide; contrôle de cohérence de l’usage; insertion d’un retrait qui clôt les usages actifs et dépublie/dé-épingle les médias exacts. Une nouvelle publication reste bloquée jusqu’à un nouvel accord.
+- Exposition publique : filtre centralisé limité au catalogue propriétaire autorisé ou aux usages clients actifs; base de droits, preuve, réservation et relations de consentement ne quittent pas l’administration.
+- Administration accessible : panneau médias chargé paresseusement, base/statut/référence visibles, publication directe décochée et contrôles désactivés pour STAFF.
+- Catalogue historique : seuls les 17 médias `owner-approved-*` du manifeste privé ont été repris comme `OWNER_APPROVED_CATALOG`; `seed-hero` reste non publié et aucun usage client artificiel n’a été créé.
+- Livrables : masters/fichiers de travail privés et workflow `ReservationDelivery` inchangés; LEG-07 ne crée ni ne modifie aucune livraison. La preuve fournisseur E-19 demeure suivie séparément sous NOTIF-01.
+- Preuves : rouge statique 0/4 puis final 4/4; backend ciblé 3/3; LEG-07 local Chromium/WebKit 4/4; production ciblée 4/4; API publique à 17 médias avec zéro fuite de champ interne.
+- Non-régression : frontend 91/91, backend 15 fichiers/134 tests, Prisma/TypeScript/ESLint, `git diff --check`, audit traceurs, build, prerender et budgets conformes. Playwright complet : 132/134 en 12,5 minutes, LEG-07 4/4; les deux intermittences WebKit historiques LEG-03/Phase 9 ont repassé ensemble 6/6 immédiatement.
+- Performance : entrée 380 353 octets (121 106 gzip), plus grande route publique 37 272/40 000, admin 50 170, CSS total 80 958 et panneau médias 6 910 octets chargé à la demande.
+- Production : sauvegarde `.phase0-backups/20260808T230000Z-pre-leg-07/database-pre-leg-07.dump`, 155 163 octets, mode 0600, SHA-256 `ced864afc6b81c7b105615b4f776ff4970c36409718f52ea454dd99f7cfc7321`; migration `20260808233000_leg_07_media_rights` appliquée, base 28/28. Backend actif PID 570395, `NRestarts=64`; santé/admin HTTPS 200. Les 13 réservations, 13 paiements, 9 accords et 4 refus sont inchangés.
+
+LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 phases terminées (100 %), aucune phase restante.

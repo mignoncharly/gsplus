@@ -68,32 +68,33 @@ enum PackageVersionStatus {
 }
 
 model AdminUser {
-  id                         String                         @id @default(cuid())
-  email                      String                         @unique
-  passwordHash               String
-  name                       String
-  role                       AdminRole                      @default(STAFF)
-  isActive                   Boolean                        @default(true)
-  sessionVersion             Int                            @default(0)
-  createdAt                  DateTime                       @default(now())
-  updatedAt                  DateTime                       @updatedAt
-  auditLogs                  AuditLog[]
-  packageVersions            PackageVersion[]               @relation("PackageVersionCreatedBy")
-  validatedPackageVersions   PackageVersion[]               @relation("PackageVersionValidatedBy")
-  publishedPackageVersions   PackageVersion[]               @relation("PackageVersionPublishedBy")
-  paymentTransitions         PaymentTransition[]
-  reservationTransitions     ReservationTransition[]
-  verifiedPayments           Payment[]                      @relation("PaymentVerifiedBy")
-  adminCommands              AdminCommand[]
-  financialTasks             FinancialTask[]
-  rescheduleRequestsRecorded ReservationRescheduleRequest[] @relation("RescheduleRequestedBy")
-  rescheduleRequestsDecided  ReservationRescheduleRequest[] @relation("RescheduleDecidedBy")
-  withdrawalRequestsRecorded ReservationWithdrawalRequest[] @relation("WithdrawalRequestedBy")
-  withdrawalRequestsDecided  ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
-  reservationDeliveries      ReservationDelivery[]
-  imageConsentEvents         ImageConsentEvent[]
-  dataRightsRequestsCreated  DataRightsRequest[]            @relation("DataRightsRequestCreatedBy")
-  dataRightsRequestEvents    DataRightsRequestEvent[]
+  id                          String                         @id @default(cuid())
+  email                       String                         @unique
+  passwordHash                String
+  name                        String
+  role                        AdminRole                      @default(STAFF)
+  isActive                    Boolean                        @default(true)
+  sessionVersion              Int                            @default(0)
+  createdAt                   DateTime                       @default(now())
+  updatedAt                   DateTime                       @updatedAt
+  auditLogs                   AuditLog[]
+  packageVersions             PackageVersion[]               @relation("PackageVersionCreatedBy")
+  validatedPackageVersions    PackageVersion[]               @relation("PackageVersionValidatedBy")
+  publishedPackageVersions    PackageVersion[]               @relation("PackageVersionPublishedBy")
+  paymentTransitions          PaymentTransition[]
+  reservationTransitions      ReservationTransition[]
+  verifiedPayments            Payment[]                      @relation("PaymentVerifiedBy")
+  adminCommands               AdminCommand[]
+  financialTasks              FinancialTask[]
+  rescheduleRequestsRecorded  ReservationRescheduleRequest[] @relation("RescheduleRequestedBy")
+  rescheduleRequestsDecided   ReservationRescheduleRequest[] @relation("RescheduleDecidedBy")
+  withdrawalRequestsRecorded  ReservationWithdrawalRequest[] @relation("WithdrawalRequestedBy")
+  withdrawalRequestsDecided   ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
+  reservationDeliveries       ReservationDelivery[]
+  imageConsentEvents          ImageConsentEvent[]
+  mediaConsentUsagesPublished MediaConsentUsage[]            @relation("MediaConsentUsagePublishedBy")
+  dataRightsRequestsCreated   DataRightsRequest[]            @relation("DataRightsRequestCreatedBy")
+  dataRightsRequestEvents     DataRightsRequestEvent[]
 }
 
 model Customer {
@@ -221,6 +222,8 @@ model Reservation {
   withdrawalRequests ReservationWithdrawalRequest[]
   deliveries         ReservationDelivery[]
   imageConsentEvents ImageConsentEvent[]
+  mediaItems         MediaItem[]
+  mediaConsentUsages MediaConsentUsage[]
 
   @@index([startAt, endAt])
   @@index([status])
@@ -297,22 +300,24 @@ model LegalDocumentVersion {
 }
 
 model ImageConsentEvent {
-  id             String               @id @default(cuid())
-  reservationId  String
-  legalVersionId String
-  commandId      String?              @unique
-  choice         String
-  purpose        String
-  scope          Json
-  evidence       Json
-  source         String
-  effectiveAt    DateTime
-  priorEventId   String?
-  recordedById   String?
-  createdAt      DateTime             @default(now())
-  reservation    Reservation          @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  legalVersion   LegalDocumentVersion @relation(fields: [legalVersionId], references: [id], onDelete: Restrict)
-  recordedBy     AdminUser?           @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  id                   String               @id @default(cuid())
+  reservationId        String
+  legalVersionId       String
+  commandId            String?              @unique
+  choice               String
+  purpose              String
+  scope                Json
+  evidence             Json
+  source               String
+  effectiveAt          DateTime
+  priorEventId         String?
+  recordedById         String?
+  createdAt            DateTime             @default(now())
+  reservation          Reservation          @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  legalVersion         LegalDocumentVersion @relation(fields: [legalVersionId], references: [id], onDelete: Restrict)
+  recordedBy           AdminUser?           @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  mediaUsagesGranted   MediaConsentUsage[]  @relation("MediaUsageGrantEvent")
+  mediaUsagesWithdrawn MediaConsentUsage[]  @relation("MediaUsageWithdrawalEvent")
 
   @@index([reservationId, effectiveAt, createdAt])
   @@index([legalVersionId])
@@ -667,7 +672,7 @@ model BusinessHour {
 }
 
 model MediaItem {
-  id                String   @id @default(cuid())
+  id                String              @id @default(cuid())
   title             String
   altText           String?
   url               String
@@ -682,14 +687,50 @@ model MediaItem {
   thumbnailHeight   Int?
   thumbnailFileSize Int?
   objectPosition    String?
-  isFeatured        Boolean  @default(false)
-  isPublished       Boolean  @default(true)
-  sortOrder         Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isFeatured        Boolean             @default(false)
+  isPublished       Boolean             @default(false)
+  rightsBasis       String?
+  rightsEvidence    Json?
+  reservationId     String?
+  publishedAt       DateTime?
+  unpublishedAt     DateTime?
+  sortOrder         Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  reservation       Reservation?        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  consentUsages     MediaConsentUsage[]
 
   @@index([isPublished, sortOrder])
   @@index([category])
+  @@index([rightsBasis, isPublished])
+  @@index([reservationId])
+}
+
+model MediaConsentUsage {
+  id                String             @id @default(cuid())
+  mediaItemId       String
+  reservationId     String
+  grantEventId      String
+  withdrawalEventId String?
+  status            String             @default("ACTIVE")
+  purpose           String
+  scope             Json
+  activatedAt       DateTime           @default(now())
+  deactivatedAt     DateTime?
+  publishedById     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  mediaItem         MediaItem          @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  reservation       Reservation        @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  grantEvent        ImageConsentEvent  @relation("MediaUsageGrantEvent", fields: [grantEventId], references: [id], onDelete: Restrict)
+  withdrawalEvent   ImageConsentEvent? @relation("MediaUsageWithdrawalEvent", fields: [withdrawalEventId], references: [id], onDelete: Restrict)
+  publishedBy       AdminUser?         @relation("MediaConsentUsagePublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([mediaItemId, grantEventId])
+  @@index([reservationId, status])
+  @@index([grantEventId])
+  @@index([withdrawalEventId])
+  @@index([publishedById])
 }
 
 model NotificationEvent {

@@ -1,5 +1,23 @@
 # Changelog — Golden Studio Plus
 
+## 8 août 2026 — LEG-07 droits effectifs des médias validés en production
+
+### Ajouté
+
+- Base de droits explicite sur chaque média et registre d’usage reliant contenu exact, réservation, accord, finalité, portée et état prospectif.
+- Création des médias clients en brouillon, publication réservée au propriétaire et bloquée sans accord d’image courant; STAFF conserve une consultation sans commandes de publication.
+- Contraintes et triggers SQL empêchant toute publication sans base valide et dépubliant/dé-épinglant automatiquement les médias concernés lors d’un retrait.
+- Filtre public centralisé limitant le portfolio aux médias du catalogue propriétaire autorisé ou aux usages clients actifs, sans exposer les preuves internes.
+- Panneau admin accessible chargé paresseusement : base de droits, statut et référence de réservation visibles; publication directe décochée.
+- Reprise contrôlée des 17 médias `owner-approved-*` selon le manifeste privé; zéro usage client ou livraison artificiels.
+- Migration additive 28/28, sauvegarde PostgreSQL de 155 163 octets vérifiée et invariants de production inchangés : 13 réservations, 13 paiements, 9 accords, 4 refus.
+- Frontend 91/91, backend 134/134, statique 4/4, backend ciblé 3/3, LEG-07 local 4/4 et production Chromium/WebKit 4/4.
+- Playwright complet 132/134, LEG-07 4/4; les deux intermittences WebKit historiques LEG-03/Phase 9 ont repassé ensemble 6/6.
+- Build/prerender/budgets conformes : entrée 380 353 octets (121 106 gzip), route publique maximale 37 272/40 000, admin 50 170 et CSS total 80 958.
+- Production : backend PID 570395, `NRestarts=64`, santé/admin 200; API publique à 17 médias et zéro fuite de preuve interne.
+
+LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est complet : 25/25 phases (100 %), aucune restante.
+
 ## 8 août 2026 — LEG-06 inventaire des traceurs validé en production
 
 ### Ajouté

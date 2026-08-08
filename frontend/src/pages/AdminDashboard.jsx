@@ -13,7 +13,6 @@ import {
   Mail, 
   Menu,
   Trash2, 
-  Upload, 
   Users, 
   Activity, 
   Layers, 
@@ -48,7 +47,6 @@ import {
   getApiHealth,
   loginAdmin,
   logoutAdmin,
-  mediaUrl,
   resolveAdminNotification,
   retryAdminNotification,
   rescheduleAdminReservation,
@@ -64,7 +62,6 @@ import {
 import {
   canConfirmReservation,
   calendarErrorLabel,
-  formatBytes,
   maskedProviderId,
   canVerifyAndConfirm,
   isReservationEndReached,
@@ -84,7 +81,6 @@ import {
   doualaLocalDateTimeToIso,
   formatBusinessDateTime,
 } from '../lib/business-time';
-import { PORTFOLIO_CATEGORIES } from '../lib/portfolio-media';
 import { formatFcfa } from '../lib/display-formatters';
 import './AdminDashboard.css';
 
@@ -93,6 +89,7 @@ const AdminOpsPanel = React.lazy(() => import('../components/AdminReservationOpe
 const AdminActionDialog = React.lazy(() => import('../components/AdminActionDialog'));
 const AdminPackagesPanel = React.lazy(() => import('../components/AdminPackagesPanel'));
 const AdminDataGovernancePanel = React.lazy(() => import('../components/AdminDataGovernancePanel'));
+const AdminMediaRightsPanel = React.lazy(() => import('../components/AdminMediaRightsPanel'));
 
 const dateTime = formatBusinessDateTime;
 const monthKey = currentBusinessMonthKey();
@@ -135,6 +132,7 @@ const reservationIdentityKey = (reservation) => {
   const contact = reservationContact(reservation);
   return [contact.firstName, contact.lastName, contact.phone, contact.email].join('|');
 };
+
 
 
 const notificationResolutionLabel = (code) => statusLabel(code || 'UNCLASSIFIED');
@@ -1338,111 +1336,22 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'portfolio' && (
-            <Motion.div 
+            <Motion.div
               key="portfolio"
               variants={pageTransition}
               initial="initial"
               animate="animate"
               exit="exit"
             >
-              <div className="admin-page-header">
-                <h1>Gestion du <span>Portfolio</span></h1>
-              </div>
-
-              <div className="admin-card" style={{ marginBottom: '2.5rem' }}>
-                <h2>Ajouter un Média</h2>
-                <form onSubmit={createMedia} className="admin-form-grid portfolio-form-grid" style={{ gap: '1.5rem 1.5rem' }}>
-                  <div>
-                    <label htmlFor="portfolio-title" style={{ display: 'block', marginBottom: '0.5rem' }}>Titre *</label>
-                    <input id="portfolio-title" autoComplete="off" name="title" placeholder="Ex: Portrait Studio Luxe" required className="form-input" />
-                  </div>
-                  <div>
-                    <label htmlFor="portfolio-file" style={{ display: 'block', marginBottom: '0.5rem' }}>Fichier Image *</label>
-                    <input id="portfolio-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required className="form-input" style={{ paddingTop: '0.6rem' }} />
-                  </div>
-                  <div>
-                    <label htmlFor="portfolio-alt" style={{ display: 'block', marginBottom: '0.5rem' }}>Texte alternatif *</label>
-                    <input id="portfolio-alt" autoComplete="off" name="altText" placeholder="Décrire précisément le sujet de la photo" className="form-input" required />
-                  </div>
-                  <div>
-                    <label htmlFor="portfolio-category" style={{ display: 'block', marginBottom: '0.5rem' }}>Catégorie *</label>
-                    <select id="portfolio-category" name="category" className="form-input" required defaultValue="">
-                      <option value="" disabled>Choisir une catégorie éditoriale</option>
-                      {PORTFOLIO_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="portfolio-position" style={{ display: 'block', marginBottom: '0.5rem' }}>Position de l'image (CSS)</label>
-                    <input id="portfolio-position" autoComplete="off" name="objectPosition" placeholder="Ex: center top, center center" className="form-input" defaultValue="center top" />
-                  </div>
-                  <div>
-                    <label htmlFor="portfolio-sort-order" style={{ display: 'block', marginBottom: '0.5rem' }}>Ordre d’affichage</label>
-                    <input id="portfolio-sort-order" name="sortOrder" type="number" min="0" step="1" defaultValue="0" className="form-input" />
-                  </div>
-                  <div style={{ display: 'flex', gap: '2rem', paddingBottom: '0.5rem' }}>
-                    <label htmlFor="portfolio-featured" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input id="portfolio-featured" name="isFeatured" type="checkbox" />
-                      <span>Mis en avant</span>
-                    </label>
-                    <label htmlFor="portfolio-published" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input id="portfolio-published" name="isPublished" type="checkbox" defaultChecked />
-                      <span>Publier directement</span>
-                    </label>
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', padding: '1rem' }}>
-                    <Upload size={18} /> Téléverser l'image dans la Galerie
-                  </button>
-                </form>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                {media.map((item) => (
-                  <div key={item.id} className="admin-stat-card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <img
-                      src={mediaUrl(item.thumbnailUrl || item.url)}
-                      width={item.thumbnailWidth || item.width}
-                      height={item.thumbnailHeight || item.height}
-                      alt={item.altText || item.title}
-                      loading="lazy"
-                      decoding="async"
-                      style={{ width: '100%', height: '180px', objectFit: 'cover', objectPosition: item.objectPosition || 'center center', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}
-                    />
-                    <div style={{ padding: '1.5rem' }}>
-                      <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'block', marginBottom: '0.25rem' }}>{item.title}</strong>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{item.category || 'Sans catégorie'}</p>
-                      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
-                        {item.width && item.height ? `${item.width} × ${item.height} px` : 'Dimensions inconnues'}
-                      </p>
-                      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
-                        Dérivé principal : {formatBytes(item.fileSize)} · aperçu : {formatBytes(item.thumbnailFileSize)}
-                      </p>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button 
-                          className="btn btn-secondary admin-sm-btn" 
-                          onClick={() => toggleMediaFlag(item, 'isPublished')}
-                          style={{ flex: 1 }}
-                        >
-                          {item.isPublished ? 'Masquer' : 'Publier'}
-                        </button>
-                        <button 
-                          className="btn btn-secondary admin-sm-btn" 
-                          onClick={() => toggleMediaFlag(item, 'isFeatured')}
-                          style={{ flex: 1 }}
-                        >
-                          {item.isFeatured ? 'Standard' : 'Vedette'}
-                        </button>
-                        <button 
-                          className="btn btn-secondary admin-sm-btn text-danger" 
-                          onClick={() => removeMediaItem(item)}
-                          style={{ width: '100%', marginTop: '0.5rem' }}
-                        >
-                          <Trash2 size={12} /> Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <React.Suspense fallback={<div className="admin-status-banner">Chargement du registre des droits médias…</div>}>
+                <AdminMediaRightsPanel
+                  media={media}
+                  adminUser={adminUser}
+                  onCreate={createMedia}
+                  onToggle={toggleMediaFlag}
+                  onRemove={removeMediaItem}
+                />
+              </React.Suspense>
             </Motion.div>
           )}
 

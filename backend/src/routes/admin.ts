@@ -43,6 +43,12 @@ import { recordMissingReservationSnapshot } from '../services/integrity-incident
 import { publishReservationDeliverables } from '../services/reservation-deliveries.js';
 import { deleteMediaFiles, processUploadedMedia } from '../services/media.js';
 import {
+  createMediaWithRights,
+  deleteMediaWithRights,
+  listAdminMedia,
+  updateMediaWithRights,
+} from '../services/media-rights.js';
+import {
   executeCreateRescheduleRequest,
   executeRescheduleRequestDecision,
 } from '../services/reservation-rescheduling.js';
@@ -910,10 +916,7 @@ router.delete(
 router.get(
   '/media',
   asyncHandler(async (_req, res) => {
-    const media = await prisma.mediaItem.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-    });
-
+    const media = await listAdminMedia();
     res.json({ data: media });
   }),
 );
@@ -922,6 +925,9 @@ router.post(
   '/media',
   mediaUpload.single('file'),
   asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'MEDIA_RIGHTS_MANAGE');
+
     if (req.file) {
       const fields = parseMediaPayload(mediaUploadFieldsSchema, {
         title: req.body.title,
@@ -929,26 +935,33 @@ router.post(
         category: req.body.category,
         objectPosition: req.body.objectPosition || undefined,
         isFeatured: checkboxBoolean(req.body.isFeatured, false),
-        isPublished: checkboxBoolean(req.body.isPublished, true),
+        isPublished: checkboxBoolean(req.body.isPublished, false),
         sortOrder: req.body.sortOrder ?? 0,
+        reservationReference: req.body.reservationReference,
       });
+      const {
+        reservationReference,
+        isPublished: requestedPublished,
+        ...mediaFields
+      } = fields;
       const processed = await processUploadedMedia(req.file);
 
       try {
-        const media = await prisma.mediaItem.create({
-          data: {
-            ...fields,
-            ...processed,
-          },
+        const media = await createMediaWithRights({
+          data: { ...mediaFields, ...processed },
+          reservationReference,
+          requestedPublished,
+          admin,
         });
-        await writeAuditLog(res.locals.admin?.id, 'media.upload', 'MediaItem', media.id, {
+        await writeAuditLog(admin?.id, 'media.upload', 'MediaItem', media.id, {
           sourceMimeType: req.file.mimetype,
           sourceSize: req.file.size,
           derivativeMimeType: processed.mimeType,
           derivativeSize: processed.fileSize,
           thumbnailSize: processed.thumbnailFileSize,
+          reservationReference,
+          requestedPublished,
         });
-
         res.status(201).json({ data: media });
         return;
       } catch (error) {
@@ -958,11 +971,17 @@ router.post(
     }
 
     const body = parseMediaPayload(mediaUploadSchema, req.body);
-    const media = await prisma.mediaItem.create({
-      data: body,
+    const {
+      reservationReference,
+      isPublished: requestedPublished,
+      ...mediaFields
+    } = body;
+    const media = await createMediaWithRights({
+      data: mediaFields,
+      reservationReference,
+      requestedPublished,
+      admin,
     });
-    await writeAuditLog(res.locals.admin?.id, 'media.create', 'MediaItem', media.id, body);
-
     res.status(201).json({ data: media });
   }),
 );
@@ -973,12 +992,13 @@ router.patch(
   validate('body', mediaUpdateSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const media = await prisma.mediaItem.update({
-      where: { id },
-      data: req.body,
+    const { isPublished: requestedPublished, ...data } = req.body;
+    const media = await updateMediaWithRights({
+      mediaId: id,
+      data,
+      requestedPublished,
+      admin: res.locals.admin,
     });
-    await writeAuditLog(res.locals.admin?.id, 'media.update', 'MediaItem', media.id, req.body);
-
     res.json({ data: media });
   }),
 );
@@ -988,12 +1008,8 @@ router.delete(
   validate('params', idParamsSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const media = await prisma.mediaItem.delete({
-      where: { id },
-    });
+    const media = await deleteMediaWithRights(id, res.locals.admin);
     await deleteMediaFiles(media);
-    await writeAuditLog(res.locals.admin?.id, 'media.delete', 'MediaItem', id);
-
     res.status(204).send();
   }),
 );

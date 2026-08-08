@@ -16,6 +16,7 @@ export type AdminPermission =
   | 'RESERVATION_CLOSE'
   | 'RESERVATION_EARLY_CLOSE_OVERRIDE'
   | 'DELIVERY_PUBLISH'
+  | 'MEDIA_RIGHTS_MANAGE'
   | 'PACKAGE_PUBLISH';
 
 const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<AdminPermission>> = {
@@ -34,6 +35,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<AdminPermission>> = {
     'RESERVATION_CLOSE',
     'RESERVATION_EARLY_CLOSE_OVERRIDE',
     'DELIVERY_PUBLISH',
+    'MEDIA_RIGHTS_MANAGE',
     'PACKAGE_PUBLISH',
   ]),
   [AdminRole.STAFF]: new Set<AdminPermission>(['RESERVATION_CLOSE'])

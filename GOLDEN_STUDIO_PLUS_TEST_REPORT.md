@@ -1287,3 +1287,45 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 4/4 : réseau public, cookies/stockages et inventaire publié |
 
 LEG-06 est validé en production. LEG-07 est le prochain et dernier problème ordonné. Progression : 24/25 phases terminées (96 %), 1 restante.
+
+# LEG-07 — Droits effectifs des médias et retrait prospectif
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Deux bases exclusives de publication : catalogue propriétaire documenté ou usage client relié à un accord courant et à la réservation du contenu.
+- Les médias clients naissent en brouillon; la publication est réservée à `OWNER`, exige `PORTFOLIO_AND_PROMOTION` et la portée `WEBSITE`, et consigne la preuve d’usage exacte.
+- Les contraintes SQL empêchent un usage incohérent ou une publication sans droits; le retrait ferme les usages actifs, dépublie et dé-épingle les médias concernés.
+- Le filtre public vérifie encore l’état actif en lecture et n’expose aucun champ interne de droits, preuve, réservation ou consentement.
+- L’administration affiche base, statut et référence, laisse la publication directe décochée et désactive les commandes pour STAFF.
+- Les masters privés et `ReservationDelivery` restent indépendants; aucune livraison n’est créée ou modifiée par LEG-07.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-07 | 0/4 : modèle, service central, retrait SQL et interface absents avant implémentation |
+| Statique LEG-07 final | 4/4 : schéma/migration, filtre public, trigger de retrait, UI et E2E |
+| Backend ciblé | 3/3 : accord/publication/retrait, refus et permission STAFF, indépendance des livrables |
+| Frontend complet | 91/91; ESLint conforme |
+| Backend complet | 15 fichiers, 134/134; Prisma valide, TypeScript conforme; base dédiée 28/28 |
+| Playwright LEG-07 local | Chromium/WebKit 4/4 : publication directe désactivée, retrait effectif et republication refusée |
+| Playwright local complet | 132/134 en 12,5 minutes; LEG-07 4/4. Deux intermittences WebKit historiques LEG-03/Phase 9; relance fraîche groupée 6/6 |
+| Build/prerender/budgets | Entrée 380 353 (121 106 gzip), public 37 272/40 000, admin 50 170, CSS total 80 958, panneau lazy 6 910 |
+| Intégrité | `git diff --check`, Prisma, TypeScript, lint, tests, audit traceurs, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Sauvegarde | `.phase0-backups/20260808T230000Z-pre-leg-07/database-pre-leg-07.dump`, 155 163 octets, mode 0600, SHA-256 `ced864afc6b81c7b105615b4f776ff4970c36409718f52ea454dd99f7cfc7321`; catalogue `pg_restore` lisible |
+| Migration | `20260808233000_leg_07_media_rights` appliquée; production 28/28 |
+| Reprise | 17 médias `owner-approved-*` classés `OWNER_APPROVED_CATALOG`; 17 publiés sur 18, zéro usage client artificiel |
+| Invariants métier | 13 réservations, 13 paiements, 9 accords et 4 refus, inchangés |
+| Service backend | PID 570395, `NRestarts=64`, `ActiveState=active`, `SubState=running` |
+| Santé | `https://gsplus.vip/api/health` et `/admin` : 200 |
+| API publique | 17 médias; zéro champ interne de droits ou preuve exposé |
+| Production ciblée | Chromium/WebKit 4/4; API admin interceptée, aucune écriture métier réelle |
+
+LEG-07 est validé en production. Le registre ordonné est achevé : 25/25 phases terminées (100 %), aucune restante.

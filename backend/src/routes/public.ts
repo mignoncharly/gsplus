@@ -13,6 +13,7 @@ import { createLeadSubmission } from '../services/leads.js';
 import { createOrRefreshReservationIntent } from '../services/reservation-intents.js';
 import { createReservation } from '../services/reservations.js';
 import { listPublishedPackages } from '../services/packages.js';
+import { publicMediaRightsWhere } from '../services/media-rights.js';
 import {
   availabilityQuerySchema,
   b2bInquirySchema,
@@ -57,6 +58,7 @@ router.get(
   asyncHandler(async (_req, res) => {
     const media = await prisma.mediaItem.findMany({
       where: {
+        ...publicMediaRightsWhere,
         isPublished: true,
         category: { in: [...PUBLIC_MEDIA_CATEGORIES] },
       },

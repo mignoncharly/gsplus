@@ -142,6 +142,22 @@ export const executeCreateImageConsentEvent = async (
           recordedBy: { select: { id: true, name: true } },
         },
       });
+      const affectedMedia = input.choice === 'WITHDRAWN'
+        ? await tx.mediaConsentUsage.findMany({
+            where: { withdrawalEventId: event.id },
+            select: {
+              mediaItem: {
+                select: { id: true, title: true, url: true },
+              },
+            },
+          })
+        : [];
+      if (affectedMedia.length > 0) {
+        await tx.mediaItem.updateMany({
+          where: { id: { in: affectedMedia.map(({ mediaItem }) => mediaItem.id) } },
+          data: { isPublished: false, isFeatured: false, unpublishedAt: now },
+        });
+      }
       await tx.auditLog.create({
         data: {
           adminUserId: input.admin.id,
@@ -160,6 +176,7 @@ export const executeCreateImageConsentEvent = async (
             effectiveAt: input.receivedAt,
             prospectiveOnly: input.choice === 'WITHDRAWN',
             snapshotMutated: false,
+            affectedMedia: affectedMedia.map(({ mediaItem }) => mediaItem),
             result: 'SUCCESS',
           },
         },

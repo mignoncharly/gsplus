@@ -51,10 +51,11 @@ const resetDatabase = async () => {
   await prisma.auditLog.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.reservationIntent.deleteMany();
+  await prisma.mediaConsentUsage.deleteMany();
+  await prisma.mediaItem.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.lead.deleteMany();
   await prisma.availabilityBlock.deleteMany();
-  await prisma.mediaItem.deleteMany();
   await prisma.businessHour.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.package.deleteMany();
@@ -1513,6 +1514,9 @@ describe('phase 8 curated media pipeline', () => {
           storagePath: '/private/hero.png',
           category: 'hero',
           isPublished: true,
+          rightsBasis: 'OWNER_APPROVED_CATALOG',
+          rightsEvidence: { fixture: 'phase-8-owner-approved' },
+          publishedAt: new Date(),
         },
         {
           title: 'TEST QA CODEX',
@@ -1521,6 +1525,9 @@ describe('phase 8 curated media pipeline', () => {
           storagePath: '/private/qa.png',
           category: 'QA_TEST',
           isPublished: true,
+          rightsBasis: 'OWNER_APPROVED_CATALOG',
+          rightsEvidence: { fixture: 'phase-8-owner-approved' },
+          publishedAt: new Date(),
         },
         {
           title: 'Portrait famille',
@@ -1537,6 +1544,9 @@ describe('phase 8 curated media pipeline', () => {
           fileSize: 24000,
           thumbnailFileSize: 9000,
           isPublished: true,
+          rightsBasis: 'OWNER_APPROVED_CATALOG',
+          rightsEvidence: { fixture: 'phase-8-owner-approved' },
+          publishedAt: new Date(),
         },
       ],
     });
@@ -1555,6 +1565,11 @@ describe('phase 8 curated media pipeline', () => {
   });
 
   it('stores a private master, creates typed responsive derivatives, and removes every file on delete', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const reservation = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(14, 0, 20)))
+      .expect(201);
     const agent = await loginAdmin();
     const source = await sharp({
       create: {
@@ -1570,6 +1585,7 @@ describe('phase 8 curated media pipeline', () => {
       .field('title', 'Portrait Phase 8')
       .field('altText', 'Portrait violet de validation Phase 8')
       .field('category', 'Portrait')
+      .field('reservationReference', reservation.body.data.reference)
       .field('sortOrder', '3')
       .field('isPublished', 'on')
       .attach('file', source, { filename: 'portrait-source.png', contentType: 'image/png' })
@@ -1621,6 +1637,7 @@ describe('phase 8 curated media pipeline', () => {
       .field('title', 'Faux PNG')
       .field('altText', 'Fichier corrompu de validation')
       .field('category', 'Portrait')
+      .field('reservationReference', 'GSP-INVALID-IMAGE')
       .attach('file', Buffer.from('not a real png'), { filename: 'fake.png', contentType: 'image/png' })
       .expect(400);
 
@@ -2373,6 +2390,138 @@ describe('LEG-04 legal versions and image consent evidence', () => {
   });
 });
 
+
+describe('LEG-07 effective media rights', () => {
+  it('publishes against the current grant and withdraws every precisely identified use', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(15, 0, 39)))
+      .expect(201);
+    const agent = await loginAdmin();
+
+    const publication = await agent
+      .post('/api/admin/media')
+      .send({
+        title: 'Portrait LEG-07',
+        altText: 'Portrait client lié à une autorisation vérifiée',
+        url: '/uploads/portfolio/leg-07-client.webp',
+        category: 'Portrait',
+        reservationReference: created.body.data.reference,
+        isPublished: true,
+        isFeatured: true,
+        sortOrder: 7,
+      })
+      .expect(201);
+
+    expect(publication.body.data).toMatchObject({
+      title: 'Portrait LEG-07',
+      isPublished: true,
+      rightsBasis: 'CUSTOMER_IMAGE_AUTHORIZATION',
+      reservation: { reference: created.body.data.reference },
+      consentUsages: [expect.objectContaining({ status: 'ACTIVE' })],
+    });
+    expect((await request(app).get('/api/media').expect(200)).body.data)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ id: publication.body.data.id })]));
+
+    const initial = await prisma.imageConsentEvent.findFirstOrThrow({
+      where: { reservationId: created.body.data.id },
+    });
+    const withdrawal = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/image-consent-events`)
+      .send({
+        commandId: randomUUID(),
+        expectedPriorEventId: initial.id,
+        choice: 'WITHDRAWN',
+        receivedAt: new Date().toISOString(),
+        requestChannel: 'EMAIL',
+        requestEvidence: 'Message-ID LEG-07 conservé.',
+      })
+      .expect(201);
+
+    const [media, usage, publicAfter, audit] = await Promise.all([
+      prisma.mediaItem.findUniqueOrThrow({ where: { id: publication.body.data.id } }),
+      prisma.mediaConsentUsage.findFirstOrThrow({ where: { mediaItemId: publication.body.data.id } }),
+      request(app).get('/api/media').expect(200),
+      prisma.auditLog.findFirstOrThrow({
+        where: { action: 'reservation.image_consent.withdrawn', entityId: withdrawal.body.data.event.id },
+      }),
+    ]);
+    expect(media).toMatchObject({ isPublished: false, isFeatured: false });
+    expect(usage).toMatchObject({
+      status: 'WITHDRAWN',
+      withdrawalEventId: withdrawal.body.data.event.id,
+    });
+    expect(publicAfter.body.data.some((item: { id: string }) => item.id === media.id)).toBe(false);
+    expect(audit.metadata).toMatchObject({
+      affectedMedia: [expect.objectContaining({ id: media.id, url: media.url })],
+    });
+  });
+
+  it('blocks publication without a current grant and denies media decisions to staff', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const refusedPayload = await reservationPayload(pack.id, futureDateAt(16, 0, 40));
+    refusedPayload.consentImage = false;
+    const refused = await request(app).post('/api/reservations').send(refusedPayload).expect(201);
+    const agent = await loginAdmin();
+    const mediaPayload = {
+      title: 'Portrait refusé LEG-07',
+      altText: 'Portrait qui doit rester privé',
+      url: '/uploads/portfolio/leg-07-refused.webp',
+      category: 'Portrait',
+      reservationReference: refused.body.data.reference,
+      isPublished: true,
+    };
+
+    const blocked = await agent.post('/api/admin/media').send(mediaPayload).expect(409);
+    expect(blocked.body.error).toMatchObject({ code: 'IMAGE_CONSENT_REQUIRED' });
+    expect(await prisma.mediaItem.count()).toBe(0);
+
+    const draft = await agent
+      .post('/api/admin/media')
+      .send({ ...mediaPayload, isPublished: false })
+      .expect(201);
+    expect(draft.body.data).toMatchObject({
+      isPublished: false,
+      rightsBasis: 'CUSTOMER_IMAGE_AUTHORIZATION',
+    });
+
+    const passwordHash = await bcrypt.hash('leg-07-staff-password', 4);
+    await prisma.adminUser.create({
+      data: {
+        email: 'leg-07-staff@goldenstudioplus.test',
+        name: 'LEG-07 Staff',
+        passwordHash,
+        role: AdminRole.STAFF,
+      },
+    });
+    const staff = request.agent(app);
+    await staff.post('/api/admin/login').send({
+      email: 'leg-07-staff@goldenstudioplus.test',
+      password: 'leg-07-staff-password',
+    }).expect(200);
+    const denied = await staff
+      .patch(`/api/admin/media/${draft.body.data.id}`)
+      .send({ isPublished: true })
+      .expect(403);
+    expect(denied.body.error).toMatchObject({
+      code: 'ADMIN_PERMISSION_REQUIRED',
+      details: { permission: 'MEDIA_RIGHTS_MANAGE' },
+    });
+  });
+
+  it('keeps verified delivery private and independent from promotional image authorization', async () => {
+    const schema = await import('../../src/validation/schemas.js');
+    expect(schema.reservationDeliveryPublishSchema.safeParse({
+      commandId: randomUUID(),
+      expectedReservationVersion: 1,
+      deliveryUrl: 'https://delivery.example.test/client-files',
+      accessInstruction: 'Code communiqué séparément.',
+      expiresAt: futureDateAt(17, 0, 41),
+    }).success).toBe(true);
+    expect(await prisma.reservationDelivery.count()).toBe(0);
+  });
+});
 
 describe('LEG-05 data governance', () => {
   it('publishes seven non-automatic retention policies to the owner', async () => {
