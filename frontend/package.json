@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:client-only && vite build && node scripts/prerender.mjs && node scripts/check-performance-budgets.mjs",
+    "build": "npm run check:client-only && vite build && node scripts/prerender.mjs && node scripts/check-performance-budgets.mjs && npm run audit:trackers",
+    "audit:trackers": "node scripts/audit-trackers.mjs",
     "lint": "eslint .",
     "test": "node --test test/*.test.js",
     "preview": "vite preview",

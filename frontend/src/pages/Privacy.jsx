@@ -2,6 +2,11 @@ import { Link } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import LegalPageLayout from '../components/LegalPageLayout';
 import {
+  OPTIONAL_TRACKERS_ENABLED,
+  TRACKER_INVENTORY,
+  TRACKER_INVENTORY_VERSION,
+} from '../content/tracker-inventory';
+import {
   ACTIVE_PROCESSORS,
   DATA_RETENTION,
   PRIVACY_CONTACT,
@@ -139,6 +144,29 @@ const Privacy = () => (
       <div className="legal-notice">
         <strong>Situation actuelle :</strong> Le site public n’utilise actuellement ni cookie publicitaire ni outil de mesure d’audience. Un cookie strictement nécessaire, sécurisé et inaccessible au JavaScript est utilisé uniquement pour la session de l’espace d’administration ; sa durée maximale est de huit heures. L’activation future d’un outil non essentiel nécessiterait une information et, lorsque requis, un choix préalable.
       </div>
+      <h3>Inventaire opérationnel vérifié</h3>
+      <p>
+        Version {TRACKER_INVENTORY_VERSION} : <strong>Aucun traceur facultatif actif.</strong>{' '}
+        Comme aucun choix facultatif n’est actuellement demandé, aucune bannière de consentement n’est affichée. Si un tel outil est ajouté, il devra rester désactivé avant le choix, avec un refus aussi accessible que l’acceptation et un retrait ultérieur disponible.
+      </p>
+      <div className="legal-table-wrap">
+        <table className="legal-table">
+          <thead><tr><th>Outil</th><th>Classification</th><th>Portée et finalité</th><th>Stockage et durée</th></tr></thead>
+          <tbody>
+            {TRACKER_INVENTORY.map((item) => (
+              <tr key={item.id}>
+                <th scope="row">{item.name}</th>
+                <td>{item.classificationLabel}</td>
+                <td>{item.scope}. {item.purpose}</td>
+                <td>{item.storage}. {item.lifetime}.</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!OPTIONAL_TRACKERS_ENABLED && (
+        <p><small>Préférences facultatives : aucune à modifier ou à retirer dans la version actuelle.</small></p>
+      )}
     </section>
 
     <section className="legal-section">

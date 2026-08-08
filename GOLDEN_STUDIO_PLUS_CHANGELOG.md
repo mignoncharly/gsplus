@@ -1,5 +1,21 @@
 # Changelog — Golden Studio Plus
 
+## 8 août 2026 — LEG-06 inventaire des traceurs validé en production
+
+### Ajouté
+
+- Inventaire central versionné du cookie administrateur strictement nécessaire et de Google Fonts, ressource typographique externe sans finalité de traçage.
+- Audit bloquant au build des signatures analytics/publicitaires, APIs de stockage navigateur et origines externes auto-chargées non inventoriées.
+- Rapport public `tracker-audit-report.json` : deux entrées, deux origines attendues, zéro traceur facultatif, zéro stockage navigateur et zéro signature interdite.
+- Section Confidentialité §7 enrichie avec portée, finalité, stockage et durée réels; aucune fausse bannière CMP tant qu’aucun choix facultatif n’existe.
+- Contrat prospectif imposant à tout futur traceur facultatif un état désactivé avant accord, un refus aussi accessible que l’acceptation et un mécanisme de retrait.
+- Frontend 87/87, backend 131/131, statique 4/4, LEG-06 local 4/4 et production Chromium/WebKit 4/4.
+- Playwright complet 129/130, LEG-06 4/4; l’unique fermeture WebKit P2-05 hors périmètre a repassé 1/1 isolément.
+- Build/prerender/budgets conformes : entrée 380 356 octets (121 101 gzip), route publique maximale 37 272/40 000, admin 54 946/55 000 et CSS total 80 958.
+- Production frontend-only : rapport, confidentialité, admin et santé 200; backend inchangé PID 374587, `NRestarts=63`; base inchangée 27/27.
+
+LEG-06 est terminé et `VALIDÉ-PROD`. LEG-07 « Respect effectif du droit à l’image sur les médias » devient le prochain problème ordonné; progression 24/25 (96 %), 1 phase restante.
+
 ## 8 août 2026 — LEG-05 gouvernance des données et demandes de droits validées en production
 
 ### Ajouté

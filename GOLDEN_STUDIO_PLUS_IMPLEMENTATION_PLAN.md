@@ -678,3 +678,18 @@ LEG-04 est terminé et `VALIDÉ-PROD`. LEG-05 « Conservation, archivage, sécur
 - Production : sauvegarde `.phase0-backups/20260808-210800-pre-leg-05/database-pre-leg-05.dump`, 137 436 octets, mode 0600, SHA-256 `55abf6b8f378c898ab6705909210c10ab27379f10cfc719fcd33975a410c01be`, catalogue `pg_restore` de 252 lignes. Backend actif PID 374587, `NRestarts=63`; admin et santé HTTPS 200; 13 réservations et 13 paiements inchangés.
 
 LEG-05 est terminé et `VALIDÉ-PROD`. LEG-06 « Inventaire des traceurs et préférences si nécessaire » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 23/25 phases terminées (92 %), 2 restantes.
+
+## 35. Exécution LEG-06 « Inventaire des traceurs et préférences si nécessaire » — 8 août 2026
+
+État : `VALIDÉ-PROD`; inventaire réel centralisé, audit bloquant au build et preuve navigateur livrés sans afficher une fausse CMP en l’absence de traceur facultatif.
+
+- Inventaire : version `2026-08-08`, deux entrées déclarées. `__Host-gsp_admin_session` reste strictement nécessaire, privé, HttpOnly, Secure, SameSite Strict, sans Domain et limité à huit heures; Google Fonts est déclaré comme ressource typographique externe sans finalité de traçage.
+- Situation publique : aucun cookie, `localStorage`, `sessionStorage`, IndexedDB, `document.cookie` ou `sendBeacon` utilisé par l’application; seules les origines `fonts.googleapis.com` et `fonts.gstatic.com` sont automatiquement chargées et inventoriées.
+- Garde-fous : le build recherche les signatures d’analytics/publicité connues, les APIs de stockage et les origines auto-chargées non déclarées. Toute future entrée facultative doit être désactivée par défaut, exiger un accord, offrir « Refuser » aussi directement que « Accepter » et permettre le retrait.
+- Transparence : la section 7 de la politique publie l’inventaire opérationnel, la finalité, la portée, le mécanisme et la durée. Aucune bannière ou préférence factice n’est affichée puisqu’aucun choix facultatif n’existe actuellement.
+- Preuves : rouge statique 0/4 puis final 4/4; audit build passé avec deux entrées, deux origines, zéro facultatif, zéro stockage et zéro signature interdite; LEG-06 local Chromium/WebKit 4/4; production 4/4.
+- Non-régression : frontend 87/87, backend 15 fichiers/131 tests, ESLint, `git diff --check`, build, prerender et budgets conformes. Playwright complet : 129/130 en 12,3 minutes, LEG-06 4/4; l’unique fermeture WebKit hors périmètre sur P2-05 a repassé 1/1 dans un processus neuf.
+- Performance : entrée 380 356 octets (121 101 gzip), plus grande route publique 37 272/40 000, admin 54 946/55 000 et CSS total 80 958; rapport public `tracker-audit-report.json` généré à chaque build.
+- Production frontend-only : rapport `passed: true`, confidentialité, admin et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 374587, `NRestarts=63`, actif; base inchangée 27/27.
+
+LEG-06 est terminé et `VALIDÉ-PROD`. LEG-07 « Respect effectif du droit à l’image sur les médias » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 24/25 phases terminées (96 %), 1 restante.

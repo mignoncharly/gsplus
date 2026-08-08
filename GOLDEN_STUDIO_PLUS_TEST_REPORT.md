@@ -1248,3 +1248,42 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 4/4; API interceptée, aucune écriture métier réelle |
 
 LEG-05 est validé en production. LEG-06 est le prochain problème ordonné. Progression : 23/25 phases terminées (92 %), 2 restantes.
+
+# LEG-06 — Inventaire des traceurs et préférences si nécessaire
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Inventaire unique versionné du cookie admin `__Host-gsp_admin_session`, strictement nécessaire, et des requêtes Google Fonts, classées comme ressource externe sans finalité de traçage.
+- Aucun traceur facultatif, cookie public ou stockage applicatif navigateur n’est actif; aucune fausse interface CMP n’est donc présentée.
+- Le build échoue sur toute signature analytics/publicitaire connue, API de stockage ou origine externe auto-chargée absente de l’inventaire.
+- Une future entrée facultative doit être désactivée avant accord, proposer le refus au même niveau que l’acceptation et fournir une modification ou un retrait accessible.
+- L’inventaire lisible est publié dans Confidentialité §7 et son rapport machine dans `tracker-audit-report.json`.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-06 | 0/4 : inventaire, audit bloquant, publication et parcours runtime absents avant implémentation |
+| Statique LEG-06 final | 4/4 : inventaire, build, politique réelle et sécurité du cookie admin |
+| Audit build | Passé : 2 entrées, 2 origines externes inventoriées, 0 facultatif, 0 API de stockage, 0 signature interdite |
+| Frontend complet | 87/87; ESLint conforme |
+| Backend complet | 15 fichiers, 131/131; base dédiée et production à 27/27 migrations |
+| Playwright LEG-06 local | Chromium/WebKit 4/4 : 11 routes, réseau, cookies, stockages et publication de l’inventaire |
+| Playwright local complet | 129/130 en 12,3 minutes; LEG-06 4/4. Fermeture WebKit P2-05 hors LEG-06, relance fraîche ciblée 1/1 |
+| Build/prerender/budgets | Entrée 380 356 (121 101 gzip), public 37 272/40 000, admin 54 946/55 000, CSS total 80 958 |
+| Intégrité | `git diff --check`, lint, tests, audit, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Frontend-only depuis `frontend/dist`; aucune migration, écriture métier ou relance backend |
+| Rapport publié | `tracker-audit-report.json` : `passed: true`, version `2026-08-08`, 2 entrées, 2 origines, 0 facultatif, 0 stockage, 0 signature interdite |
+| Service backend | Inchangé : PID 374587, `NRestarts=63`, `ActiveState=active`, `SubState=running` |
+| Base | 27/27 migrations appliquées, inchangée |
+| Santé | `https://gsplus.vip/api/health` et `/admin/dashboard` : 200 |
+| Production ciblée | Chromium/WebKit 4/4 : réseau public, cookies/stockages et inventaire publié |
+
+LEG-06 est validé en production. LEG-07 est le prochain et dernier problème ordonné. Progression : 24/25 phases terminées (96 %), 1 restante.
