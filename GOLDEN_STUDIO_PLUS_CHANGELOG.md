@@ -1,5 +1,21 @@
 # Changelog — Golden Studio Plus
 
+## 8 août 2026 — LEG-05 gouvernance des données et demandes de droits validées en production
+
+### Ajouté
+
+- Sept politiques de conservation publiées et versionnées pour réservations, paiements, consentements, médias/fichiers, journaux techniques, sauvegardes et demandes de droits.
+- Registre propriétaire des demandes d’accès, rectification, limitation, opposition, portabilité, retrait et effacement, avec échéance opérationnelle, identité référencée sans copie brute, restriction de traitement, décision et preuve de réponse.
+- Commandes idempotentes, contrôle de version, audit minimisé et historique événementiel append-only; accès API et interface refusé à STAFF.
+- Décisions explicites de maintien, archivage restreint, anonymisation/effacement à exécuter ou gel juridique; aucune suppression automatique et aucun délai légal inventé.
+- Deux migrations additives avec contraintes d’états et triggers protégeant politiques publiées et événements contre les mutations SQL directes; production 27/27, sept politiques, zéro dossier artificiel.
+- Frontend 83/83, backend 131/131, statique 4/4, backend ciblé 3/3, LEG-05 local 4/4 et production 4/4 sans écriture métier réelle.
+- Playwright complet 125/126, LEG-05 4/4; l’unique intermittence WebKit historique de réservation hors périmètre a repassé 1/1 isolément.
+- Build/prerender/budgets conformes : entrée 380 356 octets (121 110 gzip), route publique maximale 37 272/40 000, admin 54 946/55 000, CSS maximal 14 933/15 000 et CSS total 80 958.
+- Production : backend PID 374587, `NRestarts=63`, santé/admin 200; sauvegarde de 137 436 octets vérifiée; 13 réservations/13 paiements inchangés.
+
+LEG-05 est terminé et `VALIDÉ-PROD`. LEG-06 « Inventaire des traceurs et préférences si nécessaire » devient le prochain problème ordonné; progression 23/25 (92 %), 2 phases restantes.
+
 ## 8 août 2026 — LEG-04 consentements versionnés et retrait prospectif validés en production
 
 ### Ajouté

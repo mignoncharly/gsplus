@@ -42,6 +42,7 @@ const futureDateAt = (hour = 10, minute = 0, dayOffset = 10) => {
 };
 
 const resetDatabase = async () => {
+  await prisma.dataRightsRequest.deleteMany();
   await prisma.dataIntegrityIncident.deleteMany();
   await prisma.calendarSyncLog.deleteMany();
   await prisma.notificationEvent.deleteMany();
@@ -2372,6 +2373,85 @@ describe('LEG-04 legal versions and image consent evidence', () => {
   });
 });
 
+
+describe('LEG-05 data governance', () => {
+  it('publishes seven non-automatic retention policies to the owner', async () => {
+    const agent = await loginAdmin();
+    const response = await agent.get('/api/admin/data-governance').expect(200);
+    expect(response.body.data.policies).toHaveLength(7);
+    expect(response.body.data.policies.every((policy: { automaticExecution: boolean }) => !policy.automaticExecution)).toBe(true);
+    expect(response.body.data.policies.map((policy: { category: string }) => policy.category)).toEqual(expect.arrayContaining([
+      'RESERVATIONS', 'PAYMENTS', 'CONSENTS', 'MEDIA_WORK_FILES', 'TECHNICAL_LOGS', 'BACKUPS', 'RIGHTS_REQUESTS',
+    ]));
+  });
+
+  it('creates, replays and versions an auditable rights request', async () => {
+    const agent = await loginAdmin();
+    const receivedAt = new Date(Date.now() - 60_000);
+    const commandId = randomUUID();
+    const payload = {
+      commandId,
+      requestType: 'ACCESS',
+      requesterName: 'Cliente Gouvernance',
+      requesterEmail: 'rights@example.test',
+      requestChannel: 'EMAIL',
+      requestSummary: 'Demande complète d’accès aux données personnelles traitées.',
+      identityStatus: 'UNVERIFIED',
+      receivedAt: receivedAt.toISOString(),
+      targetResponseAt: new Date(receivedAt.getTime() + 86_400_000).toISOString(),
+    };
+    const created = await agent.post('/api/admin/data-rights-requests').send(payload).expect(201);
+    expect(created.body.data).toMatchObject({ replayed: false, request: { status: 'RECEIVED', version: 1 } });
+    expect(created.body.data.request.reference).toMatch(/^DR-\d{8}-[A-F0-9]{12}$/);
+
+    const replay = await agent.post('/api/admin/data-rights-requests').send(payload).expect(201);
+    expect(replay.body.data).toMatchObject({ replayed: true, request: { id: created.body.data.request.id } });
+
+    const updatePayload = {
+      commandId: randomUUID(),
+      expectedVersion: 1,
+      status: 'FULFILLED',
+      identityStatus: 'VERIFIED',
+      identityEvidenceReference: 'Contrôle visuel consigné dans le ticket interne DR-1',
+      processingRestricted: true,
+      retentionAction: 'RESTRICTED_ARCHIVE',
+      reason: 'Copie structurée préparée et réponse transmise au demandeur.',
+      responseEvidence: 'Message-ID rights-response-001 conservé dans la boîte professionnelle',
+      effectiveAt: new Date().toISOString(),
+    };
+    const updated = await agent.patch(`/api/admin/data-rights-requests/${created.body.data.request.id}`).send(updatePayload).expect(200);
+    expect(updated.body.data.request).toMatchObject({ status: 'FULFILLED', version: 2, processingRestricted: true, retentionAction: 'RESTRICTED_ARCHIVE' });
+    expect(updated.body.data.request.events).toHaveLength(2);
+    await expect(prisma.dataRightsRequestEvent.update({
+      where: { id: updated.body.data.request.events[0].id },
+      data: { reason: 'Tentative de mutation directe interdite' },
+    })).rejects.toThrow(/DATA_RIGHTS_EVENT_IMMUTABLE/);
+    await expect(prisma.dataRetentionPolicy.update({
+      where: { category: 'RIGHTS_REQUESTS' },
+      data: { label: 'Tentative de mutation directe interdite' },
+    })).rejects.toThrow(/RETENTION_POLICY_IMMUTABLE/);
+
+    const stale = await agent.patch(`/api/admin/data-rights-requests/${created.body.data.request.id}`).send({
+      ...updatePayload,
+      commandId: randomUUID(),
+      status: 'REFUSED',
+    }).expect(409);
+    expect(stale.body.error).toMatchObject({ code: 'DATA_RIGHTS_VERSION_CONFLICT' });
+  });
+
+  it('denies the confidential register to staff', async () => {
+    const passwordHash = await bcrypt.hash('leg-05-staff-password', 4);
+    await prisma.adminUser.create({ data: {
+      email: 'leg-05-staff@goldenstudioplus.test', name: 'LEG-05 Staff', passwordHash, role: AdminRole.STAFF,
+    } });
+    const staff = request.agent(app);
+    await staff.post('/api/admin/login').send({
+      email: 'leg-05-staff@goldenstudioplus.test', password: 'leg-05-staff-password',
+    }).expect(200);
+    const response = await staff.get('/api/admin/data-governance').expect(403);
+    expect(response.body.error).toMatchObject({ code: 'ADMIN_PERMISSION_REQUIRED' });
+  });
+});
 describe('P2-01 localized validation responses', () => {
   it('returns a French summary and structured field details for public forms', async () => {
     const response = await request(app)

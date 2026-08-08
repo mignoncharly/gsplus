@@ -92,6 +92,8 @@ model AdminUser {
   withdrawalRequestsDecided  ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
   reservationDeliveries      ReservationDelivery[]
   imageConsentEvents         ImageConsentEvent[]
+  dataRightsRequestsCreated  DataRightsRequest[]            @relation("DataRightsRequestCreatedBy")
+  dataRightsRequestEvents    DataRightsRequestEvent[]
 }
 
 model Customer {
@@ -315,6 +317,85 @@ model ImageConsentEvent {
   @@index([reservationId, effectiveAt, createdAt])
   @@index([legalVersionId])
   @@index([choice, effectiveAt])
+  @@index([recordedById])
+}
+
+model DataRetentionPolicy {
+  id                 String              @id
+  category           String              @unique
+  label              String
+  version            String
+  status             String              @default("PUBLISHED")
+  triggerRule        String
+  activeRule         String
+  archiveRule        String
+  dispositionRule    String
+  backupRule         String
+  automaticExecution Boolean             @default(false)
+  effectiveAt        DateTime
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  rightsRequests     DataRightsRequest[]
+
+  @@index([status, effectiveAt])
+}
+
+model DataRightsRequest {
+  id                        String                   @id @default(cuid())
+  reference                 String                   @unique
+  requestType               String
+  status                    String                   @default("RECEIVED")
+  requesterName             String
+  requesterEmail            String?
+  requesterPhone            String?
+  reservationReference      String?
+  requestChannel            String
+  requestSummary            String
+  identityStatus            String                   @default("UNVERIFIED")
+  identityEvidenceReference String?
+  processingRestricted      Boolean                  @default(false)
+  retentionAction           String                   @default("NONE")
+  responseSummary           String?
+  responseEvidence          String?
+  receivedAt                DateTime
+  targetResponseAt          DateTime
+  legalHoldUntil            DateTime?
+  closedAt                  DateTime?
+  version                   Int                      @default(1)
+  retentionPolicyId         String
+  createdById               String
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  retentionPolicy           DataRetentionPolicy      @relation(fields: [retentionPolicyId], references: [id], onDelete: Restrict)
+  createdBy                 AdminUser                @relation("DataRightsRequestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  events                    DataRightsRequestEvent[]
+
+  @@index([status, targetResponseAt])
+  @@index([requestType, receivedAt])
+  @@index([retentionPolicyId])
+  @@index([createdById])
+}
+
+model DataRightsRequestEvent {
+  id                        String            @id @default(cuid())
+  requestId                 String
+  commandId                 String            @unique
+  eventType                 String
+  fromStatus                String?
+  toStatus                  String
+  identityStatus            String
+  identityEvidenceReference String?
+  processingRestricted      Boolean
+  retentionAction           String
+  reason                    String
+  responseEvidence          String?
+  effectiveAt               DateTime
+  recordedById              String
+  createdAt                 DateTime          @default(now())
+  request                   DataRightsRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  recordedBy                AdminUser         @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([requestId, effectiveAt, createdAt])
   @@index([recordedById])
 }
 

@@ -88,3 +88,30 @@ export const buildWhatsAppCustomerLink = (reservation) => {
 
 export const isDeliveryAccessActive = (delivery, now = new Date()) =>
   delivery?.status === "AVAILABLE" && new Date(delivery.expiresAt).getTime() > now.getTime();
+
+export const formatBytes = (value) => {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return 'inconnue';
+  if (bytes < 1024) return `${bytes} o`;
+  return `${(bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1)} Ko`;
+};
+
+export const maskedProviderId = (value) => {
+  const id = String(value || '');
+  if (!id) return '';
+  return id.length <= 8 ? id : `…${id.slice(-8)}`;
+};
+
+export const calendarErrorLabel = (code) => ({
+  CALENDAR_NOT_CONFIGURED: 'Calendrier externe non configuré',
+  CALENDAR_EXTERNAL_EVENT_NOT_FOUND: 'Événement externe introuvable',
+  CALENDAR_OPERATION_SUPERSEDED: 'Opération remplacée par un état plus récent',
+  CALENDAR_STATUS_NOT_SYNCABLE: 'Statut non synchronisable',
+  CALENDAR_PROVIDER_FAILED: 'Échec technique du fournisseur calendrier',
+  CALENDAR_LEGACY_PROVIDER_FAILURE: 'Ancien échec fournisseur — détails historiques indisponibles',
+  CALENDAR_PROVIDER_ID_MISSING: 'Identifiant fournisseur manquant',
+  CALENDAR_EVENT_TYPE_INVALID: 'Type d’événement calendrier invalide',
+  CALENDAR_EVENT_TYPE_MISSING: 'Type d’événement calendrier absent',
+  CALENDAR_DURATION_UNSUPPORTED: 'Durée non prise en charge par le calendrier',
+  CALENDAR_EVENT_TYPE_NOT_FOUND: 'Type d’événement configuré introuvable',
+}[code] || code || 'Aucune erreur');

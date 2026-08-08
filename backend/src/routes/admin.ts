@@ -55,6 +55,11 @@ import {
   IMAGE_WITHDRAWAL_EFFECT_NOTICE,
 } from '../services/legal-consents.js';
 import {
+  executeCreateDataRightsRequest,
+  executeUpdateDataRightsRequest,
+  listDataGovernance,
+} from '../services/data-governance.js';
+import {
   createAvailabilityBlock,
   deleteAvailabilityBlock,
   updateAvailabilityBlock,
@@ -75,6 +80,8 @@ import {
   adminLoginSchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
+  dataRightsRequestCreateSchema,
+  dataRightsRequestUpdateSchema,
   idParamsSchema,
   leadUpdateSchema,
   listQuerySchema,
@@ -194,6 +201,66 @@ router.get(
 );
 
 router.use(requireAdmin);
+
+router.get(
+  '/data-governance',
+  asyncHandler(async (_req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'DATA_GOVERNANCE_MANAGE');
+    res.json({ data: await listDataGovernance() });
+  }),
+);
+
+router.post(
+  '/data-rights-requests',
+  validate('body', dataRightsRequestCreateSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'DATA_GOVERNANCE_MANAGE');
+    const outcome = await executeCreateDataRightsRequest({
+      commandId: req.body.commandId,
+      requestType: req.body.requestType,
+      requesterName: req.body.requesterName,
+      requesterEmail: req.body.requesterEmail,
+      requesterPhone: req.body.requesterPhone,
+      reservationReference: req.body.reservationReference,
+      requestChannel: req.body.requestChannel,
+      requestSummary: req.body.requestSummary,
+      identityStatus: req.body.identityStatus,
+      identityEvidenceReference: req.body.identityEvidenceReference,
+      receivedAt: req.body.receivedAt,
+      targetResponseAt: req.body.targetResponseAt,
+      admin,
+    });
+    res.status(201).json({ data: { ...outcome.value, commandId: outcome.commandId, replayed: outcome.replayed } });
+  }),
+);
+
+router.patch(
+  '/data-rights-requests/:id',
+  validate('params', idParamsSchema),
+  validate('body', dataRightsRequestUpdateSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'DATA_GOVERNANCE_MANAGE');
+    const outcome = await executeUpdateDataRightsRequest({
+      requestId: routeParam(req.params.id),
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      status: req.body.status,
+      identityStatus: req.body.identityStatus,
+      identityEvidenceReference: req.body.identityEvidenceReference,
+      processingRestricted: req.body.processingRestricted,
+      retentionAction: req.body.retentionAction,
+      reason: req.body.reason,
+      responseEvidence: req.body.responseEvidence,
+      legalHoldUntil: req.body.legalHoldUntil,
+      effectiveAt: req.body.effectiveAt,
+      admin,
+    });
+    res.json({ data: { ...outcome.value, commandId: outcome.commandId, replayed: outcome.replayed } });
+  }),
+);
 
 router.post(
   '/reservations/:id/cancel',

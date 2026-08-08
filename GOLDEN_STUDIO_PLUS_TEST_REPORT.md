@@ -1208,3 +1208,43 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 8/8; API admin simulée, aucune écriture métier réelle |
 
 LEG-04 est validé en production. LEG-05 est le prochain problème ordonné. Progression : 22/25 phases terminées (88 %), 3 restantes.
+
+# LEG-05 — Conservation, archivage, sécurité et demandes de droits
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Sept politiques publiées couvrent les cycles actif, archive restreinte, revue d’anonymisation/effacement et résidus de sauvegarde sans inventer de durée normative absente de la source.
+- Le registre traite accès, rectification, limitation, opposition, portabilité, retrait et effacement avec date de réception, échéance opérationnelle saisie, état d’identité, restriction, décision motivée et preuve de réponse.
+- Aucune pièce d’identité brute n’est stockée par le workflow; seule une référence de vérification peut être consignée.
+- L’accès est strictement `OWNER`; STAFF reçoit `ADMIN_PERMISSION_REQUIRED`. Les créations/mises à jour sont idempotentes, versionnées et auditées.
+- Les événements sont append-only et les politiques publiées immuables en base. Anonymisation/effacement restent des actions manuelles explicites; `automaticExecution=false` est contraint en SQL.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-05 | 0/4 : modèles, permissions, routes et panneau absents avant implémentation |
+| Statique LEG-05 final | 4/4 : politiques, droits, minimisation, accès restreint et commandes dédupliquées |
+| Backend ciblé | 3/3 : sept politiques, création/rejeu/version, conflit, immutabilité SQL et interdiction STAFF |
+| Frontend complet | 83/83; ESLint conforme |
+| Backend complet | 15 fichiers, 131/131; Prisma valide, TypeScript conforme; base dédiée 27/27 |
+| Playwright LEG-05 local | Chromium/WebKit 4/4 : politiques, avertissement anti-automatisme, création simulée et absence du registre pour STAFF |
+| Playwright local complet | 125/126 en 11,7 minutes; LEG-05 4/4. Intermittence historique WebKit de réservation hors LEG-05, relance fraîche 1/1 |
+| Build/prerender/budgets | Entrée 380 356 (121 110 gzip), public 37 272/40 000, admin 54 946/55 000, CSS max 14 933/15 000, CSS total 80 958 |
+| Intégrité | `git diff --check`, client-only, Prisma, TypeScript, lint, tests, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Sauvegarde | `.phase0-backups/20260808-210800-pre-leg-05/database-pre-leg-05.dump`, 137 436 octets, mode 0600, SHA-256 `55abf6b8f378c898ab6705909210c10ab27379f10cfc719fcd33975a410c01be`; catalogue `pg_restore` 252 lignes |
+| Migrations | `20260808213000_leg_05_data_governance` et `20260808214500_leg_05_governance_integrity`; production 27/27 |
+| Registres | Sept politiques publiées; zéro demande et zéro événement artificiel en production |
+| Invariants métier | 13 réservations et 13 paiements, inchangés |
+| Service backend | PID 374587, `NRestarts=63`, `ActiveState=active`, `SubState=running` |
+| Santé | `https://gsplus.vip/admin/dashboard` et `/api/health` : 200 |
+| Production ciblée | Chromium/WebKit 4/4; API interceptée, aucune écriture métier réelle |
+
+LEG-05 est validé en production. LEG-06 est le prochain problème ordonné. Progression : 23/25 phases terminées (92 %), 2 restantes.

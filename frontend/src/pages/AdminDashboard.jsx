@@ -31,11 +31,13 @@ import {
   createAdminMedia,
   createAdminWithdrawalRequest,
   createAdminImageConsentEvent,
+  createAdminDataRightsRequest,
   deleteAdminAvailabilityBlock,
   deleteAdminMedia,
   decideAdminRescheduleRequest,
   decideAdminWithdrawalRequest,
   getAdminAvailabilityBlocks,
+  getAdminDataGovernance,
   getAdminLeads,
   getAdminMe,
   getAdminMedia,
@@ -55,11 +57,15 @@ import {
   updateAdminMedia,
   updateAdminReservation,
   updateAdminAvailabilityBlock,
+  updateAdminDataRightsRequest,
   verifyAdminPayment,
   verifyAndConfirmAdminReservation,
 } from '../lib/api';
 import {
   canConfirmReservation,
+  calendarErrorLabel,
+  formatBytes,
+  maskedProviderId,
   canVerifyAndConfirm,
   isReservationEndReached,
   isTemporalOverrideTransition,
@@ -86,18 +92,8 @@ const AdminWhatsAppPanel = React.lazy(() => import('../components/AdminWhatsAppP
 const AdminOpsPanel = React.lazy(() => import('../components/AdminReservationOperationsPanel'));
 const AdminActionDialog = React.lazy(() => import('../components/AdminActionDialog'));
 const AdminPackagesPanel = React.lazy(() => import('../components/AdminPackagesPanel'));
+const AdminDataGovernancePanel = React.lazy(() => import('../components/AdminDataGovernancePanel'));
 
-const formatBytes = (value) => {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return 'inconnue';
-  if (bytes < 1024) return `${bytes} o`;
-  return `${(bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1)} Ko`;
-};
-const maskedProviderId = (value) => {
-  const id = String(value || '');
-  if (!id) return '';
-  return id.length <= 8 ? id : `…${id.slice(-8)}`;
-};
 const dateTime = formatBusinessDateTime;
 const monthKey = currentBusinessMonthKey();
 
@@ -140,19 +136,6 @@ const reservationIdentityKey = (reservation) => {
   return [contact.firstName, contact.lastName, contact.phone, contact.email].join('|');
 };
 
-const calendarErrorLabel = (code) => ({
-  CALENDAR_NOT_CONFIGURED: 'Calendrier externe non configuré',
-  CALENDAR_EXTERNAL_EVENT_NOT_FOUND: 'Événement externe introuvable',
-  CALENDAR_OPERATION_SUPERSEDED: 'Opération remplacée par un état plus récent',
-  CALENDAR_STATUS_NOT_SYNCABLE: 'Statut non synchronisable',
-  CALENDAR_PROVIDER_FAILED: 'Échec technique du fournisseur calendrier',
-  CALENDAR_LEGACY_PROVIDER_FAILURE: 'Ancien échec fournisseur — détails historiques indisponibles',
-  CALENDAR_PROVIDER_ID_MISSING: 'Identifiant fournisseur manquant',
-  CALENDAR_EVENT_TYPE_INVALID: 'Type d’événement calendrier invalide',
-  CALENDAR_EVENT_TYPE_MISSING: 'Type d’événement calendrier absent',
-  CALENDAR_DURATION_UNSUPPORTED: 'Durée non prise en charge par le calendrier',
-  CALENDAR_EVENT_TYPE_NOT_FOUND: 'Type d’événement configuré introuvable',
-}[code] || code || 'Aucune erreur');
 
 const notificationResolutionLabel = (code) => statusLabel(code || 'UNCLASSIFIED');
 
@@ -199,6 +182,7 @@ const AdminDashboard = () => {
   const [media, setMedia] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [dataGovernance, setDataGovernance] = useState({ policies: [], requests: [] });
 
   const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
     const existingRequest = tabRefreshInFlightRef.current.get(tab);
@@ -238,6 +222,8 @@ const AdminDashboard = () => {
           setBlocks(await getAdminAvailabilityBlocks());
         } else if (tab === 'portfolio') {
           setMedia(await getAdminMedia());
+        } else if (tab === 'governance') {
+          setDataGovernance(await getAdminDataGovernance());
         } else if (tab === 'notifications') {
           setNotifications(await getAdminNotifications());
         }
@@ -402,6 +388,7 @@ const AdminDashboard = () => {
     setMedia([]);
     setBlocks([]);
     setNotifications([]);
+    setDataGovernance({ policies: [], requests: [] });
     setLastSyncedAt({});
     tabRefreshInFlightRef.current.clear();
     reservationSearchReferenceRef.current = '';
@@ -440,6 +427,16 @@ const AdminDashboard = () => {
       setFeedback({ tab: activeTab, type: 'success', message: 'Données actualisées avec succès.' });
     }
   };
+
+  const createDataRightsRequest = (payload) => runAction(
+    'Création de la demande de droits',
+    () => createAdminDataRightsRequest(payload),
+  );
+
+  const updateDataRightsRequest = (request, payload) => runAction(
+    `Mise à jour de ${request.reference}`,
+    () => updateAdminDataRightsRequest(request.id, payload),
+  );
 
   const openReservation = async (reservation) => {
     const key = `reservations:detail:${reservation.id}`;
@@ -921,6 +918,7 @@ const AdminDashboard = () => {
     ['availability', 'Disponibilités', Ban],
     ['portfolio', 'Portfolio', ImageIcon],
     ['notifications', 'Communications', Mail],
+    ...(adminUser?.role === 'OWNER' ? [['governance', 'Données & droits', ShieldCheck]] : []),
   ];
 
   const closeSidebar = ({ restoreFocus = false } = {}) => {
@@ -1445,6 +1443,26 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
+            </Motion.div>
+          )}
+
+          {activeTab === 'governance' && adminUser?.role === 'OWNER' && (
+            <Motion.div
+              key="governance"
+              variants={pageTransition}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <React.Suspense fallback={<div className="admin-status-banner">Chargement du registre confidentiel…</div>}>
+                <AdminDataGovernancePanel
+                  governance={dataGovernance}
+                  dateTime={dateTime}
+                  busy={Boolean(busyActions['governance:Création de la demande de droits']) || Object.keys(busyActions).some((key) => key.startsWith('governance:Mise à jour'))}
+                  onCreate={createDataRightsRequest}
+                  onUpdate={updateDataRightsRequest}
+                />
+              </React.Suspense>
             </Motion.div>
           )}
 

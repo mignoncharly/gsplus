@@ -1,0 +1,73 @@
+.admin-governance-notice {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-left: 4px solid var(--c-gold);
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.08);
+  line-height: 1.55;
+}
+
+.admin-governance-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-governance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-governance-create-form,
+.admin-governance-update-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-governance-create-form label,
+.admin-governance-update-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-governance-create-form input,
+.admin-governance-create-form select,
+.admin-governance-create-form textarea,
+.admin-governance-update-form input,
+.admin-governance-update-form select,
+.admin-governance-update-form textarea {
+  width: 100%;
+}
+
+.admin-governance-update-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-checkbox-row {
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+}
+
+.admin-checkbox-row input {
+  width: auto;
+}
+
+.admin-governance-policies {
+  margin-top: 1.5rem;
+}
+
+.admin-governance-policies article {
+  padding-block: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 767px) {
+  .admin-governance-heading {
+    align-items: flex-start;
+  }
+}

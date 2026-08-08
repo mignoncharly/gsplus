@@ -661,3 +661,20 @@ LEG-03 est terminé et `VALIDÉ-PROD`. LEG-04 « Consentement distinct au droit 
 - Production : sauvegarde PostgreSQL valide de 126 843 octets (`sha256:c74e82caf605f3ed75919f884cb0226f0faac4fa3d09195557fb902a47154e9e`), migration 25/25 et backend actif PID 276996 avec `NRestarts=62`; réservation et santé HTTPS 200. Les 13 réservations et 13 paiements sont inchangés; trois versions et 13 preuves historiques (9 accords, 4 refus, aucun retrait artificiel) sont présentes.
 
 LEG-04 est terminé et `VALIDÉ-PROD`. LEG-05 « Conservation, archivage, sécurité et demandes de droits » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 22/25 phases terminées (88 %), 3 restantes.
+
+## 34. Exécution LEG-05 « Conservation, archivage, sécurité et demandes de droits » — 8 août 2026
+
+État : `VALIDÉ-PROD`; politiques exécutables publiées et registre confidentiel des demandes de droits activé sans délai légal inventé ni effacement automatique.
+
+- Politiques : sept catégories versionnées couvrent réservations, paiements, consentements, images/fichiers de travail, journaux techniques, sauvegardes et demandes de droits. Chaque politique décrit déclencheur, phase active, archivage restreint, sort final et traitement des sauvegardes.
+- Garde destructive : `automaticExecution=false` est imposé en base. Anonymisation et effacement sont des actions explicites à exécuter après revue des obligations, preuves, litiges et gels; aucune donnée n’est supprimée silencieusement.
+- Registre : accès, rectification, limitation, opposition, portabilité, retrait et effacement; identité/contact minimisés, référence de réservation facultative, canal, résumé, réception et échéance opérationnelle saisie. L’interface précise que cette cible n’est pas un délai légal automatique.
+- Instruction : statut, vérification d’identité sans dépôt de pièce brute, limitation des nouveaux traitements, archivage restreint, anonymisation/effacement requis ou gel juridique daté, motif et preuve de réponse.
+- Sécurité : API et onglet réservés au rôle `OWNER`; commandes dédupliquées, version optimiste, audit minimisé et événements append-only. Les politiques publiées et événements sont protégés contre UPDATE/DELETE SQL direct.
+- Migrations : `20260808213000_leg_05_data_governance` puis `20260808214500_leg_05_governance_integrity`; 27/27 en production, sept politiques, zéro demande et zéro événement artificiel.
+- Preuves : rouge statique 0/4 puis final 4/4; backend ciblé 3/3; local Chromium/WebKit 4/4; production 4/4 avec API interceptée et sans écriture métier.
+- Non-régression : frontend 83/83, backend 15 fichiers/131 tests, Prisma/TypeScript/ESLint, `git diff --check`, build, prerender et budgets conformes. Playwright complet : 125/126 en 11,7 minutes, LEG-05 4/4; l’unique intermittence historique WebKit de réservation hors LEG-05 a repassé 1/1 dans un processus neuf.
+- Performance : entrée 380 356 octets (121 110 gzip), plus grande route publique 37 272/40 000, admin 54 946/55 000, CSS maximal 14 933/15 000 et CSS total 80 958. Le panneau et son CSS sont chargés paresseusement.
+- Production : sauvegarde `.phase0-backups/20260808-210800-pre-leg-05/database-pre-leg-05.dump`, 137 436 octets, mode 0600, SHA-256 `55abf6b8f378c898ab6705909210c10ab27379f10cfc719fcd33975a410c01be`, catalogue `pg_restore` de 252 lignes. Backend actif PID 374587, `NRestarts=63`; admin et santé HTTPS 200; 13 réservations et 13 paiements inchangés.
+
+LEG-05 est terminé et `VALIDÉ-PROD`. LEG-06 « Inventaire des traceurs et préférences si nécessaire » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 23/25 phases terminées (92 %), 2 restantes.

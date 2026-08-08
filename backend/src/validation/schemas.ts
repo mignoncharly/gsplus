@@ -321,6 +321,84 @@ export const imageConsentEventCreateSchema = z.object({
   requestEvidence: z.string().trim().min(1).max(2000),
 });
 
+const dataRightType = z.enum([
+  'ACCESS',
+  'RECTIFICATION',
+  'RESTRICTION',
+  'OBJECTION',
+  'PORTABILITY',
+  'CONSENT_WITHDRAWAL',
+  'ERASURE',
+]);
+const dataRightsStatus = z.enum([
+  'RECEIVED',
+  'IDENTITY_CHECK',
+  'IN_REVIEW',
+  'ACTION_REQUIRED',
+  'PARTIALLY_FULFILLED',
+  'FULFILLED',
+  'REFUSED',
+  'CLOSED',
+]);
+const identityStatus = z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'NOT_REQUIRED']);
+const retentionAction = z.enum([
+  'NONE',
+  'KEEP_ACTIVE',
+  'RESTRICTED_ARCHIVE',
+  'ANONYMIZATION_REQUIRED',
+  'ERASURE_REQUIRED',
+  'LEGAL_HOLD',
+]);
+
+export const dataRightsRequestCreateSchema = z.object({
+  commandId: z.uuid(),
+  requestType: dataRightType,
+  requesterName: z.string().trim().min(2).max(200),
+  requesterEmail: emailAddress.optional(),
+  requesterPhone: phone.optional(),
+  reservationReference: z.string().trim().min(3).max(32).transform((value) => value.toUpperCase()).optional(),
+  requestChannel: z.enum(['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON', 'MAIL', 'OTHER']),
+  requestSummary: z.string().trim().min(10).max(4000),
+  identityStatus,
+  identityEvidenceReference: z.string().trim().min(3).max(500).optional(),
+  receivedAt: z.coerce.date(),
+  targetResponseAt: z.coerce.date(),
+}).superRefine((value, context) => {
+  if (!value.requesterEmail && !value.requesterPhone) {
+    context.addIssue({ code: 'custom', path: ['requesterEmail'], message: 'Renseignez au moins un moyen de contact.' });
+  }
+  if (value.targetResponseAt < value.receivedAt) {
+    context.addIssue({ code: 'custom', path: ['targetResponseAt'], message: 'L’échéance interne ne peut pas précéder la demande.' });
+  }
+  if (value.identityStatus === 'VERIFIED' && !value.identityEvidenceReference) {
+    context.addIssue({ code: 'custom', path: ['identityEvidenceReference'], message: 'Référencez la vérification sans joindre de pièce d’identité.' });
+  }
+});
+
+export const dataRightsRequestUpdateSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  status: dataRightsStatus,
+  identityStatus,
+  identityEvidenceReference: z.string().trim().min(3).max(500).nullable().optional(),
+  processingRestricted: z.boolean(),
+  retentionAction,
+  reason: z.string().trim().min(10).max(4000),
+  responseEvidence: z.string().trim().min(3).max(2000).nullable().optional(),
+  legalHoldUntil: z.coerce.date().nullable().optional(),
+  effectiveAt: z.coerce.date(),
+}).superRefine((value, context) => {
+  if (value.identityStatus === 'VERIFIED' && !value.identityEvidenceReference) {
+    context.addIssue({ code: 'custom', path: ['identityEvidenceReference'], message: 'Référencez la vérification sans joindre de pièce d’identité.' });
+  }
+  if (value.retentionAction === 'LEGAL_HOLD' && !value.legalHoldUntil) {
+    context.addIssue({ code: 'custom', path: ['legalHoldUntil'], message: 'La fin du gel juridique doit être renseignée.' });
+  }
+  if (['PARTIALLY_FULFILLED', 'FULFILLED', 'REFUSED', 'CLOSED'].includes(value.status) && !value.responseEvidence) {
+    context.addIssue({ code: 'custom', path: ['responseEvidence'], message: 'La preuve de réponse est obligatoire pour cet état.' });
+  }
+});
+
 export const reservationDeliveryPublishSchema = z.object({
   commandId: z.uuid(),
   expectedReservationVersion: z.number().int().positive(),

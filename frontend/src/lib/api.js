@@ -377,3 +377,24 @@ export const deleteAdminAvailabilityBlock = async (id) => {
 };
 
 export { API_URL };
+
+export const getAdminDataGovernance = async () => {
+  const payload = await apiFetch('/api/admin/data-governance');
+  return payload.data;
+};
+
+export const createAdminDataRightsRequest = async (data) => {
+  const payload = await apiFetch('/api/admin/data-rights-requests', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const updateAdminDataRightsRequest = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/data-rights-requests/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
