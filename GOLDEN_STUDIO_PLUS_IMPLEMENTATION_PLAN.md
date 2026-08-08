@@ -579,3 +579,19 @@ P2-04 est terminé et `VALIDÉ-PROD`. P2-05 « Navigation : scroll, historique e
 - Déploiement frontend-only : `frontend/dist` servi par Nginx; aucune migration, écriture métier ou relance backend.
 
 P2-05 est terminé et `VALIDÉ-PROD`. P2-06 « Non-régression responsive globale » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 17/25 phases terminées (68 %), 8 restantes.
+
+## 29. Exécution P2-06 « Non-régression responsive globale » — 8 août 2026
+
+État : `VALIDÉ-PROD`; matrice publique et administration authentifiée couvertes de 320 à 1280 pixels, en portrait, paysage, reflow 200 % et parcours clavier mobile.
+
+- Matrice publique : les 11 routes publiques sont rechargées à 320×568, 390×844, 844×390, 768×1024, 992×768 et 1280×800; largeur du document et du corps contrôlées à chaque combinaison.
+- Zoom : un viewport CSS de 640 pixels vérifie le reflow équivalent au zoom navigateur 200 % d’un écran 1280 pixels, sur les 11 routes.
+- Administration : contrôles authentifiés à 320, 390, 768, 992 et 1280 pixels; tiroir mobile, tableau, recherche par référence et bascule vers la barre latérale bureau restent contenus.
+- Clavier : le tiroir admin est une modale nommée lorsqu’il est ouvert, le fond devient `inert`, le défilement est verrouillé et Tab/Shift+Tab restent dans le menu. Échap et une sélection ferment le tiroir puis restituent le focus après nettoyage du fond.
+- Défaut corrigé : Échap tentait auparavant de focaliser le bouton encore `inert`; la restitution est désormais différée à la trame suivante et prouvée sur Chromium/WebKit.
+- Preuves ciblées : statique P2-06 2/2; local Chromium/WebKit 8/8; production finale 8/8 avec APIs simulées et aucune écriture métier. Une navigation WebKit a d’abord conservé le seul HTML pré-rendu sans hydratation, puis le scénario complet a repassé isolément 1/1.
+- Non-régression : frontend 69/69, backend 15 fichiers/122 tests, ESLint, `git diff --check`, client-only, build et budgets conformes. Le run Playwright complet a réussi 102/104 en 10,9 minutes; les deux scénarios historiques WebKit intermittents P2-05/Phase 9 ont repassé ensemble 2/2 immédiatement. P2-06 y a réussi 8/8.
+- Performance : entrée 380 353 octets (121 106 gzip), plus grande route publique 39 869/40 000, admin 50 360, plus grand CSS 14 933/15 000 et CSS total 79 667.
+- Déploiement frontend-only : `frontend/dist` servi par Nginx; accueil et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
+
+P2-06 est terminé et `VALIDÉ-PROD`. LEG-01 « Alignement des mentions légales » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 18/25 phases terminées (72 %), 7 restantes.

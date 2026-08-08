@@ -160,6 +160,8 @@ const pageTransition = {
   transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
 };
 
+const adminSidebarFocusableSelector = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 const AdminDashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
@@ -178,6 +180,7 @@ const AdminDashboard = () => {
   const [busyActions, setBusyActions] = useState({});
   const [actionDialog, setActionDialog] = useState(null);
   const feedbackRef = useRef(null);
+  const sidebarRef = useRef(null);
   const sidebarCloseRef = useRef(null);
   const sidebarToggleRef = useRef(null);
   const busyActionKeysRef = useRef(new Set());
@@ -310,19 +313,46 @@ const AdminDashboard = () => {
     if (!isSidebarOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    const background = [
+      document.querySelector('.admin-mobile-header'),
+      document.querySelector('.admin-main'),
+    ].filter(Boolean);
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         setIsSidebarOpen(false);
-        sidebarToggleRef.current?.focus();
+        window.requestAnimationFrame(() => sidebarToggleRef.current?.focus());
+        return;
+      }
+
+      if (event.key !== 'Tab' || !sidebarRef.current) return;
+      const focusable = Array.from(sidebarRef.current.querySelectorAll(adminSidebarFocusableSelector));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     document.body.style.overflow = 'hidden';
+    background.forEach((element) => {
+      element.inert = true;
+      element.setAttribute('aria-hidden', 'true');
+    });
     document.addEventListener('keydown', handleKeyDown);
     sidebarCloseRef.current?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      background.forEach((element) => {
+        element.inert = false;
+        element.removeAttribute('aria-hidden');
+      });
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isSidebarOpen]);
@@ -820,8 +850,12 @@ const AdminDashboard = () => {
 
       {/* Sidebar navigation */}
       <aside
+        ref={sidebarRef}
         id="admin-sidebar"
         className={`admin-sidebar ${isSidebarOpen ? 'is-open' : ''}`}
+        role={isSidebarOpen ? 'dialog' : undefined}
+        aria-modal={isSidebarOpen ? 'true' : undefined}
+        aria-label={isSidebarOpen ? 'Navigation administrateur' : undefined}
       >
         <button
           ref={sidebarCloseRef}

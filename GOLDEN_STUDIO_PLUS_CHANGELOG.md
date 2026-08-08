@@ -1,4 +1,20 @@
 # Changelog — Golden Studio Plus
+## 8 août 2026 — P2-06 non-régression responsive globale validée en production
+
+### Ajouté
+
+- Matrice automatisée des 11 routes publiques à 320×568, 390×844, 844×390 paysage, 768×1024, 992×768 et 1280×800, avec contrôle du document et du corps.
+- Reflow équivalent au zoom navigateur 200 % d’un écran 1280 pixels, validé à 640 pixels CSS sur toutes les routes publiques.
+- Couverture de l’administration authentifiée de 320 à 1280 pixels, incluant le tiroir, les tableaux, la recherche et le basculement bureau/mobile.
+- Protection du menu admin existant : fond `inert`, verrouillage du scroll, rôle modal nommé, boucle Tab/Shift+Tab et restitution fiable du focus après Échap ou navigation.
+- Correction de la restitution Échap qui ciblait auparavant le bouton encore `inert`; focus différé après le nettoyage React.
+- P2-06 statique 2/2, local Chromium/WebKit 8/8 et production finale 8/8 sans écriture métier.
+- Frontend 69/69, backend 122/122, Playwright complet 102/104 puis deux intermittences WebKit historiques relancées ensemble 2/2; P2-06 8/8 dans le run complet.
+- Build/prerender/budgets conformes : entrée 380 353 octets, route publique maximale 39 869/40 000, admin 50 360 et CSS total 79 667.
+- Production frontend-only : accueil/API 200; backend inchangé PID 3245038 avec `NRestarts=60`, base inchangée 23/23.
+
+P2-06 est terminé et `VALIDÉ-PROD`. LEG-01 « Alignement des mentions légales » devient le prochain et seul problème ordonné; progression 18/25 (72 %), 7 phases restantes.
+
 ## 8 août 2026 — P2-05 navigation, historique et focus validés en production
 
 ### Ajouté

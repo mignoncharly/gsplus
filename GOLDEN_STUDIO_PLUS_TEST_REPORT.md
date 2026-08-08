@@ -1000,3 +1000,45 @@ Les fermetures WebKit provenaient de l’accumulation de transitions dans un mê
 | Production ciblée | Chromium/WebKit 22/22, APIs simulées, bundle et CSP réels |
 
 P2-05 est validé en production. P2-06 est le prochain problème ordonné. Progression : 17/25 phases terminées (68 %), 8 restantes.
+
+# P2-06 — Non-régression responsive globale
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Matrice des 11 routes publiques à 320×568, 390×844, 844×390 paysage, 768×1024, 992×768 et 1280×800.
+- Contrôle à chaque navigation de `documentElement.scrollWidth`, `body.scrollWidth` et de la largeur CSS visible.
+- Reflow équivalent à un zoom navigateur 200 % d’un écran 1280 pixels, reproduit par un viewport de 640 pixels CSS sur les 11 routes.
+- Administration authentifiée contrôlée à 320, 390, 768, 992 et 1280 pixels, avec recherche, tableaux et bascule tiroir/barre latérale.
+- Protection du tiroir mobile existant : rôle modal nommé, fond principal `inert`/masqué aux technologies d’assistance, verrouillage du corps, boucle Tab/Shift+Tab et retour du focus.
+- Correction du retour Échap : le bouton déclencheur n’est focalisé qu’à la trame suivant la suppression de `inert`.
+- Aucune modification backend, base, notification, SMTP/Zoho ou fournisseur.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Statique P2-06 | 2/2 : largeurs contractuelles, paysage, reflow 200 %, routes publiques/admin et contrat clavier du tiroir |
+| Playwright P2-06 local | Chromium/WebKit 8/8; 66 combinaisons route/taille par moteur, reflow 200 %, admin et clavier |
+| Frontend complet | 69/69; ESLint conforme |
+| Backend complet | 15 fichiers, 122/122; base de test à 23/23 migrations |
+| Build/prerender/budgets | Entrée 380 353 (121 106 gzip), public 39 869/40 000, admin 50 360, CSS max 14 933/15 000, CSS total 79 667 |
+| Playwright local complet | 102/104 en 10,9 min; P2-06 8/8. Deux intermittences WebKit historiques P2-05/Phase 9 relancées ensemble 2/2 |
+| Intégrité | `git diff --check`, client-only, lint, build, prerender et budgets réussis |
+
+Le premier test rouge utile a révélé que la fermeture Échap rendait bien le tiroir invisible mais tentait de focaliser son déclencheur alors que l’en-tête était encore `inert`. La restitution différée passe 2/2 sur les deux moteurs. Le run long a uniquement conservé deux intermittences WebKit hors P2-06 : focus de navigation P2-05 et activation d’un lien légal Phase 9; les mêmes scénarios ont réussi ensemble dès la relance isolée.
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Frontend-only depuis `frontend/dist`; aucune migration ni écriture métier |
+| Service backend | Inchangé : PID 3245038, `NRestarts=60`, `ActiveState=active` |
+| Base | 23/23 migrations appliquées, inchangée |
+| Santé | Accueil et `https://gsplus.vip/api/health` : 200 |
+| Production ciblée | Chromium 4/4; WebKit 3/4 puis scénario public complet 1/1 isolé, soit preuve finale 8/8; APIs simulées |
+
+La première passe production WebKit a affiché le HTML pré-rendu Portfolio sans hydratation JavaScript lors d’une navigation parmi 66; aucun débordement n’était observé, mais `#main-content` React était absent. Le scénario matriciel complet a repassé immédiatement 1/1 en 18,8 secondes.
+
+P2-06 est validé en production. LEG-01 est le prochain problème ordonné. Progression : 18/25 phases terminées (72 %), 7 restantes.
