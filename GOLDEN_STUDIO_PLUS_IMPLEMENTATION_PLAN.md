@@ -612,3 +612,20 @@ P2-06 est terminé et `VALIDÉ-PROD`. LEG-01 « Alignement des mentions légales
 - Déploiement frontend-only : `frontend/dist` servi par Nginx; page et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
 
 LEG-01 est terminé et `VALIDÉ-PROD`. LEG-02 « Alignement de la politique de confidentialité » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 19/25 phases terminées (76 %), 6 restantes.
+
+## 31. Exécution LEG-02 « Alignement de la politique de confidentialité » — 8 août 2026
+
+État : `VALIDÉ-PROD`; politique consolidée du 31 juillet 2026 publiée en dix sections, alignée sur le document juridique normatif et complétée par les pratiques opérationnelles déjà vérifiées.
+
+- Structure normative : responsable, données collectées, finalités/fondements, destinataires/prestataires/transferts, traitement numérique des images, durées/archivage, cookies/traceurs, sécurité, droits et documents associés.
+- Données et finalités : couverture des demandes, réservations, paiements, communications et suivis; catégories d’identité/contact, réservation, paiement, entreprise, technique, consentement, échanges et images; prévention de la fraude et des doublons explicitée.
+- Destinataires et transferts : opérateurs habilités, banques, assureurs, conseils, recouvrement et autorités couverts; tableau des intégrations actives/désactivées conservé; aucune vente commerciale autonome des données.
+- Conservation et sécurité : cycles actif/archivé/anonymisé, archive à accès restreint, résidus de sauvegarde et exceptions légales décrits; confidentialité, intégrité, disponibilité et traçabilité couvertes sans promettre un risque nul.
+- Droits : modalités de contact, justificatif d’identité proportionné au risque, limites légales à l’effacement et retrait distinct/prospectif du droit à l’image publiés. L’automatisation des demandes et échéances reste réservée à LEG-05.
+- Traceurs : politique normative publiée avec l’état opérationnel vérifié — aucun outil public publicitaire ou analytique actif; seul le cookie d’administration strictement nécessaire, privé et limité à huit heures, est déclaré.
+- Preuves : test rouge statique 0/2, puis statique 2/2; LEG-02 local Chromium/WebKit 4/4; tests liés contenu/liens/responsive/axe 6/6; production ciblée 8/8 sans écriture métier.
+- Non-régression : frontend 73/73, backend 15 fichiers/122 tests, Playwright local complet 112/112 en 11 minutes; ESLint, `git diff --check`, client-only, build, prerender et budgets conformes.
+- Performance : entrée 380 353 octets (121 098 gzip), plus grande route publique 39 869/40 000, admin 50 360, plus grand CSS 14 933/15 000 et CSS total 79 782.
+- Déploiement frontend-only : `frontend/dist` servi par Nginx; confidentialité et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
+
+LEG-02 est terminé et `VALIDÉ-PROD`. LEG-03 « Alignement des conditions générales de vente » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 20/25 phases terminées (80 %), 5 restantes.

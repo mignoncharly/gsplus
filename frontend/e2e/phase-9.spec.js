@@ -29,13 +29,13 @@ test('July 2026 legal pages are mutually linked and publish the complete privacy
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Politique de confidentialité');
-  await expect(page.getByText('Dernière mise à jour : 24 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
   for (const heading of [
     'Données collectées',
     'Finalités et fondements',
-    'Destinataires et prestataires',
+    'Destinataires, prestataires et transferts',
     'Durées de conservation',
-    'Cookies et mesure d’audience',
+    'Cookies, traceurs et mesure d’audience',
     'Vos droits',
   ]) {
     await expect(page.getByRole('heading', { name: new RegExp(heading) })).toBeVisible();

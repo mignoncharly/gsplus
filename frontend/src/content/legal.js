@@ -1,5 +1,6 @@
 export const LEGAL_LAST_UPDATED = '24 juillet 2026';
 export const LEGAL_MENTIONS_LAST_UPDATED = '31 juillet 2026';
+export const PRIVACY_LAST_UPDATED = '31 juillet 2026';
 
 export const PRIVACY_CONTACT = {
   email: 'info@gsplus.vip',

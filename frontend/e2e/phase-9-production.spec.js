@@ -6,7 +6,7 @@ test.skip(!productionOrigin, 'Production smoke runs only when PLAYWRIGHT_BASE_UR
 
 test('production publishes the July 2026 legal set and complete privacy disclosures', async ({ page }) => {
   for (const [route, lastUpdated] of [
-    ['/confidentialite', '24 juillet 2026'],
+    ['/confidentialite', '31 juillet 2026'],
     ['/mentions-legales', '31 juillet 2026'],
     ['/cgv', '24 juillet 2026'],
   ]) {

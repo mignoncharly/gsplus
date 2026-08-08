@@ -17,7 +17,7 @@ test('LEG-01 publie la version du 31 juillet et les quatre sections normatives',
   await expect(page.getByText(/compétence exclusive des tribunaux matériellement compétents du ressort de Douala/)).toBeVisible();
 
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Dernière mise à jour : 24 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
 });
 
 test('LEG-01 conserve les informations vérifiées sans débordement mobile', async ({ page }) => {

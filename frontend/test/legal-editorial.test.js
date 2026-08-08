@@ -50,7 +50,7 @@ test('privacy and terms mirror the data collected and manual workflow', () => {
     'adresse IP',
     'Cal.com',
     'Durées de conservation',
-    'Cookies et mesure d’audience',
+    'Cookies, traceurs et mesure d’audience',
   ];
 
   for (const term of requiredPrivacyTerms) assert.match(privacy, new RegExp(term));

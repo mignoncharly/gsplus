@@ -1084,3 +1084,44 @@ Le run monolithique n’a révélé aucun écart LEG-01. Les deux échecs histor
 | Production ciblée | Chromium/WebKit 8/8 : LEG-01 4/4 et smoke juridique/public 4/4 |
 
 LEG-01 est validé en production. LEG-02 est le prochain problème ordonné. Progression : 19/25 phases terminées (76 %), 6 restantes.
+
+# LEG-02 — Alignement de la politique de confidentialité
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Politique normative datée du 31 juillet 2026 et structurée en dix sections, conformément à la source juridique consolidée.
+- Catégories de données et finalités complètes pour demandes, réservations, paiements, communications et suivi, avec fondements et conséquences d’un défaut de fourniture.
+- Destinataires, prestataires et transferts internationaux explicités; intégrations opérationnelles actives ou désactivées conservées dans un tableau vérifié; aucune vente commerciale autonome.
+- Traitement numérique des images, conservation active/archivée/anonymisée, archive restreinte, sauvegardes résiduelles et exceptions légales publiés.
+- Mesures de confidentialité, intégrité, disponibilité et traçabilité ainsi que risques résiduels décrits.
+- Droits et modalités d’exercice complétés, dont justificatif d’identité proportionné et retrait prospectif du droit à l’image distinct de l’effacement.
+- État réel des traceurs maintenu : aucun outil public publicitaire ou analytique actif; cookie d’administration strictement nécessaire limité à huit heures.
+- Aucune modification backend, base, notification, SMTP/Zoho ou fournisseur; les mécanismes exécutables de consentement, rétention et demandes restent dans LEG-04 à LEG-07.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-02 | 0/2 : date dédiée et clauses critiques absentes avant consolidation |
+| Statique LEG-02 final | 2/2 : date, dix titres, finalités, transferts, archivage, sécurité et droits |
+| Playwright LEG-02 local | Chromium/WebKit 4/4 : contenu normatif, tableaux opérationnels, traceurs réels, droits et 320 px |
+| Tests liés | 6/6 : liens juridiques, registre existant, tableaux responsive et axe sur toutes les routes |
+| Frontend complet | 73/73; ESLint conforme |
+| Backend complet | 15 fichiers, 122/122; base de test à 23/23 migrations |
+| Build/prerender/budgets | Entrée 380 353 (121 098 gzip), public 39 869/40 000, admin 50 360, CSS max 14 933/15 000, CSS total 79 782 |
+| Playwright local complet | 112/112 en 11 minutes sur Chromium et WebKit, sans relance partielle |
+| Intégrité | `git diff --check`, client-only, lint, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Frontend-only depuis `frontend/dist`; aucune migration ni écriture métier |
+| Service backend | Inchangé : PID 3245038, `NRestarts=60`, `ActiveState=active`, `SubState=running` |
+| Base | 23/23 migrations appliquées, inchangée |
+| Santé | `https://gsplus.vip/confidentialite` et `/api/health` : 200 |
+| Production ciblée | Chromium/WebKit 8/8 : LEG-02 4/4 et smoke juridique/public 4/4 |
+
+LEG-02 est validé en production. LEG-03 est le prochain problème ordonné. Progression : 20/25 phases terminées (80 %), 5 restantes.

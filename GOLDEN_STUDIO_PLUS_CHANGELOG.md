@@ -1,4 +1,20 @@
 # Changelog — Golden Studio Plus
+
+## 8 août 2026 — LEG-02 politique de confidentialité du 31 juillet validée en production
+
+### Ajouté
+
+- Publication de la politique consolidée en dix sections, datée du 31 juillet 2026, couvrant responsable, données, finalités/fondements, destinataires/transferts, traitement numérique des images, conservation/archivage, traceurs, sécurité, droits et documents associés.
+- Alignement détaillé des catégories collectées, usages, bases légales, conséquences d’un refus, destinataires professionnels, transferts internationaux et garanties associées.
+- Clarification de l’archivage restreint, des sauvegardes résiduelles, des mesures de confidentialité/intégrité/disponibilité/traçabilité et des limites légales à l’effacement.
+- Modalités d’exercice des droits complétées : justificatif d’identité uniquement proportionné au risque et retrait du droit à l’image distinct, sans effet rétroactif automatique.
+- Conservation des tableaux opérationnels vérifiés sur les prestataires, durées et droits, ainsi que de la situation réelle des traceurs : aucun outil public publicitaire ou analytique actif.
+- Frontend 73/73, backend 122/122, tests liés 6/6, Playwright local complet 112/112 et production ciblée Chromium/WebKit 8/8.
+- Build/prerender/budgets conformes : entrée 380 353 octets (121 098 gzip), route publique maximale 39 869/40 000, admin 50 360, CSS maximal 14 933/15 000 et CSS total 79 782.
+- Production frontend-only : confidentialité/API 200; backend inchangé PID 3245038 avec `NRestarts=60`, base inchangée 23/23.
+
+LEG-02 est terminé et `VALIDÉ-PROD`. LEG-03 « Alignement des conditions générales de vente » devient le prochain et seul problème ordonné; progression 20/25 (80 %), 5 phases restantes.
+
 ## 8 août 2026 — LEG-01 mentions légales du 31 juillet validées en production
 
 ### Ajouté
