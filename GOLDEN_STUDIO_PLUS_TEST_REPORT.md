@@ -1042,3 +1042,45 @@ Le premier test rouge utile a révélé que la fermeture Échap rendait bien le 
 La première passe production WebKit a affiché le HTML pré-rendu Portfolio sans hydratation JavaScript lors d’une navigation parmi 66; aucun débordement n’était observé, mais `#main-content` React était absent. Le scénario matriciel complet a repassé immédiatement 1/1 en 18,8 secondes.
 
 P2-06 est validé en production. LEG-01 est le prochain problème ordonné. Progression : 18/25 phases terminées (72 %), 7 restantes.
+
+# LEG-01 — Alignement des mentions légales
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Date normative propre aux mentions légales : 31 juillet 2026; les dates Confidentialité/CGV ne sont pas modifiées avant LEG-02/LEG-03.
+- Quatre sections et formulations fidèles au document consolidé : éditeur/propriété intellectuelle, responsabilité, droit applicable/différends et documents associés.
+- Ajout de l’absence de cession de droits et des interdictions d’extraction automatisée/répétée, réutilisation commerciale, base concurrente et entraînement/test/alimentation de systèmes automatisés ou d’IA.
+- Compétence exclusive des tribunaux matériellement compétents du ressort de Douala, sous réserve des règles impératives.
+- Coordonnées publiées du Studio et fiche Hetzner conservées comme informations complémentaires vérifiées.
+- Forme/capital, RCCM/NIU et direction de publication maintenus en attente; aucune donnée officielle non justifiée ajoutée.
+- Aucune modification backend, base, notification, SMTP/Zoho ou fournisseur.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-01 | 1/2 : date et clauses normatives absentes; informations vérifiées déjà conservées |
+| Statique LEG-01 final | 2/2 : date, quatre titres, clauses exactes, coordonnées et garde anti-invention |
+| Playwright LEG-01 local | Chromium/WebKit 4/4 : contenu, dates isolées, liens, informations vérifiées et 320 px |
+| Tests liés | 6/6 : liens juridiques, registre existant, tableaux responsive et axe sur toutes les routes |
+| Frontend complet | 71/71; ESLint conforme |
+| Backend complet | 15 fichiers, 122/122; base de test à 23/23 migrations |
+| Build/prerender/budgets | Entrée 380 353 (121 096 gzip), public 39 869/40 000, admin 50 360, CSS max 14 933/15 000, CSS total 79 782 |
+| Playwright local complet | 106/108 en 11,7 min; LEG-01 4/4. Deux crashes WebKit P2-04/P2-05 hors périmètre, puis 1/1 et 1/1 séparément |
+| Intégrité | `git diff --check`, client-only, lint, build, prerender et budgets réussis |
+
+Le run monolithique n’a révélé aucun écart LEG-01. Les deux échecs historiques sont des fermetures du processus WebKit : P2-04 a perdu sa page pendant le clic « Continuer » et P2-05 pendant un clic Portfolio. Une relance groupée a reproduit la fermeture du moteur; deux processus neufs séparés ont ensuite réussi 1/1 et 1/1.
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Frontend-only depuis `frontend/dist`; aucune migration ni écriture métier |
+| Service backend | Inchangé : PID 3245038, `NRestarts=60`, `ActiveState=active` |
+| Base | 23/23 migrations appliquées, inchangée |
+| Santé | `https://gsplus.vip/mentions-legales` et `/api/health` : 200 |
+| Production ciblée | Chromium/WebKit 8/8 : LEG-01 4/4 et smoke juridique/public 4/4 |
+
+LEG-01 est validé en production. LEG-02 est le prochain problème ordonné. Progression : 19/25 phases terminées (76 %), 6 restantes.

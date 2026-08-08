@@ -1,5 +1,5 @@
 # Matrice de traçabilité — Golden Studio Plus
-Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour P2-06 au 8 août 2026.
+Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour LEG-01 au 8 août 2026.
 
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|
@@ -36,7 +36,7 @@ Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` 
 | Audit registre P2; prompt §18 | P2-04 | Dictionnaire central des statuts; catégories accentuées; normalisation non destructive; formatteurs FCFA et dates `fr-CM`/`Africa/Douala` | Non; frontend-only, production 23/23 inchangée | Statique 2/2, frontend 65/65, backend 122/122, P2-04 local 2/2 et production 2/2 | Aucun code technique inconnu affiché; Maternité/Bébé/Fiançailles, 50 000 FCFA et date Douala uniformes | VALIDÉ-PROD |
 | Audit corrections lecture/§11; prompt §§19–20 | P2-05 | `ScrollManager` conservé; scroll avant stabilisé, restauration `POP`, focus principal, initialisation StrictMode et ancre lazy focalisée | Non; frontend-only, production 23/23 inchangée | Statique 2/2, frontend 67/67, backend 122/122, P2-05 local 22/22 et production 22/22 | Tous liens header/footer bureau/mobile; haut à l’aller, position au retour, focus cohérent et devis visible sous le header | VALIDÉ-PROD |
 | Audit responsive; prompt §19 | P2-06 | Matrice des 11 routes à 320/390/768/992/1280+, portrait/paysage et reflow 200 %; admin authentifiée; tiroir modal avec fond inert, focus contenu et retour différé | Non; frontend-only, production 23/23 inchangée | Statique 2/2, frontend 69/69, backend 122/122, P2-06 local 8/8, run complet P2-06 8/8 et production finale 8/8 | Aucun overflow document/corps; recherche mobile visible; Tab/Échap et bascule menu admin fiables sur Chromium/WebKit | VALIDÉ-PROD |
-| Mentions légales §§1–4 | LEG-01 | Texte consolidé, liens associés | Non | Test éditorial | Version 31/07 fidèle | PLANIFIÉ |
+| Mentions légales §§1–4 | LEG-01 | Quatre sections consolidées du 31/07; date dédiée; clauses de propriété intellectuelle complètes; coordonnées Studio/Hetzner vérifiées conservées; mentions absentes explicitement signalées | Non; frontend-only, production 23/23 inchangée | Statique 2/2, frontend 71/71, backend 122/122, LEG-01 local 4/4, liés 6/6, run complet LEG-01 4/4 et production 8/8 | Version 31/07 fidèle, aucun identifiant inventé, liens croisés et 320 px conformes | VALIDÉ-PROD |
 | Confidentialité §§1–5 | LEG-02 | Données/finalités/prestataires/transferts | Non | Test contenu + parcours | Collecte et texte concordants | PLANIFIÉ |
 | Confidentialité §§6/8/9 | LEG-05 | Rétention, archive, sécurité, registre droits | Oui | Permissions, échéances, demandes | Traitement traçable et accès restreint | PLANIFIÉ |
 | Confidentialité §7 | LEG-06 | Inventaire traceurs et préférences si nécessaire | Éventuelle | Scan réseau/storage/cookies | Aucun facultatif avant accord | PLANIFIÉ |

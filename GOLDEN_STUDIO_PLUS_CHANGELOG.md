@@ -1,4 +1,21 @@
 # Changelog — Golden Studio Plus
+## 8 août 2026 — LEG-01 mentions légales du 31 juillet validées en production
+
+### Ajouté
+
+- Publication des quatre sections normatives consolidées : éditeur/propriété intellectuelle, responsabilité, droit applicable/différends et documents associés.
+- Clauses manquantes sur l’absence de cession, l’extraction automatisée, la réutilisation commerciale, la base concurrente et l’entraînement/test de systèmes automatisés ou d’IA.
+- Formulation fidèle de la compétence exclusive des tribunaux matériellement compétents du ressort de Douala.
+- Conservation des coordonnées vérifiées de Golden Studio Plus et de l’hébergeur Hetzner, distinctes du texte normatif.
+- Maintien visible des mentions officielles en attente — forme/capital, RCCM/NIU et direction de publication — sans inventer de donnée.
+- Date LEG-01 isolée au 31 juillet 2026; Confidentialité/CGV restent au 24 juillet jusqu’à leurs phases dédiées.
+- LEG-01 statique 2/2, local Chromium/WebKit 4/4, tests liés 6/6 et production 8/8.
+- Frontend 71/71, backend 122/122, Playwright complet 106/108 puis les deux crashes WebKit historiques relancés séparément 1/1 et 1/1.
+- Build/prerender/budgets conformes : entrée 380 353 octets, route publique maximale 39 869/40 000, admin 50 360 et CSS total 79 782.
+- Production frontend-only : page/API 200; backend inchangé PID 3245038 avec `NRestarts=60`, base inchangée 23/23.
+
+LEG-01 est terminé et `VALIDÉ-PROD`. LEG-02 « Alignement de la politique de confidentialité » devient le prochain et seul problème ordonné; progression 19/25 (76 %), 6 phases restantes.
+
 ## 8 août 2026 — P2-06 non-régression responsive globale validée en production
 
 ### Ajouté

@@ -9,7 +9,7 @@ const fadeIn = {
   transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
 };
 
-const LegalPageLayout = ({ icon, title, children }) => (
+const LegalPageLayout = ({ icon, title, lastUpdated = LEGAL_LAST_UPDATED, children }) => (
   <div className="legal-page">
     <section className="legal-hero" aria-labelledby="legal-title">
       <div className="legal-hero__bg" />
@@ -36,7 +36,7 @@ const LegalPageLayout = ({ icon, title, children }) => (
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          Dernière mise à jour : {LEGAL_LAST_UPDATED}
+          Dernière mise à jour : {lastUpdated}
         </Motion.p>
       </div>
     </section>

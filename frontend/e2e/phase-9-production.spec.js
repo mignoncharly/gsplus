@@ -5,10 +5,14 @@ const productionOrigin = process.env.PLAYWRIGHT_BASE_URL;
 test.skip(!productionOrigin, 'Production smoke runs only when PLAYWRIGHT_BASE_URL is explicitly provided.');
 
 test('production publishes the July 2026 legal set and complete privacy disclosures', async ({ page }) => {
-  for (const route of ['/confidentialite', '/mentions-legales', '/cgv']) {
+  for (const [route, lastUpdated] of [
+    ['/confidentialite', '24 juillet 2026'],
+    ['/mentions-legales', '31 juillet 2026'],
+    ['/cgv', '24 juillet 2026'],
+  ]) {
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     expect(response?.status(), route).toBe(200);
-    await expect(page.getByText('Dernière mise à jour : 24 juillet 2026')).toBeVisible();
+    await expect(page.getByText(`Dernière mise à jour : ${lastUpdated}`)).toBeVisible();
   }
 
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });

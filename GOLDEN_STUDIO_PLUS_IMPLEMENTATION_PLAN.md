@@ -595,3 +595,20 @@ P2-05 est terminé et `VALIDÉ-PROD`. P2-06 « Non-régression responsive global
 - Déploiement frontend-only : `frontend/dist` servi par Nginx; accueil et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
 
 P2-06 est terminé et `VALIDÉ-PROD`. LEG-01 « Alignement des mentions légales » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 18/25 phases terminées (72 %), 7 restantes.
+
+## 30. Exécution LEG-01 « Alignement des mentions légales » — 8 août 2026
+
+État : `VALIDÉ-PROD`; version consolidée du 31 juillet 2026 publiée fidèlement, avec conservation séparée des informations déjà vérifiées et signalement explicite des mentions officielles absentes.
+
+- Structure normative : la page expose exactement les quatre sections « Éditeur et propriété intellectuelle », « Responsabilité », « Droit applicable et différends » et « Documents associés ».
+- Propriété intellectuelle : ajout de l’absence de cession de droits et des interdictions normatives d’extraction automatisée/répétée, réutilisation commerciale, base concurrente et entraînement/test/alimentation d’un système automatisé ou d’IA.
+- Différends : formulation alignée sur la compétence exclusive des tribunaux matériellement compétents du ressort de Douala, sous réserve des dispositions impératives.
+- Informations vérifiées : coordonnées publiées du Studio et fiche Hetzner conservées sous des sous-titres non normatifs clairement identifiés.
+- Informations absentes : forme juridique/capital, RCCM/NIU et direction de publication restent listés comme en attente; aucun identifiant ou nom non vérifié n’est inventé.
+- Version : date propre `31 juillet 2026` pour les mentions légales; Confidentialité et CGV conservent le 24 juillet jusqu’à LEG-02 et LEG-03.
+- Preuves ciblées : statique LEG-01 2/2; local Chromium/WebKit 4/4; tests liés texte/liens/responsive/axe 6/6; production 8/8 sans écriture métier.
+- Non-régression : frontend 71/71, backend 15 fichiers/122 tests, ESLint, `git diff --check`, client-only, build et budgets conformes. Playwright complet : 106/108 en 11,7 minutes; LEG-01 4/4. Deux crashes WebKit historiques P2-04/P2-05 ont repassé séparément 1/1 et 1/1 dans des processus neufs.
+- Performance : entrée 380 353 octets (121 096 gzip), plus grande route publique 39 869/40 000, admin 50 360, plus grand CSS 14 933/15 000 et CSS total 79 782.
+- Déploiement frontend-only : `frontend/dist` servi par Nginx; page et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
+
+LEG-01 est terminé et `VALIDÉ-PROD`. LEG-02 « Alignement de la politique de confidentialité » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 19/25 phases terminées (76 %), 6 restantes.
