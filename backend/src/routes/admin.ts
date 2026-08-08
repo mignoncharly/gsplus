@@ -47,6 +47,10 @@ import {
   executeRescheduleRequestDecision,
 } from '../services/reservation-rescheduling.js';
 import {
+  executeCreateWithdrawalRequest,
+  executeWithdrawalRequestDecision,
+} from '../services/reservation-withdrawals.js';
+import {
   createAvailabilityBlock,
   deleteAvailabilityBlock,
   updateAvailabilityBlock,
@@ -87,6 +91,8 @@ import {
   reservationDeliveryPublishSchema,
   rescheduleRequestCreateSchema,
   rescheduleRequestDecisionSchema,
+  withdrawalRequestCreateSchema,
+  withdrawalRequestDecisionSchema,
   reservationStatusUpdateSchema,
   verifyAndConfirmSchema,
 } from '../validation/schemas.js';
@@ -245,6 +251,7 @@ router.get(
         },
         financialTasks: { orderBy: { createdAt: 'desc' } },
         rescheduleRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
+        withdrawalRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
       },
     });
 
@@ -298,6 +305,13 @@ router.get(
           include: { publishedBy: { select: { id: true, name: true } } },
         },
         rescheduleRequests: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            requestedBy: { select: { id: true, name: true } },
+            decidedBy: { select: { id: true, name: true } },
+          },
+        },
+        withdrawalRequests: {
           orderBy: { createdAt: 'desc' },
           include: {
             requestedBy: { select: { id: true, name: true } },
@@ -565,6 +579,64 @@ router.patch(
         commandId: outcome.commandId,
         replayed: outcome.replayed,
         calendarSync,
+      },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/withdrawal-requests',
+  validate('params', idParamsSchema),
+  validate('body', withdrawalRequestCreateSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'WITHDRAWAL_MANAGE');
+    const outcome = await executeCreateWithdrawalRequest({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      receivedAt: req.body.receivedAt,
+      requestChannel: req.body.requestChannel,
+      requestText: req.body.requestText,
+      requestEvidence: req.body.requestEvidence,
+      serviceStatus: req.body.serviceStatus,
+      executionStartedAt: req.body.executionStartedAt,
+      admin,
+    });
+    res.status(201).json({
+      data: {
+        request: outcome.value.request,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+      },
+    });
+  }),
+);
+
+router.patch(
+  '/withdrawal-requests/:id/decision',
+  validate('params', idParamsSchema),
+  validate('body', withdrawalRequestDecisionSchema),
+  asyncHandler(async (req, res) => {
+    const requestId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'WITHDRAWAL_MANAGE');
+    const outcome = await executeWithdrawalRequestDecision({
+      requestId,
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      decision: req.body.decision,
+      reason: req.body.reason,
+      admin,
+    });
+    res.json({
+      data: {
+        request: outcome.value.request,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
       },
     });
   }),

@@ -1125,3 +1125,44 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 8/8 : LEG-02 4/4 et smoke juridique/public 4/4 |
 
 LEG-02 est validé en production. LEG-03 est le prochain problème ordonné. Progression : 20/25 phases terminées (80 %), 5 restantes.
+
+# LEG-03 — Alignement des conditions générales de vente
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- CGV normatives datées du 31 juillet 2026 et structurées en huit sections conformément à la source juridique consolidée.
+- Prix/paiement, retard, annulation, report unique gratuit, seuil de 48 heures selon Douala, remboursement effectif et version acceptée publiés.
+- Droit de rétractation sous 15 jours : réception, canal, texte, preuve, échéance légale figée, état d’exécution et éventuel commencement anticipé enregistrés.
+- Création idempotente et décision humaine acceptée/rejetée avec motif obligatoire, version contrôlée, permissions propriétaire et audit.
+- La décision de rétractation ne déclenche automatiquement aucune annulation, aucun remboursement et aucune mutation du paiement ou de la réservation.
+- Droits à l’image/auteur, traitement numérique, fichiers bruts, livraison, responsabilité, réclamations et droit applicable publiés; les consentements exécutables restent réservés à LEG-04/LEG-07.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-03 | 0/3 : date/structure CGV et workflow de rétractation absents avant implémentation |
+| Statique LEG-03 final | 3/3 : date, huit titres et clauses critiques, API/admin et garde anti-automatisme |
+| Backend ciblé | 3/3 : demande/décision persistantes et idempotentes, cohérence d’exécution, interdiction STAFF |
+| Playwright LEG-03 local | Chromium/WebKit 6/6 : CGV, 320 px et workflow admin simulé |
+| Tests liés | 6/6 : Phase 9, accessibilité et responsive |
+| Frontend complet | 76/76; ESLint conforme |
+| Backend complet | 15 fichiers, 125/125; TypeScript conforme |
+| Build/prerender/budgets | Entrée 380 353 (121 099 gzip), public 39 869/40 000, admin 53 632, CSS max 14 933/15 000, CSS total 79 782 |
+| Playwright local complet | 116/118 en 11,1 minutes; LEG-03 6/6. Deux fermetures de processus WebKit historiques hors LEG-03; relances fraîches ciblées 1/1 et 1/1 |
+| Intégrité | `git diff --check`, lint, tests, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Sauvegarde | Dump valide de 119 530 octets; SHA-256 `29e0001808a263e5e541ac6a94cec68f145f31d30c8d21e2b7541792f34be1e8` |
+| Migration | `20260808160000_leg_03_withdrawal_requests` appliquée; 24/24 migrations, sept contraintes et sept index |
+| Invariants métier | 13 réservations, 13 paiements, zéro demande de rétractation réelle en production |
+| Service backend | PID 4153872, `NRestarts=61`, `ActiveState=active`, `SubState=running` |
+| Santé | `https://gsplus.vip/cgv` et `/api/health` : 200 |
+| Production ciblée | Chromium/WebKit 10/10; API admin simulée, aucune écriture métier réelle |
+
+LEG-03 est validé en production. LEG-04 est le prochain problème ordonné. Progression : 21/25 phases terminées (84 %), 4 restantes.

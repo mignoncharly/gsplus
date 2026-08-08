@@ -88,6 +88,8 @@ model AdminUser {
   financialTasks             FinancialTask[]
   rescheduleRequestsRecorded ReservationRescheduleRequest[] @relation("RescheduleRequestedBy")
   rescheduleRequestsDecided  ReservationRescheduleRequest[] @relation("RescheduleDecidedBy")
+  withdrawalRequestsRecorded ReservationWithdrawalRequest[] @relation("WithdrawalRequestedBy")
+  withdrawalRequestsDecided  ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
   reservationDeliveries      ReservationDelivery[]
 }
 
@@ -213,6 +215,7 @@ model Reservation {
   integrityIncidents DataIntegrityIncident[]
   financialTasks     FinancialTask[]
   rescheduleRequests ReservationRescheduleRequest[]
+  withdrawalRequests ReservationWithdrawalRequest[]
   deliveries         ReservationDelivery[]
 
   @@index([startAt, endAt])
@@ -433,6 +436,38 @@ model ReservationRescheduleRequest {
 
   @@index([reservationId, createdAt])
   @@index([status, requestedAt])
+  @@index([requestedById])
+  @@index([decidedById])
+}
+
+model ReservationWithdrawalRequest {
+  id                          String      @id @default(cuid())
+  reservationId               String
+  commandId                   String      @unique
+  requestedById               String?
+  decidedById                 String?
+  status                      String      @default("PENDING")
+  version                     Int         @default(1)
+  reservationVersionAtRequest Int
+  contractConcludedAt         DateTime
+  legalDeadlineAt             DateTime
+  receivedAt                  DateTime
+  receivedWithinLegalWindow   Boolean
+  requestChannel              String
+  requestText                 String
+  requestEvidence             String
+  serviceStatus               String
+  executionStartedAt          DateTime?
+  decisionReason              String?
+  decidedAt                   DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+  reservation                 Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  requestedBy                 AdminUser?  @relation("WithdrawalRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedBy                   AdminUser?  @relation("WithdrawalDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([status, receivedAt])
   @@index([requestedById])
   @@index([decidedById])
 }

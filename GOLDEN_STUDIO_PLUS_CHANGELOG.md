@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 8 août 2026 — LEG-03 CGV et rétractation traçable validées en production
+
+### Ajouté
+
+- Publication des CGV consolidées du 31 juillet 2026 en huit sections, avec règles de paiement, seuil d’annulation/report de 48 heures à Douala, remboursement effectif, rétractation sous 15 jours et conditions d’exécution anticipée.
+- Registre persistant des demandes de rétractation : date/canal/texte/preuve, état du service, échéance légale figée, commande idempotente et audit propriétaire.
+- Décision humaine motivée distincte, acceptée ou rejetée, sans annulation, remboursement ni mutation de paiement automatique.
+- Migration additive 24/24 avec sept contraintes et sept index; sauvegarde PostgreSQL vérifiée avant déploiement; 13 réservations et 13 paiements inchangés, zéro demande réelle créée en production.
+- Frontend 76/76, backend 125/125, LEG-03 local 6/6, tests liés 6/6 et production ciblée Chromium/WebKit 10/10 sans écriture métier réelle.
+- Run Playwright complet : 116/118, LEG-03 6/6; deux fermetures WebKit historiques hors périmètre ont repassé séparément 1/1 et 1/1 dans des processus neufs.
+- Build/prerender/budgets conformes : entrée 380 353 octets (121 099 gzip), route publique maximale 39 869/40 000, admin 53 632, CSS maximal 14 933/15 000 et CSS total 79 782.
+- Production : CGV/API 200; backend actif PID 4153872 avec `NRestarts=61`.
+
+LEG-03 est terminé et `VALIDÉ-PROD`. LEG-04 « Consentement distinct au droit à l’image » devient le prochain problème ordonné; progression 21/25 (84 %), 4 phases restantes.
+
 ## 8 août 2026 — LEG-02 politique de confidentialité du 31 juillet validée en production
 
 ### Ajouté

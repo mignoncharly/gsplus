@@ -629,3 +629,19 @@ LEG-01 est terminé et `VALIDÉ-PROD`. LEG-02 « Alignement de la politique de c
 - Déploiement frontend-only : `frontend/dist` servi par Nginx; confidentialité et santé HTTPS 200; aucune migration, écriture métier ou relance backend. Service inchangé PID 3245038, `NRestarts=60`, actif; base inchangée 23/23.
 
 LEG-02 est terminé et `VALIDÉ-PROD`. LEG-03 « Alignement des conditions générales de vente » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 20/25 phases terminées (80 %), 5 restantes.
+
+## 32. Exécution LEG-03 « Alignement des conditions générales de vente » — 8 août 2026
+
+État : `VALIDÉ-PROD`; CGV consolidées du 31 juillet 2026 publiées en huit sections et workflow de rétractation traçable livré sans annulation ni remboursement automatique.
+
+- Publication normative : réservation/prix/paiement, retards/annulations/reports, rétractation, droit à l’image/droits d’auteur, traitement numérique, exécution/livraison/responsabilité, réclamations/litiges et documents associés.
+- Règles opérationnelles : délai de 48 heures calculé selon Douala, report unique et gratuit, conditions de remboursement effectif et version des CGV acceptée explicités; les workflows existants restent ciblés et traçables.
+- Rétractation : registre persistant relié à la réservation et à la commande idempotente, fenêtre légale figée à 15 jours depuis la conclusion du contrat, canal/texte/preuve/date de réception et état d’exécution conservés.
+- Décision humaine distincte : acceptation ou rejet motivé, réservé au propriétaire; état/version contrôlés et audit enrichi. La décision ne déclenche automatiquement ni annulation, ni remboursement, ni mutation de paiement.
+- Base : migration additive `20260808160000_leg_03_withdrawal_requests`, sept contraintes et sept index; aucune ligne métier de production créée pendant la validation.
+- Preuves : test rouge statique 0/3 puis final 3/3; backend ciblé 3/3; LEG-03 local Chromium/WebKit 6/6; tests liés 6/6; production ciblée 10/10 avec API administration simulée, sans écriture métier réelle.
+- Non-régression : frontend 76/76, backend 15 fichiers/125 tests, ESLint, TypeScript backend, `git diff --check`, build, prerender et budgets conformes. Le run Playwright monolithique a produit 116/118 en 11,1 minutes, LEG-03 6/6; les deux fermetures de processus WebKit historiques hors LEG-03 ont chacune repassé 1/1 dans un processus neuf.
+- Performance : entrée 380 353 octets (121 099 gzip), plus grande route publique 39 869/40 000, admin 53 632, plus grand CSS 14 933/15 000 et CSS total 79 782.
+- Déploiement : sauvegarde PostgreSQL valide de 119 530 octets (`sha256:29e0001808a263e5e541ac6a94cec68f145f31d30c8d21e2b7541792f34be1e8`), migration 24/24, frontend servi par Nginx et backend actif PID 4153872 avec `NRestarts=61`; CGV et santé HTTPS 200. Les 13 réservations et 13 paiements sont inchangés; zéro demande de rétractation en production.
+
+LEG-03 est terminé et `VALIDÉ-PROD`. LEG-04 « Consentement distinct au droit à l’image » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 21/25 phases terminées (84 %), 4 restantes.

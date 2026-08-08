@@ -2,6 +2,7 @@ import React from 'react';
 
 import AdminDeliveriesPanel from './AdminDeliveriesPanel';
 import AdminRescheduleRequestsPanel from './AdminRescheduleRequestsPanel';
+import AdminWithdrawalRequestsPanel from './AdminWithdrawalRequestsPanel';
 
 const AdminReservationOperationsPanel = ({
   reservation,
@@ -11,6 +12,7 @@ const AdminReservationOperationsPanel = ({
   ownerDisabled,
   onPublished,
   onDecision,
+  onWithdrawalDecision,
 }) => (
   <>
     <AdminDeliveriesPanel
@@ -27,6 +29,14 @@ const AdminReservationOperationsPanel = ({
       busy={busy}
       ownerDisabled={ownerDisabled}
       onDecision={onDecision}
+    />
+    <AdminWithdrawalRequestsPanel
+      requests={reservation.withdrawalRequests}
+      dateTime={dateTime}
+      pill={pill}
+      busy={busy}
+      ownerDisabled={ownerDisabled}
+      onDecision={onWithdrawalDecision}
     />
   </>
 );

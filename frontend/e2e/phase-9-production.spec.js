@@ -8,7 +8,7 @@ test('production publishes the July 2026 legal set and complete privacy disclosu
   for (const [route, lastUpdated] of [
     ['/confidentialite', '31 juillet 2026'],
     ['/mentions-legales', '31 juillet 2026'],
-    ['/cgv', '24 juillet 2026'],
+    ['/cgv', '31 juillet 2026'],
   ]) {
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     expect(response?.status(), route).toBe(200);

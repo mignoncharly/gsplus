@@ -29,9 +29,11 @@ import {
   cancelAdminReservation,
   createAdminAvailabilityBlock,
   createAdminMedia,
+  createAdminWithdrawalRequest,
   deleteAdminAvailabilityBlock,
   deleteAdminMedia,
   decideAdminRescheduleRequest,
+  decideAdminWithdrawalRequest,
   getAdminAvailabilityBlocks,
   getAdminLeads,
   getAdminMe,
@@ -604,6 +606,78 @@ const AdminDashboard = () => {
       onConfirm: (values) => runDialogAction('Décision de report', () => decideAdminRescheduleRequest(request.id, {
         commandId: window.crypto.randomUUID(), expectedVersion: request.version,
         decision, reason: values.reason.trim(),
+      }), reservation.id),
+    });
+  };
+
+  const recordWithdrawalRequest = (reservation) => openActionDialog({
+    title: 'Enregistrer une demande de rétractation',
+    summary: reservation.reference,
+    consequence: 'La demande et son contexte seront figés pour une décision propriétaire séparée. Aucun remboursement ne sera marqué automatiquement.',
+    confirmLabel: 'Enregistrer la demande',
+    fields: [
+      { name: 'receivedAt', label: 'Date de réception à Douala', type: 'datetime-local', required: true, defaultValue: businessDateTimeLocalValue(new Date()) },
+      { name: 'requestChannel', label: 'Canal de réception', type: 'select', required: true, defaultValue: 'EMAIL', options: [
+        { value: 'EMAIL', label: 'E-mail info@gsplus.vip' },
+        { value: 'WHATSAPP', label: 'WhatsApp professionnel' },
+        { value: 'PHONE', label: 'Téléphone' },
+        { value: 'IN_PERSON', label: 'En personne' },
+        { value: 'OTHER', label: 'Autre canal professionnel' },
+      ] },
+      { name: 'requestText', label: 'Demande explicite reçue', type: 'textarea', required: true },
+      { name: 'requestEvidence', label: 'Preuve conservée', type: 'textarea', required: true, help: 'Ex. Message-ID du courriel, emplacement de l’archive ou compte rendu signé.' },
+      { name: 'serviceStatus', label: 'État du service à la réception', type: 'select', required: true, defaultValue: 'NOT_STARTED', options: [
+        { value: 'NOT_STARTED', label: 'Service non commencé' },
+        { value: 'STARTED', label: 'Service commencé' },
+        { value: 'COMPLETED', label: 'Service achevé' },
+      ] },
+      { name: 'executionStartedAt', label: 'Début d’exécution à Douala', type: 'datetime-local', help: 'Obligatoire uniquement si le service a commencé ou est achevé.' },
+    ],
+    validate: (values) => {
+      if (values.serviceStatus === 'NOT_STARTED' && values.executionStartedAt) {
+        return { executionStartedAt: 'Laissez cette date vide pour un service non commencé.' };
+      }
+      if (values.serviceStatus !== 'NOT_STARTED' && !values.executionStartedAt) {
+        return { executionStartedAt: 'Renseignez le début d’exécution.' };
+      }
+      return {};
+    },
+    onConfirm: async (values) => {
+      let receivedAt;
+      let executionStartedAt = null;
+      try {
+        receivedAt = doualaLocalDateTimeToIso(values.receivedAt);
+        if (values.executionStartedAt) executionStartedAt = doualaLocalDateTimeToIso(values.executionStartedAt);
+      } catch {
+        throw new Error('Les dates de la demande de rétractation sont invalides.');
+      }
+      await runDialogAction('Demande de rétractation', () => createAdminWithdrawalRequest(reservation.id, {
+        commandId: window.crypto.randomUUID(),
+        expectedReservationVersion: reservation.version,
+        receivedAt,
+        requestChannel: values.requestChannel,
+        requestText: values.requestText.trim(),
+        requestEvidence: values.requestEvidence.trim(),
+        serviceStatus: values.serviceStatus,
+        executionStartedAt,
+      }), reservation.id);
+    },
+  });
+
+  const decideWithdrawalRequest = (reservation, request, decision) => {
+    const accepted = decision === 'ACCEPTED';
+    openActionDialog({
+      title: accepted ? 'Accepter la demande de rétractation' : 'Refuser la demande de rétractation',
+      summary: reservation.reference + ' · reçue ' + dateTime(request.receivedAt),
+      consequence: 'La décision motivée sera auditée. L’annulation et tout remboursement restent des opérations séparées.',
+      confirmLabel: accepted ? 'Accepter la rétractation' : 'Refuser la rétractation',
+      destructive: !accepted,
+      fields: [{ name: 'reason', label: 'Analyse et motif de la décision', type: 'textarea', required: true }],
+      onConfirm: (values) => runDialogAction('Décision de rétractation', () => decideAdminWithdrawalRequest(request.id, {
+        commandId: window.crypto.randomUUID(),
+        expectedVersion: request.version,
+        decision,
+        reason: values.reason.trim(),
       }), reservation.id),
     });
   };
@@ -1594,6 +1668,8 @@ const AdminDashboard = () => {
                   onPublished={() => getAdminReservation(selectedRes.id).then(setSelectedRes)}
                   onDecision={(request, decision, reason) =>
                     decideRescheduleRequest(selectedRes, request, decision, reason)}
+                  onWithdrawalDecision={(request, decision) =>
+                    decideWithdrawalRequest(selectedRes, request, decision)}
                 />
               </React.Suspense>
               <div className="admin-action-row" style={{ marginTop: '2.5rem', justifyContent: 'flex-end' }}>
@@ -1682,6 +1758,18 @@ const AdminDashboard = () => {
                     Demander un report
                   </button>
                 )}
+                <button
+                  className="btn btn-secondary admin-sm-btn"
+                  onClick={() => recordWithdrawalRequest(selectedRes)}
+                  disabled={reservationDecisionBusy || ownerDecisionDisabled || selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')}
+                  title={ownerDecisionDisabled
+                    ? 'Cette action nécessite le rôle propriétaire.'
+                    : selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')
+                      ? 'Une demande de rétractation est déjà en attente.'
+                      : 'Enregistrer une demande explicite reçue par un canal professionnel.'}
+                >
+                  Enregistrer une rétractation
+                </button>
                 {['CONFIRMED', 'CANCELLED'].includes(selectedRes.status) && (
                   <button
                     className="btn btn-secondary admin-sm-btn"

@@ -286,6 +286,31 @@ export const rescheduleRequestDecisionSchema = z.object({
   reason: z.string().trim().min(1).max(1000),
 });
 
+export const withdrawalRequestCreateSchema = z.object({
+  commandId: z.uuid(),
+  expectedReservationVersion: z.number().int().positive(),
+  receivedAt: z.coerce.date(),
+  requestChannel: z.enum(['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON', 'OTHER']),
+  requestText: z.string().trim().min(1).max(4000),
+  requestEvidence: z.string().trim().min(1).max(2000),
+  serviceStatus: z.enum(['NOT_STARTED', 'STARTED', 'COMPLETED']),
+  executionStartedAt: z.coerce.date().nullable().optional(),
+}).superRefine((value, context) => {
+  if (value.serviceStatus === 'NOT_STARTED' && value.executionStartedAt) {
+    context.addIssue({ code: 'custom', path: ['executionStartedAt'], message: 'La date doit rester vide lorsque le service n’a pas commencé.' });
+  }
+  if (value.serviceStatus !== 'NOT_STARTED' && !value.executionStartedAt) {
+    context.addIssue({ code: 'custom', path: ['executionStartedAt'], message: 'La date de début d’exécution est obligatoire.' });
+  }
+});
+
+export const withdrawalRequestDecisionSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  decision: z.enum(['ACCEPTED', 'REJECTED']),
+  reason: z.string().trim().min(1).max(4000),
+});
+
 export const reservationDeliveryPublishSchema = z.object({
   commandId: z.uuid(),
   expectedReservationVersion: z.number().int().positive(),

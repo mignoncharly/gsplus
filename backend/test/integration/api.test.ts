@@ -2104,6 +2104,146 @@ describe('REF-01 public reservation references', () => {
 });
 
 
+describe('LEG-03 withdrawal request workflow', () => {
+  it('records immutable legal context and a separate idempotent human decision', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(10, 0, 31)))
+      .expect(201);
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+    const receivedAt = new Date();
+    const createPayload = {
+      commandId,
+      expectedReservationVersion: 1,
+      receivedAt: receivedAt.toISOString(),
+      requestChannel: 'EMAIL',
+      requestText: 'Je demande explicitement la rétractation de cette réservation.',
+      requestEvidence: 'Courriel reçu sur info@gsplus.vip, référence Message-ID conservée.',
+      serviceStatus: 'NOT_STARTED',
+      executionStartedAt: null,
+    };
+
+    const first = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/withdrawal-requests`)
+      .send(createPayload)
+      .expect(201);
+    expect(first.body.data).toMatchObject({ replayed: false, request: {
+      status: 'PENDING',
+      version: 1,
+      requestChannel: 'EMAIL',
+      serviceStatus: 'NOT_STARTED',
+      receivedWithinLegalWindow: true,
+    } });
+    expect(new Date(first.body.data.request.legalDeadlineAt).getTime() -
+      new Date(first.body.data.request.contractConcludedAt).getTime()).toBe(15 * 24 * 60 * 60_000);
+
+    const replay = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/withdrawal-requests`)
+      .send(createPayload)
+      .expect(201);
+    expect(replay.body.data).toMatchObject({ replayed: true, commandId, request: { id: first.body.data.request.id } });
+    expect(await prisma.reservationWithdrawalRequest.count()).toBe(1);
+
+    const decisionCommandId = randomUUID();
+    const decisionPayload = {
+      commandId: decisionCommandId,
+      expectedVersion: 1,
+      decision: 'ACCEPTED',
+      reason: 'Demande reçue dans le délai; service non commencé; analyse propriétaire validée.',
+    };
+    const decision = await agent
+      .patch(`/api/admin/withdrawal-requests/${first.body.data.request.id}/decision`)
+      .send(decisionPayload)
+      .expect(200);
+    expect(decision.body.data).toMatchObject({ replayed: false, request: {
+      status: 'ACCEPTED',
+      version: 2,
+      decisionReason: decisionPayload.reason,
+    } });
+    const decisionReplay = await agent
+      .patch(`/api/admin/withdrawal-requests/${first.body.data.request.id}/decision`)
+      .send(decisionPayload)
+      .expect(200);
+    expect(decisionReplay.body.data).toMatchObject({ replayed: true, commandId: decisionCommandId });
+
+    const reservation = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { payments: true, financialTasks: true },
+    });
+    expect(reservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
+    expect(reservation.version).toBe(1);
+    expect(reservation.payments[0].status).toBe(PaymentStatus.PENDING);
+    expect(reservation.financialTasks).toHaveLength(0);
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'reservation.withdrawal_request.accept', entityId: first.body.data.request.id },
+    });
+    expect(audit.metadata).toMatchObject({ automaticCancellation: false, automaticRefund: false });
+  });
+
+  it('requires coherent service execution evidence before recording the request', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(11, 0, 32)))
+      .expect(201);
+    const agent = await loginAdmin();
+    const response = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/withdrawal-requests`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: 1,
+        receivedAt: new Date().toISOString(),
+        requestChannel: 'EMAIL',
+        requestText: 'Demande explicite reçue.',
+        requestEvidence: 'Courriel archivé.',
+        serviceStatus: 'STARTED',
+        executionStartedAt: null,
+      })
+      .expect(400);
+    expect(response.body.error).toMatchObject({ code: 'VALIDATION_ERROR' });
+    expect(response.body.error.details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'executionStartedAt', message: 'La date de début d’exécution est obligatoire.' }),
+    ]));
+    expect(await prisma.reservationWithdrawalRequest.count()).toBe(0);
+  });
+
+  it('denies withdrawal recording to staff', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(12, 0, 33)))
+      .expect(201);
+    const passwordHash = await bcrypt.hash('leg-03-staff-password', 4);
+    await prisma.adminUser.create({ data: {
+      email: 'leg-03-staff@goldenstudioplus.test',
+      name: 'LEG-03 Staff',
+      passwordHash,
+      role: AdminRole.STAFF,
+    } });
+    const staff = request.agent(app);
+    await staff.post('/api/admin/login').send({
+      email: 'leg-03-staff@goldenstudioplus.test',
+      password: 'leg-03-staff-password',
+    }).expect(200);
+    const response = await staff
+      .post(`/api/admin/reservations/${created.body.data.id}/withdrawal-requests`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: 1,
+        receivedAt: new Date().toISOString(),
+        requestChannel: 'EMAIL',
+        requestText: 'Demande explicite reçue.',
+        requestEvidence: 'Courriel archivé.',
+        serviceStatus: 'NOT_STARTED',
+      })
+      .expect(403);
+    expect(response.body.error).toMatchObject({ code: 'ADMIN_PERMISSION_REQUIRED' });
+    expect(await prisma.reservationWithdrawalRequest.count()).toBe(0);
+  });
+});
+
 describe('P2-01 localized validation responses', () => {
   it('returns a French summary and structured field details for public forms', async () => {
     const response = await request(app)

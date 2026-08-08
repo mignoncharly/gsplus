@@ -1,5 +1,5 @@
 # Matrice de traçabilité — Golden Studio Plus
-Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour LEG-02 au 8 août 2026.
+Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour LEG-03 au 8 août 2026.
 
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|
@@ -40,8 +40,8 @@ Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` 
 | Confidentialité §§1–10 | LEG-02 | Politique consolidée du 31/07 : catégories/finalités/fondements, destinataires/transferts, images, conservation/archivage, traceurs, sécurité et droits; tableaux opérationnels vérifiés conservés | Non; frontend-only, production 23/23 inchangée; workflows différés à LEG-04/05/06/07 | Rouge 0/2 puis statique 2/2, frontend 73/73, backend 122/122, LEG-02 local 4/4, liés 6/6, Playwright complet 112/112 et production 8/8 | Dix sections/date conformes; aucune vente autonome; archives/sauvegardes, sécurité, droits et traceurs réels explicités à 320 px | VALIDÉ-PROD |
 | Confidentialité §§6/8/9 | LEG-05 | Rétention, archive, sécurité, registre droits | Oui | Permissions, échéances, demandes | Traitement traçable et accès restreint | PLANIFIÉ |
 | Confidentialité §7 | LEG-06 | Inventaire traceurs et préférences si nécessaire | Éventuelle | Scan réseau/storage/cookies | Aucun facultatif avant accord | PLANIFIÉ |
-| CGV §§1/2 | LEG-03 | Paiement, retards, annulations, reports exécutables | Oui | Seuil 48 h, compteur report | Calcul Douala et tâche financière | PLANIFIÉ |
-| CGV §3 | LEG-03 | Demande de rétractation et décision motivée | Oui | Délai/état service/décision | Preuve complète, pas d’automatisme opaque | PLANIFIÉ |
+| CGV §§1/2 | LEG-03 | Huit sections CGV du 31/07; paiement, remboursement effectif, retards, annulations et report unique alignés sur les workflows existants | Oui; registre de rétractation additif appliqué, production 24/24 | Statique 3/3, frontend 76/76, backend 125/125, LEG-03 local 6/6, liés 6/6 et production 10/10 | Seuil 48 h calculé à Douala, règles financières publiées et aucune écriture réelle pendant le smoke | VALIDÉ-PROD |
+| CGV §3 | LEG-03 | Demande de rétractation persistante/idempotente; échéance 15 jours, preuve et état d’exécution; décision propriétaire motivée distincte | Oui; sept contraintes, sept index et audit; zéro ligne réelle créée en production | Backend ciblé 3/3; décision acceptée/rejetée, cohérence commencement, STAFF interdit; Playwright admin simulé | Preuve complète et versionnée; aucune annulation, mutation de paiement ou remboursement automatique | VALIDÉ-PROD |
 | Confidentialité/CGV droit à l’image | LEG-04/LEG-07 | Consentement distinct, version, portée, retrait futur | Oui | Accord/refus/retrait | Nouvelles utilisations cessent | PLANIFIÉ |
 | CGV §§5/6; E-19 | LEG-07 | Fichiers privés, traitement/livraison vérifiée | Oui si registre livrables | Lien absent/invalide/valide | E-19 seulement accessible | PLANIFIÉ |
 | Prompt §17 audit | Tous | Audit enrichi, corrélation et minimisation | Oui | Actions sensibles/secret masking | Ancien/nouveau/auteur/résultat sans secret | PLANIFIÉ |
