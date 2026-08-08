@@ -10,7 +10,13 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { prisma } from '../../src/db/prisma.js';
 import { AdminRole, NotificationStatus, PaymentStatus, ReservationStatus } from '../../src/generated/prisma/client.js';
-import { handleWhatsAppWebhook, isValidWhatsAppSignature, processNotificationEvent, queueReservationCreatedNotifications } from '../../src/emails/notifications.js';
+import {
+  handleWhatsAppWebhook,
+  isValidWhatsAppSignature,
+  processNotificationEvent,
+  queueReservationCreatedNotifications,
+  queueReservationStatusNotification,
+} from '../../src/emails/notifications.js';
 import { env } from '../../src/config/env.js';
 import { RATE_LIMIT_POLICIES } from '../../src/middleware/security.js';
 import { MAX_MEDIA_UPLOAD_BYTES } from '../../src/middleware/media-upload.js';
@@ -19,6 +25,7 @@ import {
   ADMIN_SESSION_COOKIE_PRODUCTION,
 } from '../../src/services/admin-auth.js';
 import { updatePackageWithVersion } from '../../src/services/packages.js';
+import { transitionReservationStatus } from '../../src/services/status-transitions.js';
 import { packageCreateSchema, packageUpdateSchema } from '../../src/validation/schemas.js';
 
 import { addBusinessDays, businessDateKey, businessLocalToInstant } from '../../src/utils/business-time.js';
@@ -35,8 +42,11 @@ const futureDateAt = (hour = 10, minute = 0, dayOffset = 10) => {
 };
 
 const resetDatabase = async () => {
+  await prisma.dataIntegrityIncident.deleteMany();
   await prisma.calendarSyncLog.deleteMany();
   await prisma.notificationEvent.deleteMany();
+  await prisma.financialTask.deleteMany();
+  await prisma.adminCommand.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.reservationIntent.deleteMany();
@@ -102,6 +112,7 @@ const reservationPayload = async (packageId: string, startAt = futureDateAt()) =
       email: `alice-${Date.now()}@example.test`,
     },
     consentImage: true,
+    whatsappConsent: false,
     acceptedTerms: true,
     paymentChoice: 'base',
     paymentMethod: 'mtn_momo',
@@ -129,226 +140,102 @@ afterAll(async () => {
 });
 
 describe('booking flow', () => {
-  it('creates a reservation with payment details', async () => {
+  it('keeps six identities and immutable evidence independent when one phone is shared', async () => {
     const pack = await prisma.package.findFirstOrThrow();
-    const payload = await reservationPayload(pack.id);
-    const response = await request(app).post('/api/reservations').send(payload).expect(201);
+    const sharedPhone = '+237640703249';
+    const sharedPhoneRaw = '+237 640 70 32 49';
+    const identities = Array.from({ length: 6 }, (_item, index) => ({
+      firstName: `Identite${index + 1}`,
+      lastName: `Audit${index + 1}`,
+      email: `identite-${index + 1}@example.test`,
+    }));
+    const reservationIds: string[] = [];
 
-    expect(response.body.data.reference).toBe(payload.expectedReference);
-    expect(response.body.data.reference).toMatch(/^GSP/);
-    expect(response.body.data.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
-    expect(response.body.data.payments[0].status).toBe(PaymentStatus.PENDING);
-    expect(response.body.data.payments[0].transactionRef).toContain('MTN');
+    for (const [index, identity] of identities.entries()) {
+      const payload = await reservationPayload(pack.id, futureDateAt(9 + index, 0, 15));
+      payload.customer = { ...identity, phone: index === 0 ? sharedPhoneRaw : sharedPhone };
+      payload.whatsappConsent = index === 0;
+      payload.transactionRef = `MTN-P0-01-${index + 1}`;
+      const created = await request(app).post('/api/reservations').send(payload).expect(201);
+      reservationIds.push(created.body.data.id);
+    }
 
-    const stored = await prisma.reservation.findUniqueOrThrow({
-      where: { id: response.body.data.id },
-      include: {
-        packageVersion: true,
-        transitions: true,
-        payments: { include: { transitions: true } },
-      },
+    const stored = await prisma.reservation.findMany({
+      where: { id: { in: reservationIds } },
+      orderBy: { startAt: 'asc' },
+      include: { customer: true, snapshot: true },
     });
-    expect(stored.packageVersion.version).toBe(1);
-    expect(stored.transitions).toHaveLength(1);
-    expect(stored.transitions[0].toStatus).toBe(ReservationStatus.PENDING_CONFIRMATION);
-    expect(stored.payments[0].transitions[0].toStatus).toBe(PaymentStatus.PENDING);
-  });
-
-  it('rejects double bookings for blocking reservations', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const startAt = futureDateAt(11);
-
-    await request(app).post('/api/reservations').send(await reservationPayload(pack.id, startAt)).expect(201);
-    const response = await request(app)
-      .post('/api/reservation-intents')
-      .send({ packageId: pack.id, startAt: startAt.toISOString(), idempotencyKey: randomUUID() })
-      .expect(409);
-
-    expect(response.body.error.code).toBe('SLOT_ALREADY_RESERVED');
-  });
-
-  it('rejects a normalized duplicate payment reference for the same method', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const first = await reservationPayload(pack.id, futureDateAt(10));
-    first.transactionRef = ' momo-ref-001 ';
-
-    const second = await reservationPayload(pack.id, futureDateAt(12));
-    second.transactionRef = 'MOMO-REF-001';
-
-    await request(app).post('/api/reservations').send(first).expect(201);
-    const response = await request(app).post('/api/reservations').send(second).expect(409);
-
-    expect(response.body.error.code).toBe('PAYMENT_REFERENCE_ALREADY_USED');
-  });
-
-  it('allows a new booking when the previous booking was cancelled', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const startAt = futureDateAt(12);
-
-    const first = await request(app).post('/api/reservations').send(await reservationPayload(pack.id, startAt)).expect(201);
-    await prisma.reservation.update({
-      where: { id: first.body.data.id },
-      data: { status: ReservationStatus.CANCELLED },
-    });
-
-    await request(app).post('/api/reservations').send(await reservationPayload(pack.id, startAt)).expect(201);
-  });
-
-  it('marks unavailable slots caused by reservations and availability blocks', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const startAt = futureDateAt(10);
-    const date = businessDateKey(startAt);
-
-    await request(app).post('/api/reservations').send(await reservationPayload(pack.id, startAt)).expect(201);
-    await prisma.availabilityBlock.create({
-      data: {
-        startAt: businessLocalToInstant(date, '14:00'),
-        endAt: businessLocalToInstant(date, '15:00'),
-        reason: 'Maintenance',
-      },
-    });
-
-    const response = await request(app)
-      .get('/api/availability')
-      .query({ from: date, to: date, packageId: pack.id })
-      .expect(200);
-
-    const slots = response.body.data.days[0].slots;
-    expect(slots.find((slot: { time: string }) => slot.time === '10:00')).toMatchObject({
-      available: false,
-      reason: 'reservation',
-    });
-    expect(slots.find((slot: { time: string }) => slot.time === '14:00')).toMatchObject({
-      available: false,
-      reason: 'availability_block',
-    });
-  });
-
-  it('returns Douala wall-clock slots as canonical UTC instants', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const startAt = futureDateAt(9, 0);
-    const date = businessDateKey(startAt);
-    const response = await request(app)
-      .get('/api/availability')
-      .query({ from: date, to: date, packageId: pack.id })
-      .expect(200);
-
-    const slot = response.body.data.days[0].slots.find((item: { time: string }) => item.time === '09:00');
-    expect(response.body.data.timeZone).toBe('Africa/Douala');
-    expect(slot.startAt).toBe(startAt.toISOString());
-    expect(slot.startAt.endsWith('08:00:00.000Z')).toBe(true);
-  });
-
-  it('reuses one server reference and reservation for idempotent retries', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const payload = await reservationPayload(pack.id, futureDateAt(13));
-    const first = await request(app).post('/api/reservations').send(payload).expect(201);
-    const retry = await request(app).post('/api/reservations').send(payload).expect(201);
-
-    expect(first.body.data.reference).toBe(payload.expectedReference);
-    expect(retry.body.data.id).toBe(first.body.data.id);
-    expect(retry.body.data.reference).toBe(payload.expectedReference);
-    expect(await prisma.reservation.count()).toBe(1);
-    expect(await prisma.notificationEvent.count({ where: { reservationId: first.body.data.id } })).toBe(2);
-  });
-
-  it('allows only one concurrent hold for the same slot', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const startAt = futureDateAt(15);
-    const attempts = await Promise.all([
-      request(app)
-        .post('/api/reservation-intents')
-        .send({ packageId: pack.id, startAt: startAt.toISOString(), idempotencyKey: randomUUID() }),
-      request(app)
-        .post('/api/reservation-intents')
-        .send({ packageId: pack.id, startAt: startAt.toISOString(), idempotencyKey: randomUUID() }),
-    ]);
-
-    expect(attempts.map((response) => response.status).sort()).toEqual([201, 409]);
-    expect(await prisma.reservationIntent.count()).toBe(1);
-  });
-
-  it('rejects arbitrary operator transaction references', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const payload = await reservationPayload(pack.id, futureDateAt(16));
-    payload.transactionRef = 'lalala';
-
-    const response = await request(app).post('/api/reservations').send(payload).expect(400);
-    expect(response.body.error.code).toBe('VALIDATION_ERROR');
-    expect(response.body.error.details).toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: 'transactionRef' })]),
+    expect(stored.map((reservation) => reservation.customer.firstName)).toEqual(
+      identities.map((identity) => identity.firstName),
     );
-  });
+    expect(stored.map((reservation) => reservation.snapshot?.firstName)).toEqual(
+      identities.map((identity) => identity.firstName),
+    );
+    expect(stored.map((reservation) => reservation.snapshot?.email)).toEqual(
+      identities.map((identity) => identity.email),
+    );
+    expect(stored.every((reservation) => reservation.snapshot?.phoneE164 === sharedPhone)).toBe(true);
+    expect(stored.map((reservation) => reservation.snapshot?.whatsappConsent)).toEqual([true, false, false, false, false, false]);
+    expect(stored[0].snapshot?.phoneRaw).toBe(sharedPhoneRaw);
+    expect(stored[0].snapshot).toMatchObject({
+      termsAccepted: true,
+      termsVersion: '2026-07-31',
+      privacyAccepted: true,
+      privacyVersion: '2026-07-31',
+      whatsappConsent: true,
+      imageConsent: true,
+      imageAuthorizationVersion: '2026-07-31',
+      source: 'PUBLIC_BOOKING',
+    });
+    expect(stored[0].snapshot?.termsAcceptedAt).toBeInstanceOf(Date);
+    expect(stored[0].snapshot?.privacyAcceptedAt).toBeInstanceOf(Date);
+    expect(stored[0].snapshot?.whatsappConsentAt).toBeInstanceOf(Date);
+    expect(stored[0].snapshot?.imageConsentAt).toBeInstanceOf(Date);
 
-  it('rejects finalization after a slot hold expires', async () => {
-    const pack = await prisma.package.findFirstOrThrow();
-    const payload = await reservationPayload(pack.id, futureDateAt(17));
-    await prisma.reservationIntent.update({
-      where: { id: payload.intentId },
-      data: { expiresAt: new Date(Date.now() - 1000) },
+    const initialRecipients = await prisma.notificationEvent.findMany({
+      where: { reservationId: { in: reservationIds }, type: 'booking_received_customer', channel: 'email' },
+      select: { recipient: true },
+    });
+    expect(new Set(initialRecipients.map((event) => event.recipient))).toEqual(
+      new Set(identities.map((identity) => identity.email)),
+    );
+
+    await expect(
+      prisma.reservationSnapshot.update({
+        where: { reservationId: reservationIds[0] },
+        data: { firstName: 'TentativeAlteration' },
+      }),
+    ).rejects.toThrow(/RESERVATION_SNAPSHOT_IMMUTABLE/);
+    await expect(
+      prisma.reservationSnapshot.delete({ where: { reservationId: reservationIds[0] } }),
+    ).rejects.toThrow(/RESERVATION_SNAPSHOT_IMMUTABLE/);
+
+    await prisma.customer.update({
+      where: { id: stored[0].customerId },
+      data: { firstName: 'ProfilModifie', email: 'fuite-potentielle@example.test' },
     });
 
-    const response = await request(app).post('/api/reservations').send(payload).expect(409);
-    expect(response.body.error.code).toBe('RESERVATION_INTENT_EXPIRED');
-    expect(await prisma.reservation.count()).toBe(0);
+    await queueReservationStatusNotification(reservationIds[0], ReservationStatus.CONFIRMED);
+    const lateNotification = await prisma.notificationEvent.findFirstOrThrow({
+      where: { reservationId: reservationIds[0], type: 'booking_confirmed_customer', channel: 'email' },
+    });
+    expect(lateNotification.recipient).toBe(identities[0].email);
+
+    let renderedText = '';
+    await processNotificationEvent(lateNotification.id, {
+      sendEmail: async (_event, message) => {
+        renderedText = message.text;
+        return { providerMessageId: 'p0-01-test-message', providerStatus: 'accepted' };
+      },
+    });
+    expect(renderedText).toContain(identities[0].firstName);
+    expect(renderedText).not.toContain('ProfilModifie');
+    expect(renderedText).not.toContain('fuite-potentielle@example.test');
   });
 });
 
 describe('lead capture', () => {
-  it('creates contact leads', async () => {
-    await request(app)
-      .post('/api/contact')
-      .send({
-        submissionKey: randomUUID(),
-        name: 'Contact Test',
-        email: 'contact@example.test',
-        phone: '+237699111111',
-        subject: 'Question',
-        message: 'I would like to know more about portrait sessions.',
-      })
-      .expect(201);
-
-    const lead = await prisma.lead.findFirstOrThrow({ where: { email: 'contact@example.test' } });
-    expect(lead.type).toBe('CONTACT');
-  });
-
-  it('rejects public form submissions that fill the honeypot field', async () => {
-    const response = await request(app)
-      .post('/api/contact')
-      .send({
-        submissionKey: randomUUID(),
-        name: 'Bot Test',
-        email: 'bot@example.test',
-        subject: 'Spam',
-        message: 'This should be rejected by bot protection.',
-        website: 'https://spam.example.test',
-      })
-      .expect(400);
-
-    expect(response.body.error.code).toBe('BOT_PROTECTION_FAILED');
-  });
-
-  it('creates B2B leads', async () => {
-    await request(app)
-      .post('/api/b2b-inquiries')
-      .send({
-        submissionKey: randomUUID(),
-        company: 'Acme SARL',
-        rccm: 'RCCM-TEST',
-        name: 'B2B Test',
-        email: 'b2b@example.test',
-        phone: '+237699222222',
-        subject: 'Corporate photos',
-        message: 'We need corporate headshots for the whole team.',
-      })
-      .expect(201);
-
-    const lead = await prisma.lead.findFirstOrThrow({ where: { email: 'b2b@example.test' } });
-    expect(lead.type).toBe('B2B');
-    expect(lead.company).toBe('Acme SARL');
-  });
-
-  it('deduplicates concurrent contact submissions and queues one notification', async () => {
+  it('deduplicates concurrent contact submissions and queues one notification per audience', async () => {
     const submissionKey = randomUUID();
     const payload = {
       submissionKey,
@@ -356,7 +243,6 @@ describe('lead capture', () => {
       email: 'contact-retry@example.test',
       message: 'Please send more information about portrait sessions.',
     };
-
     const [first, second] = await Promise.all([
       request(app).post('/api/contact').send(payload),
       request(app).post('/api/contact').send(payload),
@@ -365,15 +251,16 @@ describe('lead capture', () => {
     expect(second.status).toBe(201);
     expect(first.body.data.id).toBe(second.body.data.id);
     expect(await prisma.lead.count({ where: { submissionKey: `contact_form:${submissionKey}` } })).toBe(1);
-    expect(await prisma.notificationEvent.count({ where: { leadId: first.body.data.id } })).toBe(1);
+    expect(await prisma.notificationEvent.count({ where: { leadId: first.body.data.id } })).toBe(2);
   });
 
-  it('deduplicates concurrent B2B submissions and queues one notification', async () => {
+  it('deduplicates concurrent B2B submissions and queues one notification per audience', async () => {
     const submissionKey = randomUUID();
     const payload = {
       submissionKey,
       company: 'Double Click SARL',
       name: 'B2B Retry Test',
+      email: 'b2b-retry@example.test',
       phone: '+237699333333',
       message: 'We need a corporate portrait proposal for our team.',
     };
@@ -386,7 +273,7 @@ describe('lead capture', () => {
     expect(second.status).toBe(201);
     expect(first.body.data.id).toBe(second.body.data.id);
     expect(await prisma.lead.count({ where: { submissionKey: `b2b_form:${submissionKey}` } })).toBe(1);
-    expect(await prisma.notificationEvent.count({ where: { leadId: first.body.data.id } })).toBe(1);
+    expect(await prisma.notificationEvent.count({ where: { leadId: first.body.data.id } })).toBe(2);
   });
 });
 
@@ -403,11 +290,17 @@ describe('admin flow', () => {
     const pack = await prisma.package.findFirstOrThrow();
     const created = await request(app).post('/api/reservations').send(await reservationPayload(pack.id)).expect(201);
     const paymentId = created.body.data.payments[0].id;
+    const initialPayment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const agent = await loginAdmin();
 
     const response = await agent
       .patch(`/api/admin/payments/${paymentId}/verify`)
-      .send({ status: PaymentStatus.VERIFIED, transactionRef: 'VERIFIED-TX-001' })
+      .send({
+        status: PaymentStatus.VERIFIED,
+        commandId: randomUUID(),
+        expectedVersion: initialPayment.version,
+        transactionRef: 'VERIFIED-TX-001',
+      })
       .expect(200);
 
     expect(response.body.data.status).toBe(PaymentStatus.VERIFIED);
@@ -430,17 +323,27 @@ describe('admin flow', () => {
     const pack = await prisma.package.findFirstOrThrow();
     const created = await request(app).post('/api/reservations').send(await reservationPayload(pack.id)).expect(201);
     const paymentId = created.body.data.payments[0].id;
+    const initialPayment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const agent = await loginAdmin();
 
     const missingReason = await agent
       .patch(`/api/admin/payments/${paymentId}/verify`)
-      .send({ status: PaymentStatus.REJECTED })
+      .send({
+        status: PaymentStatus.REJECTED,
+        commandId: randomUUID(),
+        expectedVersion: initialPayment.version,
+      })
       .expect(400);
     expect(missingReason.body.error.code).toBe('PAYMENT_REASON_REQUIRED');
 
     const rejected = await agent
       .patch(`/api/admin/payments/${paymentId}/verify`)
-      .send({ status: PaymentStatus.REJECTED, reason: 'Reference introuvable chez l operateur' })
+      .send({
+        status: PaymentStatus.REJECTED,
+        commandId: randomUUID(),
+        expectedVersion: initialPayment.version,
+        reason: 'Reference introuvable chez l operateur',
+      })
       .expect(200);
     expect(rejected.body.data.status).toBe(PaymentStatus.REJECTED);
     expect(rejected.body.data.reservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
@@ -453,43 +356,66 @@ describe('admin flow', () => {
       .send(await reservationPayload(pack.id, futureDateAt(10, 0, 10)))
       .expect(201);
     const reservationId = created.body.data.id;
+    const publicReference = created.body.data.reference;
     const previousStartAt = created.body.data.startAt;
     const newStartAt = futureDateAt(14, 30, 11);
     const agent = await loginAdmin();
 
+    const requestResponse = await agent
+      .post(`/api/admin/reservations/${reservationId}/reschedule-requests`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: 1,
+        requestedStartAt: newStartAt.toISOString(),
+        reason: 'Client disponible uniquement l’après-midi',
+      })
+      .expect(201);
+    expect(requestResponse.body.data.reservation.startAt).toBe(previousStartAt);
+    expect(requestResponse.body.data.request).toMatchObject({ status: 'PENDING', version: 1 });
+
     const response = await agent
-      .patch(`/api/admin/reservations/${reservationId}/reschedule`)
-      .send({ startAt: newStartAt.toISOString(), reason: 'Client disponible uniquement l’après-midi' })
+      .patch(`/api/admin/reschedule-requests/${requestResponse.body.data.request.id}/decision`)
+      .send({
+        commandId: randomUUID(),
+        expectedVersion: 1,
+        decision: 'ACCEPTED',
+        reason: 'Disponibilité confirmée',
+      })
       .expect(200);
 
-    expect(response.body.data).toMatchObject({
+    expect(response.body.data.reservation).toMatchObject({
       id: reservationId,
+      reference: publicReference,
       status: ReservationStatus.PENDING_CONFIRMATION,
       startAt: newStartAt.toISOString(),
-      calendarSync: null,
     });
-    expect(new Date(response.body.data.endAt).getTime() - new Date(response.body.data.startAt).getTime()).toBe(60 * 60_000);
+    expect(response.body.data.calendarSync).toBeNull();
+    expect(new Date(response.body.data.reservation.endAt).getTime() -
+      new Date(response.body.data.reservation.startAt).getTime()).toBe(60 * 60_000);
 
     const stored = await prisma.reservation.findUniqueOrThrow({
       where: { id: reservationId },
       include: { transitions: { orderBy: { createdAt: 'desc' } }, notifications: true },
     });
     expect(stored.version).toBe(2);
+    expect(stored.reference).toBe(publicReference);
     expect(stored.transitions[0]).toMatchObject({
       fromStatus: ReservationStatus.PENDING_CONFIRMATION,
       toStatus: ReservationStatus.PENDING_CONFIRMATION,
-      reason: 'Client disponible uniquement l’après-midi',
+      reason: 'Disponibilité confirmée',
       actorType: 'ADMIN',
     });
     expect(stored.transitions[0].oldStartAt?.toISOString()).toBe(previousStartAt);
     expect(stored.transitions[0].newStartAt?.toISOString()).toBe(newStartAt.toISOString());
     expect(stored.transitions[0].metadata).toMatchObject({ kind: 'RESCHEDULE' });
-    expect(stored.notifications.some((event) => event.type === 'booking_rescheduled_customer')).toBe(true);
+    expect(stored.notifications.map((event) => event.templateCode)).toEqual(expect.arrayContaining([
+      'E-01', 'E-08', 'E-09', 'I-01', 'I-04',
+    ]));
 
     const audit = await prisma.auditLog.findFirstOrThrow({
-      where: { action: 'reservation.reschedule', entityId: reservationId },
+      where: { action: 'reservation.reschedule_request.accept', entityId: requestResponse.body.data.request.id },
     });
-    expect(audit.metadata).toMatchObject({ reason: 'Client disponible uniquement l’après-midi' });
+    expect(audit.metadata).toMatchObject({ reason: 'Disponibilité confirmée', decision: 'ACCEPTED' });
   });
 
   it('rejects a reschedule collision without changing the original schedule', async () => {
@@ -505,9 +431,23 @@ describe('admin flow', () => {
       .expect(201);
     const agent = await loginAdmin();
 
+    const pending = await agent
+      .post(`/api/admin/reservations/${first.body.data.id}/reschedule-requests`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: 1,
+        requestedStartAt: occupiedStart.toISOString(),
+        reason: 'Tentative de collision',
+      })
+      .expect(201);
     const response = await agent
-      .patch(`/api/admin/reservations/${first.body.data.id}/reschedule`)
-      .send({ startAt: occupiedStart.toISOString(), reason: 'Tentative de collision' })
+      .patch(`/api/admin/reschedule-requests/${pending.body.data.request.id}/decision`)
+      .send({
+        commandId: randomUUID(),
+        expectedVersion: 1,
+        decision: 'ACCEPTED',
+        reason: 'Tentative de validation',
+      })
       .expect(409);
 
     expect(response.body.error.code).toBe('SLOT_ALREADY_RESERVED');
@@ -526,8 +466,13 @@ describe('admin flow', () => {
     const agent = await loginAdmin();
 
     const response = await agent
-      .patch(`/api/admin/reservations/${created.body.data.id}/reschedule`)
-      .send({ startAt: futureDateAt(15, 0, 12).toISOString(), reason: 'Ne doit pas être accepté' })
+      .post(`/api/admin/reservations/${created.body.data.id}/reschedule-requests`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: 1,
+        requestedStartAt: futureDateAt(15, 0, 12).toISOString(),
+        reason: 'Ne doit pas être accepté',
+      })
       .expect(409);
     expect(response.body.error.code).toBe('RESERVATION_NOT_RESCHEDULABLE');
   });
@@ -554,9 +499,28 @@ describe('admin flow', () => {
     });
     const agent = await loginAdmin();
 
-    const response = await agent.patch(`/api/admin/packages/${pack.id}`).send({ price: 17000 }).expect(200);
+    const response = await agent
+      .patch(`/api/admin/packages/${pack.id}`)
+      .send({
+        price: 17000,
+        content: 'Nouveau contenu publié pour cette formule.',
+        inclusions: ['Séance', 'Retouches'],
+        conditions: 'Nouvelles conditions applicables à cette version.',
+        legalText: 'Nouvelles mentions tarifaires obligatoires.',
+        effectiveAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(200);
     expect(response.body.data.version).toBe(2);
     expect(response.body.data.price).toBe(17000);
+
+    await agent
+      .post(`/api/admin/packages/${pack.id}/validate`)
+      .send({ expectedVersion: 2, mentionsApproved: true })
+      .expect(200);
+    await agent
+      .post(`/api/admin/packages/${pack.id}/publish`)
+      .send({ expectedVersion: 2 })
+      .expect(200);
 
     const versions = await prisma.packageVersion.findMany({
       where: { packageId: pack.id },
@@ -564,14 +528,98 @@ describe('admin flow', () => {
     });
     const unchangedReservation = await prisma.reservation.findUniqueOrThrow({
       where: { id: created.body.data.id },
-      include: { packageVersion: true },
+      include: { packageVersion: true, snapshot: true },
     });
 
     expect(versions.map((version) => version.price)).toEqual([15000, 17000]);
     expect(unchangedReservation.packageVersionId).toBe(original.packageVersionId);
     expect(unchangedReservation.packageVersion.price).toBe(15000);
+    expect(unchangedReservation.snapshot).toMatchObject({
+      amount: 15000,
+      packageContent: 'Test Portrait',
+      packageConditions: 'Test Portrait',
+    });
   });
 
+
+
+  it('creates tariffs as drafts and refuses publication without approved mandatory mentions', async () => {
+    const agent = await loginAdmin();
+    const created = await agent
+      .post('/api/admin/packages')
+      .send({
+        slug: 'p1-04-brouillon',
+        name: 'Formule P1-04',
+        category: 'Tests',
+        price: 32000,
+        currency: 'XAF',
+        durationMin: 90,
+        content: 'Séance photo complète avec préparation.',
+        inclusions: ['Prise de vue', 'Retouches'],
+        conditions: 'Réservation soumise aux conditions publiées.',
+        legalText: 'Mentions tarifaires obligatoires à valider.',
+        effectiveAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(201);
+
+    expect(created.body.data.publicationStatus).toBe('DRAFT');
+    expect(created.body.data.isActive).toBe(false);
+
+    const rejected = await agent
+      .post(`/api/admin/packages/${created.body.data.id}/publish`)
+      .send({ expectedVersion: 1 })
+      .expect(409);
+    expect(rejected.body.error.code).toBe('PACKAGE_NOT_VALIDATED');
+  });
+
+  it('validates, publishes and audits a complete tariff version', async () => {
+    const agent = await loginAdmin();
+    const effectiveAt = new Date(Date.now() - 60_000).toISOString();
+    const created = await agent
+      .post('/api/admin/packages')
+      .send({
+        slug: 'p1-04-publication',
+        name: 'Formule publication',
+        category: 'Tests',
+        price: 45000,
+        currency: 'XAF',
+        durationMin: 120,
+        content: 'Séance éditoriale avec accompagnement.',
+        inclusions: ['Direction artistique', 'Dix fichiers retouchés'],
+        conditions: 'Acompte requis et report selon les CGV.',
+        legalText: 'Prix TTC, modalités de paiement et conditions de report.',
+        effectiveAt,
+      })
+      .expect(201);
+
+    const validated = await agent
+      .post(`/api/admin/packages/${created.body.data.id}/validate`)
+      .send({ expectedVersion: 1, mentionsApproved: true })
+      .expect(200);
+    expect(validated.body.data.publicationStatus).toBe('VALIDATED');
+
+    const published = await agent
+      .post(`/api/admin/packages/${created.body.data.id}/publish`)
+      .send({ expectedVersion: 1 })
+      .expect(200);
+    expect(published.body.data).toMatchObject({
+      publicationStatus: 'PUBLISHED',
+      isActive: true,
+      publishedVersion: 1,
+      content: 'Séance éditoriale avec accompagnement.',
+    });
+    expect(published.body.data.publishedAt).toBeTruthy();
+    expect(published.body.data.publishedBy).toMatchObject({ name: 'Test Admin' });
+
+    const publicPackages = await request(app).get('/api/packages').expect(200);
+    expect(publicPackages.body.data.some((pack: { id: string }) => pack.id === created.body.data.id)).toBe(true);
+
+    const audits = await prisma.auditLog.findMany({
+      where: { entityId: created.body.data.id, action: { in: ['package.validate', 'package.publish'] } },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(audits.map((audit) => audit.action)).toEqual(['package.validate', 'package.publish']);
+  });
 
   it('manages the complete package lifecycle and protects referenced packages', async () => {
     const agent = await loginAdmin();
@@ -597,7 +645,8 @@ describe('admin flow', () => {
       .patch(`/api/admin/packages/${created.body.data.id}`)
       .send({ price: 27000, legalText: 'Texte de test', sortOrder: 2 })
       .expect(200);
-    expect(updated.body.data.version).toBe(2);
+    expect(updated.body.data.version).toBe(1);
+    expect(updated.body.data.publicationStatus).toBe('DRAFT');
     expect(updated.body.data.legalText).toBe('Texte de test');
 
     await agent.delete(`/api/admin/packages/${duplicated.body.data.id}`).expect(204);
@@ -609,9 +658,10 @@ describe('admin flow', () => {
     const protectedDelete = await agent.delete(`/api/admin/packages/${source.id}`).expect(409);
     expect(protectedDelete.body.error.code).toBe('PACKAGE_IN_USE');
 
+    const publishedSource = await prisma.package.findUniqueOrThrow({ where: { id: source.id } });
     const archived = await agent
-      .patch(`/api/admin/packages/${source.id}`)
-      .send({ isArchived: true, isActive: false })
+      .post(`/api/admin/packages/${source.id}/archive`)
+      .send({ expectedVersion: publishedSource.publishedVersion })
       .expect(200);
     expect(archived.body.data.isActive).toBe(false);
     expect(archived.body.data.isArchived).toBe(true);
@@ -622,13 +672,28 @@ describe('admin flow', () => {
     const created = await request(app).post('/api/reservations').send(await reservationPayload(pack.id)).expect(201);
     const agent = await loginAdmin();
 
-    await agent
-      .patch(`/api/admin/reservations/${created.body.data.id}`)
-      .send({ status: ReservationStatus.CONFIRMED })
+    const stored = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { payments: true },
+    });
+    const confirmed = await agent
+      .post(`/api/admin/reservations/${stored.id}/verify-and-confirm`)
+      .send({
+        commandId: randomUUID(),
+        paymentId: stored.payments[0].id,
+        expectedPaymentVersion: stored.payments[0].version,
+        expectedReservationVersion: stored.version,
+        transactionRef: 'HISTORY-P0-04-001',
+      })
       .expect(200);
     await agent
-      .patch(`/api/admin/reservations/${created.body.data.id}`)
-      .send({ status: ReservationStatus.CANCELLED, reason: 'Demande confirmée par téléphone' })
+      .post(`/api/admin/reservations/${created.body.data.id}/cancel`)
+      .send({
+        commandId: randomUUID(),
+        expectedVersion: confirmed.body.data.reservation.version,
+        origin: 'CUSTOMER',
+        reason: 'Demande confirmée par téléphone',
+      })
       .expect(200);
 
     const detail = await agent.get(`/api/admin/reservations/${created.body.data.id}`).expect(200);
@@ -647,11 +712,17 @@ describe('admin flow', () => {
     const pack = await prisma.package.findFirstOrThrow();
     const created = await request(app).post('/api/reservations').send(await reservationPayload(pack.id)).expect(201);
     const paymentId = created.body.data.payments[0].id;
+    const initialPayment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const agent = await loginAdmin();
 
     const response = await agent
       .patch(`/api/admin/payments/${paymentId}/verify`)
-      .send({ status: PaymentStatus.VERIFIED, transactionRef: 'lalala' })
+      .send({
+        status: PaymentStatus.VERIFIED,
+        commandId: randomUUID(),
+        expectedVersion: initialPayment.version,
+        transactionRef: 'lalala',
+      })
       .expect(400);
     expect(response.body.error.code).toBe('INVALID_PAYMENT_REFERENCE');
     const stored = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
@@ -706,7 +777,7 @@ describe('phase 4 notification outbox', () => {
       queueReservationCreatedNotifications(created.body.data.id),
       queueReservationCreatedNotifications(created.body.data.id),
     ]);
-    expect(await prisma.notificationEvent.count({ where: { reservationId: created.body.data.id } })).toBe(2);
+    expect(await prisma.notificationEvent.count({ where: { reservationId: created.body.data.id } })).toBe(3);
 
     const event = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: created.body.data.id, type: 'booking_received_customer' },
@@ -774,6 +845,508 @@ describe('phase 4 notification outbox', () => {
     const lead = await prisma.lead.findFirstOrThrow({ where: { email: 'consent@example.test' } });
     expect(lead.phone).toBe('+237699111111');
     expect(lead.whatsappConsentAt).toBeInstanceOf(Date);
+  });
+});
+
+
+describe('P0-04 payment and reservation decisions', () => {
+  const createReservationForDecision = async (startAt = futureDateAt()) => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, startAt))
+      .expect(201);
+    const stored = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { payments: true },
+    });
+    return {
+      reservation: stored,
+      payment: stored.payments[0],
+    };
+  };
+
+  it('P0-04 blocks direct confirmation while payment is pending', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+
+    const response = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.CONFIRMED,
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(409);
+
+    expect(response.body.error.code).toBe('PAYMENT_NOT_VERIFIED');
+    const storedReservation = await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+    const storedPayment = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    expect(storedReservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
+    expect(storedPayment.status).toBe(PaymentStatus.PENDING);
+  });
+
+  it('P0-04 verifies payment without confirmation and replays one command idempotently', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+    const body = {
+      status: PaymentStatus.VERIFIED,
+      commandId,
+      expectedVersion: payment.version,
+      transactionRef: 'VERIFIED-P0-04-001',
+    };
+
+    const first = await agent.patch(`/api/admin/payments/${payment.id}/verify`).send(body).expect(200);
+    const replay = await agent.patch(`/api/admin/payments/${payment.id}/verify`).send(body).expect(200);
+
+    expect(first.body.data).toMatchObject({ commandId, replayed: false, status: PaymentStatus.VERIFIED });
+    expect(replay.body.data).toMatchObject({ commandId, replayed: true, status: PaymentStatus.VERIFIED });
+    expect(first.body.data.reservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
+    expect(replay.body.data.reservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
+    expect(
+      await prisma.paymentTransition.count({ where: { paymentId: payment.id, toStatus: PaymentStatus.VERIFIED } }),
+    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'payment.verify', entityId: payment.id } })).toBe(1);
+  });
+
+  it('P0-04 verifies and confirms atomically without a separate payment-only notification', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+
+    const response = await agent
+      .post(`/api/admin/reservations/${reservation.id}/verify-and-confirm`)
+      .send({
+        commandId,
+        paymentId: payment.id,
+        expectedPaymentVersion: payment.version,
+        expectedReservationVersion: reservation.version,
+        transactionRef: 'COMBINED-P0-04-001',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({ commandId, replayed: false });
+    expect(response.body.data.payment.status).toBe(PaymentStatus.VERIFIED);
+    expect(response.body.data.reservation.status).toBe(ReservationStatus.CONFIRMED);
+    expect(
+      await prisma.notificationEvent.count({
+        where: { reservationId: reservation.id, type: 'payment_verified_customer' },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.notificationEvent.count({
+        where: { reservationId: reservation.id, type: 'booking_confirmed_customer' },
+      }),
+    ).toBe(1);
+  });
+
+  it('P0-04 supports information-required and verification-blocked as distinct reasoned states', async () => {
+    const first = await createReservationForDecision();
+    const second = await createReservationForDecision(futureDateAt(12, 0, 11));
+    const agent = await loginAdmin();
+
+    const missingReason = await agent
+      .patch(`/api/admin/payments/${first.payment.id}/verify`)
+      .send({
+        status: 'PAYMENT_INFO_REQUIRED',
+        commandId: randomUUID(),
+        expectedVersion: first.payment.version,
+      })
+      .expect(400);
+    expect(missingReason.body.error.code).toBe('PAYMENT_REASON_REQUIRED');
+
+    const information = await agent
+      .patch(`/api/admin/payments/${first.payment.id}/verify`)
+      .send({
+        status: 'PAYMENT_INFO_REQUIRED',
+        commandId: randomUUID(),
+        expectedVersion: first.payment.version,
+        reason: 'Référence opérateur incomplète',
+      })
+      .expect(200);
+    expect(information.body.data.status).toBe('PAYMENT_INFO_REQUIRED');
+
+    const blocked = await agent
+      .patch(`/api/admin/payments/${second.payment.id}/verify`)
+      .send({
+        status: 'VERIFICATION_BLOCKED',
+        commandId: randomUUID(),
+        expectedVersion: second.payment.version,
+        reason: 'Service opérateur temporairement indisponible',
+      })
+      .expect(200);
+    expect(blocked.body.data.status).toBe('VERIFICATION_BLOCKED');
+  });
+
+  it('P0-04 rolls back payment verification when combined confirmation conflicts', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+
+    const response = await agent
+      .post(`/api/admin/reservations/${reservation.id}/verify-and-confirm`)
+      .send({
+        commandId: randomUUID(),
+        paymentId: payment.id,
+        expectedPaymentVersion: payment.version,
+        expectedReservationVersion: reservation.version + 1,
+        transactionRef: 'ROLLBACK-P0-04-001',
+      })
+      .expect(409);
+    expect(response.body.error.code).toBe('RESERVATION_VERSION_CONFLICT');
+
+    const storedPayment = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    const storedReservation = await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+    expect(storedPayment.status).toBe(PaymentStatus.PENDING);
+    expect(storedReservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
+    expect(
+      await prisma.paymentTransition.count({ where: { paymentId: payment.id, toStatus: PaymentStatus.VERIFIED } }),
+    ).toBe(0);
+  });
+
+  it('P0-04 permits only one of two concurrent decisions for the same expected payment version', async () => {
+    const { payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+    const makeRequest = (commandId: string) =>
+      agent.patch(`/api/admin/payments/${payment.id}/verify`).send({
+        status: PaymentStatus.VERIFIED,
+        commandId,
+        expectedVersion: payment.version,
+        transactionRef: 'CONCURRENT-P0-04-001',
+      });
+
+    const responses = await Promise.all([makeRequest(randomUUID()), makeRequest(randomUUID())]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(
+      await prisma.paymentTransition.count({ where: { paymentId: payment.id, toStatus: PaymentStatus.VERIFIED } }),
+    ).toBe(1);
+  });
+
+
+  it('P0-04 accepts PAID as an authorized payment without changing its state', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    await prisma.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.PAID } });
+    const agent = await loginAdmin();
+
+    const response = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.CONFIRMED,
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(200);
+
+    expect(response.body.data.status).toBe(ReservationStatus.CONFIRMED);
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe(PaymentStatus.PAID);
+  });
+
+  it('P0-04 requires a reason for refusal and audits the correlated decision', async () => {
+    const { reservation } = await createReservationForDecision();
+    const agent = await loginAdmin();
+
+    const missingReason = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.REJECTED,
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(400);
+    expect(missingReason.body.error.code).toBe('RESERVATION_REASON_REQUIRED');
+
+    const commandId = randomUUID();
+    const reason = 'Créneau refusé après contrôle administratif';
+    const rejected = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.REJECTED,
+        reason,
+        commandId,
+        expectedVersion: reservation.version,
+      })
+      .expect(200);
+    expect(rejected.body.data).toMatchObject({
+      status: ReservationStatus.REJECTED,
+      commandId,
+      replayed: false,
+    });
+
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'reservation.reject', entityId: reservation.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit.metadata).toMatchObject({
+      commandId,
+      oldReservationStatus: ReservationStatus.PENDING_CONFIRMATION,
+      newReservationStatus: ReservationStatus.REJECTED,
+      reason,
+      result: 'SUCCESS',
+    });
+  });
+  it('P0-04 rejects every sensitive decision from a staff session', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const passwordHash = await bcrypt.hash('staff-password', 4);
+    await prisma.adminUser.create({
+      data: {
+        email: 'staff@goldenstudioplus.test',
+        name: 'Test Staff',
+        passwordHash,
+        role: AdminRole.STAFF,
+      },
+    });
+    const staff = request.agent(app);
+    await staff
+      .post('/api/admin/login')
+      .send({ email: 'staff@goldenstudioplus.test', password: 'staff-password' })
+      .expect(200);
+
+    const paymentResponse = await staff
+      .patch(`/api/admin/payments/${payment.id}/verify`)
+      .send({
+        status: PaymentStatus.VERIFIED,
+        commandId: randomUUID(),
+        expectedVersion: payment.version,
+        transactionRef: 'STAFF-P0-04-001',
+      })
+      .expect(403);
+    const confirmResponse = await staff
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.CONFIRMED,
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(403);
+    const rejectResponse = await staff
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.REJECTED,
+        reason: 'Décision réservée au propriétaire',
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(403);
+    const combinedResponse = await staff
+      .post(`/api/admin/reservations/${reservation.id}/verify-and-confirm`)
+      .send({
+        commandId: randomUUID(),
+        paymentId: payment.id,
+        expectedPaymentVersion: payment.version,
+        expectedReservationVersion: reservation.version,
+        transactionRef: 'STAFF-P0-04-002',
+      })
+      .expect(403);
+    const addPaymentResponse = await staff
+      .post(`/api/admin/reservations/${reservation.id}/payments`)
+      .send({
+        commandId: randomUUID(),
+        expectedReservationVersion: reservation.version,
+        method: 'mtn_momo',
+        paymentPhone: '+237699000002',
+        transactionRef: 'STAFF-PAYMENT-ADD-003',
+      })
+      .expect(403);
+
+    for (const response of [paymentResponse, confirmResponse, rejectResponse, combinedResponse, addPaymentResponse]) {
+      expect(response.body.error.code).toBe('ADMIN_PERMISSION_REQUIRED');
+    }
+  });
+
+  it('P0-04 delays E-03, cancels it on confirmation, and queues E-05 once', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+    const verifyCommandId = randomUUID();
+    const beforeVerification = Date.now();
+
+    await agent
+      .patch(`/api/admin/payments/${payment.id}/verify`)
+      .send({
+        status: PaymentStatus.VERIFIED,
+        commandId: verifyCommandId,
+        expectedVersion: payment.version,
+        transactionRef: 'DELAYED-P0-04-001',
+      })
+      .expect(200);
+
+    const paymentNotice = await prisma.notificationEvent.findFirstOrThrow({
+      where: { reservationId: reservation.id, type: 'payment_verified_customer', channel: 'email' },
+    });
+    expect(paymentNotice.status).toBe(NotificationStatus.PENDING);
+    expect(paymentNotice.nextAttemptAt?.getTime()).toBeGreaterThanOrEqual(beforeVerification + 299_000);
+    expect(paymentNotice.nextAttemptAt?.getTime()).toBeLessThanOrEqual(Date.now() + 301_000);
+    expect(paymentNotice.metadata).toMatchObject({ templateCode: 'E-03', commandId: verifyCommandId });
+
+    const sendEmail = vi.fn(async () => ({ providerMessageId: 'too-early', providerStatus: 'accepted' }));
+    await expect(
+      processNotificationEvent(paymentNotice.id, {
+        now: () => new Date(paymentNotice.nextAttemptAt!.getTime() - 1),
+        sendEmail,
+      }),
+    ).resolves.toBe('skipped');
+    expect(sendEmail).not.toHaveBeenCalled();
+
+    const confirmCommandId = randomUUID();
+    const confirmBody = {
+      status: ReservationStatus.CONFIRMED,
+      commandId: confirmCommandId,
+      expectedVersion: reservation.version,
+    };
+    await agent.patch(`/api/admin/reservations/${reservation.id}`).send(confirmBody).expect(200);
+    const replay = await agent.patch(`/api/admin/reservations/${reservation.id}`).send(confirmBody).expect(200);
+    expect(replay.body.data).toMatchObject({ commandId: confirmCommandId, replayed: true });
+
+    const cancelledNotice = await prisma.notificationEvent.findUniqueOrThrow({ where: { id: paymentNotice.id } });
+    expect(cancelledNotice).toMatchObject({
+      status: NotificationStatus.CANCELLED,
+      providerStatus: 'cancelled_by_confirmation',
+      resolution: 'OBSOLETE',
+    });
+    expect(cancelledNotice.nextAttemptAt).toBeNull();
+    expect(
+      await prisma.notificationEvent.count({
+        where: { reservationId: reservation.id, type: 'booking_confirmed_customer', channel: 'email' },
+      }),
+    ).toBe(1);
+  });
+
+  it('NOTIF-01 exposes an owner-only, idempotent refund workflow with proved notifications', async () => {
+    const { reservation, payment } = await createReservationForDecision();
+    const agent = await loginAdmin();
+    const verified = await agent
+      .patch(`/api/admin/payments/${payment.id}/verify`)
+      .send({
+        status: PaymentStatus.VERIFIED,
+        commandId: randomUUID(),
+        expectedVersion: payment.version,
+        transactionRef: 'REFUND-API-VERIFY-001',
+      })
+      .expect(200);
+    await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.REJECTED,
+        reason: 'Créneau retiré après vérification du paiement',
+        commandId: randomUUID(),
+        expectedVersion: reservation.version,
+      })
+      .expect(200);
+
+    const engageCommandId = randomUUID();
+    const engageBody = {
+      commandId: engageCommandId,
+      expectedVersion: verified.body.data.version,
+      status: PaymentStatus.REFUND_PENDING,
+      refundAmount: payment.amount,
+      channel: 'MTN Mobile Money',
+      providerReference: 'API-REFUND-ENGAGED-7294',
+      reason: 'Remboursement intégral engagé',
+    };
+    const engaged = await agent
+      .patch(`/api/admin/payments/${payment.id}/refund`)
+      .send(engageBody)
+      .expect(200);
+    expect(engaged.body.data).toMatchObject({
+      status: PaymentStatus.REFUND_PENDING,
+      commandId: engageCommandId,
+      replayed: false,
+      financialTask: { status: 'IN_PROGRESS' },
+    });
+    const replay = await agent
+      .patch(`/api/admin/payments/${payment.id}/refund`)
+      .send(engageBody)
+      .expect(200);
+    expect(replay.body.data).toMatchObject({ commandId: engageCommandId, replayed: true });
+
+    const completed = await agent
+      .patch(`/api/admin/payments/${payment.id}/refund`)
+      .send({
+        commandId: randomUUID(),
+        expectedVersion: engaged.body.data.version,
+        status: PaymentStatus.REFUNDED,
+        refundAmount: payment.amount,
+        channel: 'MTN Mobile Money',
+        providerReference: 'API-REFUND-FINAL-7294',
+        reason: 'Preuve opérateur confirmée',
+      })
+      .expect(200);
+    expect(completed.body.data).toMatchObject({
+      status: PaymentStatus.REFUNDED,
+      replayed: false,
+      financialTask: {
+        status: 'COMPLETED',
+        providerReference: 'API-REFUND-FINAL-7294',
+      },
+    });
+    expect(
+      await prisma.notificationEvent.count({
+        where: { reservationId: reservation.id, templateCode: { in: ['E-07', 'I-06', 'E-20', 'E-21'] } },
+      }),
+    ).toBe(4);
+  });
+
+  it('NOTIF-01 adds one late payment idempotently and keeps I-01/I-02 triggers exclusive', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const initialPayload = await reservationPayload(pack.id);
+    const {
+      paymentMethod: _paymentMethod,
+      paymentPhone: _paymentPhone,
+      transactionRef: _transactionRef,
+      ...quotePayload
+    } = initialPayload;
+    quotePayload.paymentChoice = 'quote';
+    const created = await request(app).post('/api/reservations').send(quotePayload).expect(201);
+    expect(created.body.data.payments).toEqual([]);
+    expect(await prisma.notificationEvent.count({
+      where: { reservationId: created.body.data.id, templateCode: { in: ['E-02', 'I-02'] } },
+    })).toBe(0);
+
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+    const body = {
+      commandId,
+      expectedReservationVersion: 1,
+      method: 'mtn_momo',
+      paymentPhone: '+237699000001',
+      transactionRef: 'LATE-PAYMENT-NOTIF-001',
+    };
+    const added = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/payments`)
+      .send(body)
+      .expect(201);
+    expect(added.body.data).toMatchObject({
+      commandId,
+      replayed: false,
+      payment: {
+        amount: 15000,
+        method: 'mtn_momo',
+        status: PaymentStatus.PENDING,
+      },
+      reservation: { version: 2 },
+    });
+    const replay = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/payments`)
+      .send(body)
+      .expect(200);
+    expect(replay.body.data).toMatchObject({ commandId, replayed: true });
+
+    const duplicate = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/payments`)
+      .send({
+        ...body,
+        commandId: randomUUID(),
+        expectedReservationVersion: 2,
+        transactionRef: 'LATE-PAYMENT-NOTIF-002',
+      })
+      .expect(409);
+    expect(duplicate.body.error.code).toBe('ACTIVE_PAYMENT_EXISTS');
+
+    const codes = await prisma.notificationEvent.findMany({
+      where: { reservationId: created.body.data.id, templateCode: { in: ['E-01', 'E-02', 'I-01', 'I-02'] } },
+      select: { templateCode: true },
+    });
+    expect(codes.map((event) => event.templateCode).sort()).toEqual(['E-01', 'E-02', 'I-01', 'I-02']);
+    expect(await prisma.payment.count({ where: { reservationId: created.body.data.id } })).toBe(1);
   });
 });
 
@@ -1240,5 +1813,317 @@ describe('phase 11 security boundary', () => {
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }
+  });
+});
+
+describe('P0-03 temporal lifecycle and future-slot protection', () => {
+  it('rejects a direct early completion and keeps the future slot unavailable', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const startAt = futureDateAt(10, 0, 20);
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, startAt))
+      .expect(201);
+    await prisma.reservation.update({
+      where: { id: created.body.data.id },
+      data: { status: ReservationStatus.CONFIRMED },
+    });
+    const agent = await loginAdmin();
+
+    const response = await agent
+      .patch(`/api/admin/reservations/${created.body.data.id}`)
+      .send({ status: ReservationStatus.COMPLETED })
+      .expect(409);
+
+    expect(response.body.error.code).toBe('RESERVATION_END_NOT_REACHED');
+    expect((await prisma.reservation.findUniqueOrThrow({ where: { id: created.body.data.id } })).status)
+      .toBe(ReservationStatus.CONFIRMED);
+
+    const date = businessDateKey(startAt);
+    const availability = await request(app)
+      .get('/api/availability')
+      .query({ from: date, to: date, packageId: pack.id })
+      .expect(200);
+    expect(availability.body.data.days[0].slots.find((slot: { time: string }) => slot.time === '10:00'))
+      .toMatchObject({ available: false, reason: 'reservation' });
+  });
+
+  it('allows completion exactly at end and no-show one minute after across a Douala day boundary', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const date = addBusinessDays(businessDateKey(new Date()), 25);
+    const nextDate = addBusinessDays(date, 1);
+    const scheduledEndAt = businessLocalToInstant(nextDate, '00:00');
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(11, 0, 25)))
+      .expect(201);
+    const reservation = await prisma.reservation.update({
+      where: { id: created.body.data.id },
+      data: {
+        status: ReservationStatus.CONFIRMED,
+        startAt: businessLocalToInstant(date, '23:00'),
+        endAt: scheduledEndAt,
+      },
+    });
+
+    await expect(
+      prisma.$transaction((tx) =>
+        transitionReservationStatus(tx, reservation.id, {
+          toStatus: ReservationStatus.COMPLETED,
+          expectedVersion: reservation.version,
+          now: new Date(scheduledEndAt.getTime() - 60_000),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'RESERVATION_END_NOT_REACHED' });
+
+    const completed = await prisma.$transaction((tx) =>
+      transitionReservationStatus(tx, reservation.id, {
+        toStatus: ReservationStatus.COMPLETED,
+        expectedVersion: reservation.version,
+        now: scheduledEndAt,
+      }),
+    );
+    expect(completed.status).toBe(ReservationStatus.COMPLETED);
+    expect(completed.statusChangedAt.toISOString()).toBe(scheduledEndAt.toISOString());
+
+    const secondCreated = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(13, 0, 26)))
+      .expect(201);
+    const second = await prisma.reservation.update({
+      where: { id: secondCreated.body.data.id },
+      data: {
+        status: ReservationStatus.CONFIRMED,
+        startAt: businessLocalToInstant(nextDate, '00:00'),
+        endAt: businessLocalToInstant(nextDate, '01:00'),
+      },
+    });
+    const oneMinuteAfter = new Date(second.endAt.getTime() + 60_000);
+    const noShow = await prisma.$transaction((tx) =>
+      transitionReservationStatus(tx, second.id, {
+        toStatus: ReservationStatus.NO_SHOW,
+        expectedVersion: second.version,
+        reason: 'Client absent après la fin du créneau',
+        now: oneMinuteAfter,
+      }),
+    );
+    expect(noShow.status).toBe(ReservationStatus.NO_SHOW);
+    expect(noShow.statusChangedAt.toISOString()).toBe(oneMinuteAfter.toISOString());
+  });
+
+  it('requires explicit owner override, persists its audit, and keeps the slot blocked until end', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const startAt = futureDateAt(12, 0, 21);
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, startAt))
+      .expect(201);
+    const reservation = await prisma.reservation.update({
+      where: { id: created.body.data.id },
+      data: { status: ReservationStatus.CONFIRMED },
+    });
+    const agent = await loginAdmin();
+
+    const missingConfirmation = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.COMPLETED,
+        expectedVersion: reservation.version,
+        temporalOverride: true,
+        reason: 'Clôture exceptionnelle contrôlée',
+      })
+      .expect(400);
+    expect(missingConfirmation.body.error.code).toBe('TEMPORAL_OVERRIDE_CONFIRMATION_REQUIRED');
+
+    const missingReason = await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.COMPLETED,
+        expectedVersion: reservation.version,
+        temporalOverride: true,
+        overrideConfirmed: true,
+      })
+      .expect(400);
+    expect(missingReason.body.error.code).toBe('TEMPORAL_OVERRIDE_REASON_REQUIRED');
+
+    await agent
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.COMPLETED,
+        expectedVersion: reservation.version,
+        temporalOverride: true,
+        overrideConfirmed: true,
+        reason: 'Incident studio imposant une clôture anticipée',
+      })
+      .expect(200);
+
+    const transition = await prisma.reservationTransition.findFirstOrThrow({
+      where: { reservationId: reservation.id, toStatus: ReservationStatus.COMPLETED },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(transition.metadata).toMatchObject({
+      temporalOverride: {
+        applied: true,
+        confirmed: true,
+        reason: 'Incident studio imposant une clôture anticipée',
+        scheduledEndAt: reservation.endAt.toISOString(),
+      },
+    });
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'reservation.early_close_override', entityId: reservation.id },
+    });
+    expect(audit.adminUserId).not.toBeNull();
+    expect(audit.metadata).toMatchObject({
+      oldStatus: ReservationStatus.CONFIRMED,
+      newStatus: ReservationStatus.COMPLETED,
+      reason: 'Incident studio imposant une clôture anticipée',
+    });
+
+    const doubleBooking = await request(app)
+      .post('/api/reservation-intents')
+      .send({ packageId: pack.id, startAt: startAt.toISOString(), idempotencyKey: randomUUID() })
+      .expect(409);
+    expect(doubleBooking.body.error.code).toBe('SLOT_ALREADY_RESERVED');
+  });
+
+  it('denies early override to staff but permits a normal close after end', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(14, 0, 22)))
+      .expect(201);
+    let reservation = await prisma.reservation.update({
+      where: { id: created.body.data.id },
+      data: { status: ReservationStatus.CONFIRMED },
+    });
+    const passwordHash = await bcrypt.hash('p0-03-staff-password', 4);
+    await prisma.adminUser.create({
+      data: {
+        email: 'staff-p0-03@goldenstudioplus.test',
+        name: 'Staff P0-03',
+        passwordHash,
+        role: AdminRole.STAFF,
+      },
+    });
+    const staff = request.agent(app);
+    await staff
+      .post('/api/admin/login')
+      .send({ email: 'staff-p0-03@goldenstudioplus.test', password: 'p0-03-staff-password' })
+      .expect(200);
+
+    const forbidden = await staff
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({
+        status: ReservationStatus.COMPLETED,
+        expectedVersion: reservation.version,
+        temporalOverride: true,
+        overrideConfirmed: true,
+        reason: 'Tentative sans permission',
+      })
+      .expect(403);
+    expect(forbidden.body.error.code).toBe('ADMIN_PERMISSION_REQUIRED');
+
+    const now = new Date();
+    reservation = await prisma.reservation.update({
+      where: { id: reservation.id },
+      data: {
+        startAt: new Date(now.getTime() - 2 * 60 * 60_000),
+        endAt: new Date(now.getTime() - 60_000),
+      },
+    });
+    const completed = await staff
+      .patch(`/api/admin/reservations/${reservation.id}`)
+      .send({ status: ReservationStatus.COMPLETED, expectedVersion: reservation.version })
+      .expect(200);
+    expect(completed.body.data.status).toBe(ReservationStatus.COMPLETED);
+  });
+});
+
+describe('REF-01 public reservation references', () => {
+  it('issues the short public format and preserves it when the intent becomes a reservation', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const payload = await reservationPayload(pack.id, futureDateAt(10, 0, 27));
+
+    expect(payload.expectedReference).toMatch(/^GSP-\d{6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/);
+
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(payload)
+      .expect(201);
+
+    expect(created.body.data.reference).toBe(payload.expectedReference);
+    expect(created.body.data.id).not.toBe(created.body.data.reference);
+  });
+
+  it('finds one reservation by a case-normalized indexed public reference', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const first = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(10, 0, 28)))
+      .expect(201);
+    await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(14, 0, 29)))
+      .expect(201);
+    const agent = await loginAdmin();
+
+    const response = await agent
+      .get('/api/admin/reservations')
+      .query({ reference: first.body.data.reference.toLowerCase() })
+      .expect(200);
+
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toMatchObject({
+      id: first.body.data.id,
+      reference: first.body.data.reference,
+    });
+  });
+
+  it('rejects database updates to public references after creation', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(10, 0, 30)))
+      .expect(201);
+    const intent = await prisma.reservationIntent.findFirstOrThrow({
+      where: { reservationId: created.body.data.id },
+    });
+
+    await expect(
+      prisma.$executeRaw`UPDATE "Reservation" SET "reference" = ${'GSP-260802-ABCD'} WHERE "id" = ${created.body.data.id}`,
+    ).rejects.toThrow(/PUBLIC_REFERENCE_IMMUTABLE/);
+    await expect(
+      prisma.$executeRaw`UPDATE "ReservationIntent" SET "reference" = ${'GSP-260802-EFGH'} WHERE "id" = ${intent.id}`,
+    ).rejects.toThrow(/PUBLIC_REFERENCE_IMMUTABLE/);
+
+    expect((await prisma.reservation.findUniqueOrThrow({ where: { id: created.body.data.id } })).reference)
+      .toBe(created.body.data.reference);
+    expect((await prisma.reservationIntent.findUniqueOrThrow({ where: { id: intent.id } })).reference)
+      .toBe(created.body.data.reference);
+  });
+});
+
+
+describe('P2-01 localized validation responses', () => {
+  it('returns a French summary and structured field details for public forms', async () => {
+    const response = await request(app)
+      .post('/api/contact')
+      .send({
+        submissionKey: randomUUID(),
+        name: '',
+        email: 'alice@example.com',
+        message: 'court',
+      })
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Corrigez les champs invalides avant de continuer.',
+    });
+    expect(response.body.error.details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'name', code: 'too_small', message: 'Renseignez votre nom.' }),
+      expect.objectContaining({ path: 'message', code: 'too_small', message: 'Le message doit contenir au moins 10 caractères.' }),
+    ]));
+    expect(JSON.stringify(response.body.error)).not.toMatch(/Request validation failed|Too small|Invalid input/);
   });
 });

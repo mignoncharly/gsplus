@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -11,6 +11,7 @@ import {
   Lock, 
   LogOut, 
   Mail, 
+  Menu,
   Trash2, 
   Upload, 
   Users, 
@@ -20,16 +21,17 @@ import {
   FileText,
   AlertCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import {
+  addAdminReservationPayment,
+  cancelAdminReservation,
   createAdminAvailabilityBlock,
   createAdminMedia,
-  createAdminPackage,
   deleteAdminAvailabilityBlock,
   deleteAdminMedia,
-  deleteAdminPackage,
-  duplicateAdminPackage,
+  decideAdminRescheduleRequest,
   getAdminAvailabilityBlocks,
   getAdminLeads,
   getAdminMe,
@@ -48,18 +50,24 @@ import {
   syncAdminReservationCalendar,
   updateAdminLead,
   updateAdminMedia,
-  updateAdminPackage,
   updateAdminReservation,
   updateAdminAvailabilityBlock,
   verifyAdminPayment,
+  verifyAndConfirmAdminReservation,
 } from '../lib/api';
 import {
-  packageReferenceCount,
+  canConfirmReservation,
+  canVerifyAndConfirm,
+  isReservationEndReached,
+  isTemporalOverrideTransition,
+  paymentActions,
   reservationActions,
   statusLabel,
   transitionActorLabel,
 } from '../lib/admin-workflow';
 import { resetFormAfterSuccess } from '../lib/lead-submission';
+import { isValidCameroonPhone, PHONE_INVALID_MESSAGE } from '../lib/contact-validation';
+import { ADMIN_REFRESH_INTERVAL_MS, shouldRunAdminRefresh } from '../lib/admin-refresh';
 import {
   businessDateKey,
   businessDateTimeLocalValue,
@@ -68,7 +76,13 @@ import {
   formatBusinessDateTime,
 } from '../lib/business-time';
 import { PORTFOLIO_CATEGORIES } from '../lib/portfolio-media';
+import { formatFcfa } from '../lib/display-formatters';
 import './AdminDashboard.css';
+
+const AdminWhatsAppPanel = React.lazy(() => import('../components/AdminWhatsAppPanel'));
+const AdminOpsPanel = React.lazy(() => import('../components/AdminReservationOperationsPanel'));
+const AdminActionDialog = React.lazy(() => import('../components/AdminActionDialog'));
+const AdminPackagesPanel = React.lazy(() => import('../components/AdminPackagesPanel'));
 
 const formatBytes = (value) => {
   const bytes = Number(value);
@@ -76,11 +90,13 @@ const formatBytes = (value) => {
   if (bytes < 1024) return `${bytes} o`;
   return `${(bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1)} Ko`;
 };
-const currency = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+const maskedProviderId = (value) => {
+  const id = String(value || '');
+  if (!id) return '';
+  return id.length <= 8 ? id : `…${id.slice(-8)}`;
+};
 const dateTime = formatBusinessDateTime;
 const monthKey = currentBusinessMonthKey();
-const ADMIN_TABS = ['overview', 'reservations', 'leads', 'tarifs', 'availability', 'portfolio', 'notifications'];
-const ADMIN_LOADING_STATE = Object.fromEntries(ADMIN_TABS.map((tab) => [tab, true]));
 
 const statusClass = (status) => {
   return `pill-${String(status).toLowerCase()}`;
@@ -93,6 +109,33 @@ const pill = (status) => (
 );
 
 const latestCalendarSync = (reservation) => reservation?.calendarSync || reservation?.calendarSyncLogs?.[0] || null;
+const reservationContact = (reservation) => {
+  const snapshot = reservation?.snapshot;
+  if (!snapshot) {
+    return {
+      firstName: reservation?.customer?.firstName ?? 'Snapshot',
+      lastName: reservation?.customer?.lastName ?? 'indisponible',
+      phone: reservation?.customer?.phone ?? '—',
+      email: reservation?.customer?.email ?? '',
+      whatsappConsent: false,
+      whatsappConsentAt: null,
+    };
+  }
+  return {
+    firstName: snapshot.firstName,
+    lastName: snapshot.lastName,
+    phone: snapshot.notificationPhoneE164,
+    email: snapshot.notificationEmail ?? snapshot.email ?? '',
+    whatsappConsent: snapshot.whatsappConsent,
+    whatsappConsentAt: snapshot.whatsappConsentAt,
+  };
+};
+
+const reservationIdentityKey = (reservation) => {
+  if (!reservation?.snapshot) return reservation?.customerId;
+  const contact = reservationContact(reservation);
+  return [contact.firstName, contact.lastName, contact.phone, contact.email].join('|');
+};
 
 const calendarErrorLabel = (code) => ({
   CALENDAR_NOT_CONFIGURED: 'Calendrier externe non configuré',
@@ -108,13 +151,7 @@ const calendarErrorLabel = (code) => ({
   CALENDAR_EVENT_TYPE_NOT_FOUND: 'Type d’événement configuré introuvable',
 }[code] || code || 'Aucune erreur');
 
-const notificationResolutionLabel = (code) => ({
-  OBSOLETE: 'Obsolète — ne pas renvoyer',
-  DUPLICATE: 'Doublon',
-  PERMANENTLY_FAILED: 'Échec définitif',
-  ACTIONABLE_REVIEW_REQUIRED: 'Examen requis avant renvoi',
-  REPLACED: 'Remplacée par une autre notification',
-}[code] || 'Non classée');
+const notificationResolutionLabel = (code) => statusLabel(code || 'UNCLASSIFIED');
 
 const pageTransition = {
   initial: { opacity: 0, y: 15 },
@@ -132,47 +169,89 @@ const AdminDashboard = () => {
   const [loginError, setLoginError] = useState('');
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedRes, setSelectedRes] = useState(null);
   const [apiStatus, setApiStatus] = useState({ state: 'checking', message: 'Vérification API...' });
   const [feedback, setFeedback] = useState(null);
   const [loadingTabs, setLoadingTabs] = useState({});
+  const [lastSyncedAt, setLastSyncedAt] = useState({});
   const [busyActions, setBusyActions] = useState({});
-  const [editingPack, setEditingPack] = useState(null);
-  const [previewPack, setPreviewPack] = useState(null);
+  const [actionDialog, setActionDialog] = useState(null);
   const feedbackRef = useRef(null);
+  const sidebarCloseRef = useRef(null);
+  const sidebarToggleRef = useRef(null);
+  const busyActionKeysRef = useRef(new Set());
+  const tabRefreshInFlightRef = useRef(new Map());
+  const reservationSearchReferenceRef = useRef('');
 
   const [reservations, setReservations] = useState([]);
+  const [reservationReferenceQuery, setReservationReferenceQuery] = useState('');
+  const [reservationSearchResults, setReservationSearchResults] = useState(null);
+  const [reservationSearchSubmitting, setReservationSearchSubmitting] = useState(false);
   const [leads, setLeads] = useState([]);
   const [packs, setPacks] = useState([]);
   const [media, setMedia] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
-  const loadAdminData = async () => {
-    setLoadingTabs(ADMIN_LOADING_STATE);
-    try {
-      const [reservationItems, leadItems, packageItems, mediaItems, blockItems, notificationItems] = await Promise.all([
-        getAdminReservations(),
-        getAdminLeads(),
-        getAdminPackages(),
-        getAdminMedia(),
-        getAdminAvailabilityBlocks(),
-        getAdminNotifications(),
-      ]);
-      setReservations(reservationItems);
-      setLeads(leadItems);
-      setPacks(packageItems);
-      setMedia(mediaItems);
-      setBlocks(blockItems);
-      setNotifications(notificationItems);
-      return true;
-    } catch (err) {
-      setFeedback({ tab: activeTab, type: 'error', message: err.message || 'Impossible de charger les données admin.' });
-      return false;
-    } finally {
-      setLoadingTabs({});
-    }
-  };
+  const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
+    const existingRequest = tabRefreshInFlightRef.current.get(tab);
+    if (existingRequest) return existingRequest;
+
+    setLoadingTabs((current) => ({ ...current, [tab]: true }));
+    const request = (async () => {
+      try {
+        if (tab === 'overview') {
+          const [reservationItems, leadItems, packageItems, mediaItems, blockItems, notificationItems] = await Promise.all([
+            getAdminReservations(),
+            getAdminLeads(),
+            getAdminPackages(),
+            getAdminMedia(),
+            getAdminAvailabilityBlocks(),
+            getAdminNotifications(),
+          ]);
+          setReservations(reservationItems);
+          setLeads(leadItems);
+          setPacks(packageItems);
+          setMedia(mediaItems);
+          setBlocks(blockItems);
+          setNotifications(notificationItems);
+        } else if (tab === 'reservations') {
+          const reference = reservationSearchReferenceRef.current;
+          const [reservationItems, searchItems] = await Promise.all([
+            getAdminReservations(),
+            reference ? getAdminReservations({ reference }) : Promise.resolve(null),
+          ]);
+          setReservations(reservationItems);
+          setReservationSearchResults(searchItems);
+        } else if (tab === 'leads') {
+          setLeads(await getAdminLeads());
+        } else if (tab === 'tarifs') {
+          setPacks(await getAdminPackages());
+        } else if (tab === 'availability') {
+          setBlocks(await getAdminAvailabilityBlocks());
+        } else if (tab === 'portfolio') {
+          setMedia(await getAdminMedia());
+        } else if (tab === 'notifications') {
+          setNotifications(await getAdminNotifications());
+        }
+
+        setLastSyncedAt((current) => ({ ...current, [tab]: Date.now() }));
+        return true;
+      } catch (err) {
+        if (reportError) {
+          setFeedback({ tab, type: 'error', message: err.message || 'Impossible d’actualiser cette section.' });
+        }
+        return false;
+      } finally {
+        tabRefreshInFlightRef.current.delete(tab);
+        setLoadingTabs((current) => ({ ...current, [tab]: false }));
+      }
+    })();
+
+    tabRefreshInFlightRef.current.set(tab, request);
+    return request;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -190,7 +269,6 @@ const AdminDashboard = () => {
         if (!isMounted) return;
         setAdminUser(admin);
         setIsAuthenticated(true);
-        loadAdminData();
       })
       .catch(() => {
         if (isMounted) setIsAuthenticated(false);
@@ -202,14 +280,62 @@ const AdminDashboard = () => {
     return () => {
       isMounted = false;
     };
-  // Initial session bootstrap only; later refreshes are action-owned.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const refreshIfVisible = (reportError = false) => {
+      if (!shouldRunAdminRefresh({ isAuthenticated, visibilityState: document.visibilityState })) return;
+      void refreshAdminTab(activeTab, { reportError });
+    };
+    const handleVisibilityChange = () => refreshIfVisible(false);
+
+    refreshIfVisible(true);
+    const interval = window.setInterval(() => refreshIfVisible(false), ADMIN_REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeTab, isAuthenticated, refreshAdminTab]);
   useEffect(() => {
     if (feedback && feedback.tab === activeTab) {
       feedbackRef.current?.focus();
     }
   }, [feedback, activeTab]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsSidebarOpen(false);
+        sidebarToggleRef.current?.focus();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    sidebarCloseRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    const desktopViewport = window.matchMedia('(min-width: 992px)');
+    const closeSidebarOnDesktop = (event) => {
+      if (event.matches) setIsSidebarOpen(false);
+    };
+
+    desktopViewport.addEventListener('change', closeSidebarOnDesktop);
+    return () => desktopViewport.removeEventListener('change', closeSidebarOnDesktop);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -222,7 +348,7 @@ const AdminDashboard = () => {
       setIsAuthenticated(true);
       setEmail('');
       setPassword('');
-      await loadAdminData();
+      await refreshAdminTab('overview');
     } catch (err) {
       setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
     } finally {
@@ -235,21 +361,29 @@ const AdminDashboard = () => {
     setIsAuthenticated(false);
     setAdminUser(null);
     setReservations([]);
+    setReservationReferenceQuery('');
+    reservationSearchReferenceRef.current = '';
+    setReservationSearchResults(null);
     setLeads([]);
     setPacks([]);
     setMedia([]);
     setBlocks([]);
     setNotifications([]);
+    setLastSyncedAt({});
+    tabRefreshInFlightRef.current.clear();
+    reservationSearchReferenceRef.current = '';
     setFeedback(null);
   };
 
-  const runAction = async (label, action) => {
+  const runAction = async (label, action, propagateError = false) => {
     const key = `${activeTab}:${label}`;
+    if (busyActionKeysRef.current.has(key)) return false;
+    busyActionKeysRef.current.add(key);
     setBusyActions((current) => ({ ...current, [key]: true }));
     setFeedback({ tab: activeTab, type: 'progress', message: `${label}...` });
     try {
       await action();
-      const reloaded = await loadAdminData();
+      const reloaded = await refreshAdminTab(activeTab, { reportError: false });
       if (!reloaded) throw new Error('Action enregistrée, mais les données n’ont pas pu être rechargées.');
       setFeedback({
         tab: activeTab,
@@ -259,9 +393,18 @@ const AdminDashboard = () => {
       return true;
     } catch (err) {
       setFeedback({ tab: activeTab, type: 'error', message: err.message || `Échec de l'action : ${label}` });
+      if (propagateError) throw err;
       return false;
     } finally {
+      busyActionKeysRef.current.delete(key);
       setBusyActions((current) => ({ ...current, [key]: false }));
+    }
+  };
+
+  const refreshActiveTab = async () => {
+    const refreshed = await refreshAdminTab(activeTab);
+    if (refreshed) {
+      setFeedback({ tab: activeTab, type: 'success', message: 'Données actualisées avec succès.' });
     }
   };
 
@@ -277,222 +420,203 @@ const AdminDashboard = () => {
     }
   };
 
-  const updateReservationStatus = async (reservation, status, action = {}) => {
-    const needsReason = action.requiresReason || ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(status);
-    const reason = needsReason
-      ? window.prompt('Veuillez indiquer le motif de cette action administrative :')?.trim()
-      : undefined;
+  const openActionDialog = (config) => setActionDialog({ fields: [], ...config });
 
-    if (needsReason && !reason) {
-      setFeedback({ tab: 'reservations', type: 'error', message: 'Action annulée : un motif est obligatoire.' });
-      return;
-    }
-
-    if (!window.confirm(`Confirmer l’action « ${action.label || statusLabel(status)} » ?`)) return;
-
-    const success = await runAction('Mise à jour de la réservation', async () => {
-      await updateAdminReservation(reservation.id, { status, reason });
-    });
-    if (success) setSelectedRes(await getAdminReservation(reservation.id));
+  const runDialogAction = async (label, action, refreshReservationId) => {
+    const success = await runAction(label, action, true);
+    if (!success) throw new Error('Cette action est déjà en cours.');
+    if (refreshReservationId) setSelectedRes(await getAdminReservation(refreshReservationId));
   };
 
-  const updateFirstPayment = async (reservation, status) => {
+  const updateReservationStatus = (reservation, status, action = {}) => {
+    const needsReason = action.temporalOverride || action.requiresReason || ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(status);
+    const fields = status === 'CANCELLED' ? [{
+      name: 'origin', label: 'Origine de l’annulation', type: 'select', required: true, defaultValue: 'CUSTOMER',
+      options: [{ value: 'CUSTOMER', label: 'Client' }, { value: 'STUDIO', label: 'Studio' }],
+    }] : [];
+    if (needsReason) fields.push({ name: 'reason', label: 'Motif', type: 'textarea', required: true });
+    const label = action.label || statusLabel(status);
+    openActionDialog({
+      title: action.temporalOverride ? 'Confirmer une dérogation temporelle' : 'Mettre à jour la réservation',
+      summary: reservation.reference + ' · ' + statusLabel(reservation.status) + ' → ' + label,
+      consequence: action.temporalOverride ? 'La clôture anticipée et son motif seront audités.' : 'Le statut, le motif et l’auteur seront inscrits dans l’historique.',
+      confirmLabel: label,
+      destructive: Boolean(action.destructive || action.temporalOverride),
+      fields,
+      onConfirm: (values) => runDialogAction('Mise à jour de la réservation', async () => {
+        if (status === 'CANCELLED') {
+          await cancelAdminReservation(reservation.id, {
+            commandId: window.crypto.randomUUID(), expectedVersion: reservation.version,
+            origin: values.origin, reason: values.reason.trim(),
+          });
+          return;
+        }
+        const versioned = ['CONFIRMED', 'REJECTED', 'COMPLETED', 'NO_SHOW'].includes(status);
+        await updateAdminReservation(reservation.id, {
+          status, reason: values.reason?.trim() || undefined,
+          ...(versioned ? { commandId: window.crypto.randomUUID(), expectedVersion: reservation.version } : {}),
+          ...(action.temporalOverride ? { temporalOverride: true, overrideConfirmed: true } : {}),
+        });
+      }, reservation.id),
+    });
+  };
+
+  const updateFirstPayment = (reservation, action) => {
     const payment = reservation.payments?.[0];
     if (!payment) {
       setFeedback({ tab: 'reservations', type: 'error', message: 'Aucun paiement associé à cette réservation.' });
       return;
     }
-
-    let transactionRef;
-    if (status === 'VERIFIED') {
-      const entered = window.prompt('Référence de transaction à vérifier :', payment.transactionRef || '');
-      if (entered === null) return;
-      transactionRef = entered.trim();
-      if (!transactionRef) {
-        setFeedback({ tab: 'reservations', type: 'error', message: 'La référence de transaction est obligatoire.' });
-        return;
-      }
-    }
-
-    const needsReason = status === 'REJECTED';
-    const reason = needsReason
-      ? window.prompt('Veuillez indiquer pourquoi ce paiement est rejeté :')?.trim()
-      : undefined;
-
-    if (needsReason && !reason) {
-      setFeedback({ tab: 'reservations', type: 'error', message: 'Action annulée : un motif est obligatoire.' });
-      return;
-    }
-
-    if (!window.confirm(`Confirmer l’action « ${statusLabel(status)} » sur ce paiement ?`)) return;
-
-    const success = await runAction('Vérification du paiement', async () => {
-      await verifyAdminPayment(payment.id, { status, reason, transactionRef });
+    const fields = [];
+    if (action.requiresTransactionReference) fields.push({ name: 'transactionRef', label: 'Référence de transaction', required: true, defaultValue: payment.transactionRef || '' });
+    if (action.requiresReason) fields.push({ name: 'reason', label: 'Motif', type: 'textarea', required: true });
+    openActionDialog({
+      title: 'Décision de paiement', summary: reservation.reference + ' · ' + action.label,
+      consequence: 'La décision sera versionnée et auditée.', confirmLabel: action.label,
+      destructive: Boolean(action.destructive), fields,
+      onConfirm: (values) => runDialogAction('Décision de paiement', () => verifyAdminPayment(payment.id, {
+        status: action.status, reason: values.reason?.trim() || undefined,
+        transactionRef: values.transactionRef?.trim() || undefined,
+        commandId: window.crypto.randomUUID(), expectedVersion: payment.version,
+      }), reservation.id),
     });
-    if (success) setSelectedRes(await getAdminReservation(reservation.id));
   };
 
-  const createPackageItem = async () => {
-    const name = window.prompt('Nom de la nouvelle formule :')?.trim();
-    if (!name) return;
-    const slug = window.prompt('Identifiant URL (minuscules et tirets) :')?.trim();
-    if (!slug) return;
-    const category = window.prompt('Catégorie :')?.trim();
-    if (!category) return;
-    const price = window.prompt('Prix en FCFA :', '0');
-    const durationMin = window.prompt('Durée en minutes :', '60');
-    if (price === null || durationMin === null) return;
-    if (!window.confirm(`Créer la formule « ${name} » ?`)) return;
-    await runAction('Création de la formule', () =>
-      createAdminPackage({
-        name,
-        slug,
-        category,
-        price: Number(price),
-        durationMin: Number(durationMin),
-      }),
-    );
+  const addReservationPayment = (reservation) => openActionDialog({
+    title: 'Ajouter un paiement', summary: reservation.reference,
+    consequence: 'Les informations seront liées à la réservation pour vérification.',
+    confirmLabel: 'Ajouter le paiement',
+    fields: [
+      { name: 'method', label: 'Opérateur', type: 'select', required: true, defaultValue: 'mtn_momo', options: [{ value: 'mtn_momo', label: 'MTN MoMo' }, { value: 'orange_money', label: 'Orange Money' }] },
+      { name: 'paymentPhone', label: 'Téléphone de paiement', type: 'tel', inputMode: 'tel', required: true, validate: (value) => isValidCameroonPhone(String(value)) ? '' : PHONE_INVALID_MESSAGE },
+      { name: 'transactionRef', label: 'Référence de transaction', required: true },
+    ],
+    onConfirm: (values) => runDialogAction('Ajout du paiement', () => addAdminReservationPayment(reservation.id, {
+      commandId: window.crypto.randomUUID(), expectedReservationVersion: reservation.version,
+      method: values.method, paymentPhone: values.paymentPhone.trim(), transactionRef: values.transactionRef.trim(),
+    }), reservation.id),
+  });
+
+  const verifyAndConfirmReservation = (reservation) => {
+    const payment = reservation.payments?.[0];
+    if (!payment) return;
+    openActionDialog({
+      title: 'Vérifier le paiement et confirmer', summary: reservation.reference + ' · paiement ' + statusLabel(payment.status),
+      consequence: 'Le paiement sera vérifié et la réservation confirmée dans une commande atomique auditée.',
+      confirmLabel: 'Vérifier et confirmer',
+      fields: [{ name: 'transactionRef', label: 'Référence de transaction', required: true, defaultValue: payment.transactionRef || '' }],
+      onConfirm: (values) => runDialogAction('Vérification et confirmation', () => verifyAndConfirmAdminReservation(reservation.id, {
+        commandId: window.crypto.randomUUID(), paymentId: payment.id,
+        expectedPaymentVersion: payment.version, expectedReservationVersion: reservation.version,
+        transactionRef: values.transactionRef.trim(),
+      }), reservation.id),
+    });
   };
 
-  const editPackageItem = async (pack) => {
-    setEditingPack(pack.id);
-    const fields = [
-      ['name', 'Nom', pack.name],
-      ['slug', 'Identifiant URL', pack.slug],
-      ['category', 'Catégorie', pack.category],
-      ['description', 'Description', pack.description || ''],
-      ['price', 'Prix en FCFA', pack.price],
-      ['durationMin', 'Durée en minutes', pack.durationMin],
-      ['deliveryLabel', 'Délai de livraison', pack.deliveryLabel || ''],
-      ['sortOrder', 'Ordre d’affichage', pack.sortOrder],
-      ['legalText', 'Texte légal associé', pack.legalText || ''],
-    ];
-    const values = {};
-    for (const [key, label, initialValue] of fields) {
-      const value = window.prompt(`${label} :`, String(initialValue));
-      if (value === null) {
-        setEditingPack(null);
-        return;
-      }
-      values[key] = value.trim() || null;
-    }
-    values.price = Number(values.price);
-    values.durationMin = Number(values.durationMin);
-    values.sortOrder = Number(values.sortOrder);
-    if (!window.confirm(`Enregistrer une nouvelle version de « ${values.name} » ?`)) { setEditingPack(null); return; }
-    await runAction('Modification de la formule', () => updateAdminPackage(pack.id, values));
-    setEditingPack(null);
+  const simpleAction = (config, label, action) => openActionDialog({
+    fields: [], confirmLabel: label, ...config,
+    onConfirm: () => runDialogAction(label, action),
+  });
+
+  const updateLeadStatus = (lead, status) => simpleAction({
+    title: 'Mettre à jour la demande', summary: (lead.company || lead.name) + ' · ' + statusLabel(lead.status) + ' → ' + statusLabel(status),
+    consequence: 'Le nouveau statut sera enregistré dans le dossier.',
+  }, 'Mettre à jour', () => updateAdminLead(lead.id, { status }));
+
+  const classifyNotification = (item, resolution) => {
+    const note = resolution === 'OBSOLETE' ? 'Événement historique devenu sans objet; aucun renvoi autorisé.' : 'Événement potentiellement pertinent; examen individuel requis avant tout renvoi.';
+    openActionDialog({
+      title: 'Classer la notification', summary: item.type + ' · ' + (item.reservation?.reference || item.lead?.name || item.id),
+      consequence: 'La classification sera enregistrée sans envoyer de message.',
+      confirmLabel: 'Enregistrer la classification',
+      fields: [{ name: 'note', label: 'Note de classification', type: 'textarea', required: true, defaultValue: note }],
+      onConfirm: (values) => runDialogAction('Classification notification', () => resolveAdminNotification(item.id, { resolution, note: values.note.trim() })),
+    });
   };
 
-  const duplicatePackageItem = async (pack) => {
-    if (!window.confirm(`Dupliquer la formule « ${pack.name} » ?`)) return;
-    await runAction('Duplication de la formule', () => duplicateAdminPackage(pack.id));
-  };
-
-  const updatePackageState = async (pack, changes, label) => {
-    if (!window.confirm(`${label} « ${pack.name} » ?`)) return;
-    await runAction(label, () => updateAdminPackage(pack.id, changes));
-  };
-
-  const movePackage = (pack, direction) =>
-    updatePackageState(pack, { sortOrder: Math.max(0, pack.sortOrder + direction) }, 'Modification de l’ordre');
-
-  const removePackageItem = async (pack) => {
-    const references = packageReferenceCount(pack);
-    if (references > 0) {
-      setFeedback({ tab: 'tarifs', type: 'error', message: `Suppression interdite : ${references} réservation(s) ou intention(s) utilisent cette formule. Archivez-la.` });
-      return;
-    }
-    if (!window.confirm(`Supprimer définitivement la formule non référencée « ${pack.name} » ?`)) return;
-    await runAction('Suppression de la formule', () => deleteAdminPackage(pack.id));
-  };
-
-  const updateLeadStatus = (lead, status) => {
-    if (!window.confirm(`Passer cette demande au statut « ${statusLabel(status)} » ?`)) return;
-    return runAction('Mise à jour de la demande', () => updateAdminLead(lead.id, { status }));
-  };
-
-  const classifyNotification = async (item, resolution) => {
-    const defaultNote = resolution === 'OBSOLETE'
-      ? 'Événement historique devenu sans objet; aucun renvoi autorisé.'
-      : 'Événement potentiellement pertinent; examen individuel requis avant tout renvoi.';
-    const note = window.prompt('Note obligatoire de classification :', defaultNote)?.trim();
-    if (!note) return;
-    if (!window.confirm('Enregistrer cette classification sans envoyer de message ?')) return;
-    await runAction('Classification notification', () =>
-      resolveAdminNotification(item.id, { resolution, note }),
-    );
-  };
-
-  const retryNotification = async (item) => {
-    if (!window.confirm('Réessayer uniquement cette notification ? Aucun autre échec historique ne sera renvoyé.')) return;
-    await runAction(`Réessai notification ${item.id}`, () => retryAdminNotification(item.id));
-  };
+  const retryNotification = (item) => simpleAction({
+    title: 'Réessayer la notification', summary: item.type + ' · ' + (item.reservation?.reference || item.lead?.name || item.id),
+    consequence: 'Seule cette notification sera remise en file.',
+  }, 'Réessayer', () => retryAdminNotification(item.id));
 
   const syncReservationCalendar = async (reservation) => {
-    const success = await runAction('Synchronisation calendrier', () =>
-      syncAdminReservationCalendar(reservation.id),
-    );
+    const success = await runAction('Synchronisation calendrier', () => syncAdminReservationCalendar(reservation.id));
     if (success) setSelectedRes(await getAdminReservation(reservation.id));
   };
 
-  const rescheduleReservationItem = async (reservation) => {
-    const entered = window.prompt(
-      'Nouveau créneau à Douala (AAAA-MM-JJTHH:mm) :',
-      businessDateTimeLocalValue(reservation.startAt),
-    );
-    if (entered === null) return;
-    const reason = window.prompt('Motif obligatoire du déplacement :')?.trim();
-    if (!reason) {
-      setFeedback({ tab: 'reservations', type: 'error', message: 'Déplacement annulé : un motif est obligatoire.' });
-      return;
-    }
-    let startAt;
-    try {
-      startAt = doualaLocalDateTimeToIso(entered);
-    } catch {
-      setFeedback({ tab: 'reservations', type: 'error', message: 'Date ou heure invalide.' });
-      return;
-    }
-    if (!window.confirm(`Déplacer cette réservation au ${dateTime(startAt)} ?`)) return;
-    const success = await runAction('Déplacement de la réservation', () =>
-      rescheduleAdminReservation(reservation.id, { startAt, reason }),
-    );
-    if (success) setSelectedRes(await getAdminReservation(reservation.id));
+  const rescheduleReservationItem = (reservation) => openActionDialog({
+    title: 'Demander un report', summary: reservation.reference + ' · ' + dateTime(reservation.startAt),
+    consequence: 'Le créneau actuel reste réservé jusqu’à une décision propriétaire séparée.',
+    confirmLabel: 'Créer la demande',
+    fields: [
+      { name: 'requestedStartAt', label: 'Nouveau créneau à Douala', type: 'datetime-local', required: true, defaultValue: businessDateTimeLocalValue(reservation.startAt) },
+      { name: 'reason', label: 'Motif de la demande', type: 'textarea', required: true },
+    ],
+    onConfirm: async (values) => {
+      let startAt;
+      try { startAt = doualaLocalDateTimeToIso(values.requestedStartAt); }
+      catch { throw new Error('Le nouveau créneau est invalide.'); }
+      await runDialogAction('Demande de report', () => rescheduleAdminReservation(reservation.id, {
+        commandId: window.crypto.randomUUID(), expectedReservationVersion: reservation.version,
+        requestedStartAt: startAt, reason: values.reason.trim(),
+      }), reservation.id);
+    },
+  });
+
+  const decideRescheduleRequest = (reservation, request, decision) => {
+    const accepted = decision === 'ACCEPTED';
+    openActionDialog({
+      title: accepted ? 'Accepter la demande de report' : 'Refuser la demande de report',
+      summary: reservation.reference + ' · ' + dateTime(request.oldStartAt) + ' → ' + dateTime(request.requestedStartAt),
+      consequence: accepted ? 'Le créneau sera déplacé après revalidation.' : 'Le créneau initial restera inchangé.',
+      confirmLabel: accepted ? 'Accepter le report' : 'Refuser le report', destructive: !accepted,
+      fields: [{ name: 'reason', label: 'Motif de la décision', type: 'textarea', required: true }],
+      onConfirm: (values) => runDialogAction('Décision de report', () => decideAdminRescheduleRequest(request.id, {
+        commandId: window.crypto.randomUUID(), expectedVersion: request.version,
+        decision, reason: values.reason.trim(),
+      }), reservation.id),
+    });
   };
 
   const createBlock = async (event) => {
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const startAt = form.get('startAt');
-    const endAt = form.get('endAt');
-    const success = await runAction('Blocage calendrier', () =>
-      createAdminAvailabilityBlock({
-        startAt: doualaLocalDateTimeToIso(startAt),
-        endAt: doualaLocalDateTimeToIso(endAt),
-        reason: form.get('reason') || undefined,
-      }),
-    );
+    const success = await runAction('Blocage calendrier', () => createAdminAvailabilityBlock({
+      startAt: doualaLocalDateTimeToIso(form.get('startAt')),
+      endAt: doualaLocalDateTimeToIso(form.get('endAt')),
+      reason: form.get('reason') || undefined,
+    }));
     resetFormAfterSuccess(formElement, success);
   };
 
-  const editBlock = (block) => {
-    const startAt = window.prompt('Début à Douala (AAAA-MM-JJTHH:mm)', businessDateTimeLocalValue(block.startAt));
-    if (startAt === null) return;
-    const endAt = window.prompt('Fin à Douala (AAAA-MM-JJTHH:mm)', businessDateTimeLocalValue(block.endAt));
-    if (endAt === null) return;
-    const reason = window.prompt('Raison / motif', block.reason || '');
-    if (reason === null) return;
+  const editBlock = (item) => openActionDialog({
+    title: 'Modifier le blocage calendrier', summary: dateTime(item.startAt) + ' → ' + dateTime(item.endAt),
+    consequence: 'La disponibilité publique sera recalculée.', confirmLabel: 'Enregistrer le blocage',
+    fields: [
+      { name: 'startAt', label: 'Début à Douala', type: 'datetime-local', required: true, defaultValue: businessDateTimeLocalValue(item.startAt) },
+      { name: 'endAt', label: 'Fin à Douala', type: 'datetime-local', required: true, defaultValue: businessDateTimeLocalValue(item.endAt) },
+      { name: 'reason', label: 'Raison / motif', defaultValue: item.reason || '' },
+    ],
+    onConfirm: async (values) => {
+      let startAt; let endAt;
+      try { startAt = doualaLocalDateTimeToIso(values.startAt); endAt = doualaLocalDateTimeToIso(values.endAt); }
+      catch { throw new Error('Les dates du blocage sont invalides.'); }
+      await runDialogAction('Modification blocage', () => updateAdminAvailabilityBlock(item.id, {
+        startAt, endAt, reason: values.reason.trim() || undefined,
+      }));
+    },
+  });
 
-    return runAction('Modification blocage', () =>
-      updateAdminAvailabilityBlock(block.id, {
-        startAt: doualaLocalDateTimeToIso(startAt),
-        endAt: doualaLocalDateTimeToIso(endAt),
-        reason: reason || undefined,
-      }),
-    );
-  };
+  const removeAvailabilityBlock = (item) => simpleAction({
+    title: 'Supprimer le blocage calendrier', summary: dateTime(item.startAt) + ' → ' + dateTime(item.endAt),
+    consequence: 'Les créneaux pourront redevenir disponibles immédiatement.', destructive: true,
+  }, 'Supprimer le blocage', () => deleteAdminAvailabilityBlock(item.id));
+
+  const removeMediaItem = (item) => simpleAction({
+    title: 'Supprimer le média', summary: item.title,
+    consequence: 'Le fichier et ses dérivés disparaîtront de la galerie.', destructive: true,
+  }, 'Supprimer le média', () => deleteAdminMedia(item.id));
 
   const createMedia = async (event) => {
     event.preventDefault();
@@ -505,13 +629,65 @@ const AdminDashboard = () => {
   const toggleMediaFlag = (item, field) =>
     runAction('Mise à jour média', () => updateAdminMedia(item.id, { [field]: !item[field] }));
 
+  const searchReservationsByReference = async (event) => {
+    event.preventDefault();
+    const reference = reservationReferenceQuery.trim().toUpperCase();
+
+    if (!reference) {
+      setReservationSearchResults(null);
+      setFeedback({ tab: 'reservations', type: 'success', message: 'Toutes les réservations sont affichées.' });
+      return;
+    }
+
+    setReservationSearchSubmitting(true);
+    setFeedback({ tab: 'reservations', type: 'progress', message: 'Recherche de la référence publique...' });
+    try {
+      const matches = await getAdminReservations({ reference });
+      setReservationReferenceQuery(reference);
+      reservationSearchReferenceRef.current = reference;
+      setReservationSearchResults(matches);
+      setFeedback({
+        tab: 'reservations',
+        type: 'success',
+        message: matches.length
+          ? `Réservation ${reference} trouvée.`
+          : `Aucune réservation trouvée pour ${reference}.`,
+      });
+    } catch (err) {
+      setFeedback({
+        tab: 'reservations',
+        type: 'error',
+        message: err.message || 'La recherche par référence a échoué.',
+      });
+    } finally {
+      setReservationSearchSubmitting(false);
+    }
+  };
+
+  const clearReservationReferenceSearch = () => {
+    setReservationReferenceQuery('');
+    setReservationSearchResults(null);
+    setFeedback({ tab: 'reservations', type: 'success', message: 'Toutes les réservations sont affichées.' });
+  };
+
+  const displayedReservations = reservationSearchResults ?? reservations;
+
   const paidRevenueThisMonth = reservations
     .filter((reservation) => reservation.startAt && businessDateKey(new Date(reservation.startAt)).startsWith(monthKey))
     .flatMap((reservation) => reservation.payments || [])
-    .filter((payment) => payment.status === 'VERIFIED')
+    .filter((payment) => ['VERIFIED', 'PAID'].includes(payment.status))
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  const uniqueCustomers = new Set(reservations.map((reservation) => reservation.customerId)).size;
+  const uniqueCustomers = new Set(reservations.map((reservation) => reservationIdentityKey(reservation))).size;
+  const selectedContact = reservationContact(selectedRes);
+  const selectedPayment = selectedRes?.payments?.[0];
+  const selectedEndReached = isReservationEndReached(selectedRes?.endAt);
+  const ownerDecisionDisabled = adminUser?.role !== 'OWNER';
+  const reservationDecisionBusy = Boolean(
+    busyActions['reservations:Mise à jour de la réservation'] ||
+    busyActions['reservations:Décision de paiement'] ||
+    busyActions['reservations:Vérification et confirmation'],
+  );
 
   if (authChecking) {
     return (
@@ -606,13 +782,57 @@ const AdminDashboard = () => {
     ['tarifs', 'Tarifs', DollarSign],
     ['availability', 'Disponibilités', Ban],
     ['portfolio', 'Portfolio', ImageIcon],
-    ['notifications', 'Emails', Mail],
+    ['notifications', 'Communications', Mail],
   ];
+
+  const closeSidebar = ({ restoreFocus = false } = {}) => {
+    setIsSidebarOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => sidebarToggleRef.current?.focus());
+    }
+  };
 
   return (
     <div className="admin-layout">
+      <header className="admin-mobile-header">
+        <button
+          ref={sidebarToggleRef}
+          type="button"
+          className="admin-menu-toggle"
+          aria-controls="admin-sidebar"
+          aria-expanded={isSidebarOpen}
+          onClick={() => setIsSidebarOpen(true)}
+        >
+          <Menu size={22} aria-hidden="true" />
+          <span>Menu</span>
+        </button>
+        <span className="admin-mobile-brand">GS<span>+</span> Admin</span>
+      </header>
+
+      {isSidebarOpen && (
+        <button
+          type="button"
+          className="admin-sidebar-backdrop"
+          aria-label="Fermer le menu administrateur"
+          onClick={() => closeSidebar({ restoreFocus: true })}
+        />
+      )}
+
       {/* Sidebar navigation */}
-      <aside className="admin-sidebar">
+      <aside
+        id="admin-sidebar"
+        className={`admin-sidebar ${isSidebarOpen ? 'is-open' : ''}`}
+      >
+        <button
+          ref={sidebarCloseRef}
+          type="button"
+          className="admin-sidebar-close"
+          aria-label="Fermer le menu"
+          onClick={() => closeSidebar({ restoreFocus: true })}
+        >
+          <X size={22} aria-hidden="true" />
+        </button>
+
         <div className="admin-logo-section">
           <h2>GS<span>+</span> Studio</h2>
           <span className="admin-user-tag">{adminUser?.name || 'Administrateur'}</span>
@@ -645,8 +865,10 @@ const AdminDashboard = () => {
               onClick={() => {
                 setFeedback(null);
                 setActiveTab(key);
+                closeSidebar({ restoreFocus: true });
               }} 
               className={`admin-nav-btn ${activeTab === key ? 'active' : ''}`}
+              aria-current={activeTab === key ? 'page' : undefined}
             >
               {React.createElement(navIcon, { size: 20 })} {label}
             </button>
@@ -660,6 +882,22 @@ const AdminDashboard = () => {
 
       {/* Main dashboard content */}
       <main className="admin-main">
+      <section className="admin-status-banner admin-refresh-bar" aria-label="Fraîcheur des données administratives">
+        <p role="status" aria-live="polite">
+          Dernière actualisation : {lastSyncedAt[activeTab]
+            ? `${dateTime(lastSyncedAt[activeTab])} — heure de Douala`
+            : 'en attente — heure de Douala'}
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary admin-refresh-button"
+          onClick={refreshActiveTab}
+          disabled={Boolean(loadingTabs[activeTab])}
+        >
+          <RefreshCw className={loadingTabs[activeTab] ? 'animate-spin' : undefined} size={17} aria-hidden="true" />
+          {loadingTabs[activeTab] ? 'Actualisation…' : 'Actualiser'}
+        </button>
+      </section>
         {feedback?.tab === activeTab && (
           <div
             ref={feedbackRef}
@@ -701,7 +939,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="admin-stat-card">
                   <div className="admin-stat-icon-wrap"><DollarSign size={24} /></div>
-                  <div className="admin-stat-num" style={{ fontSize: '1.4rem', whiteSpace: 'nowrap' }}>{currency(paidRevenueThisMonth)}</div>
+                  <div className="admin-stat-num" style={{ fontSize: '1.4rem', whiteSpace: 'nowrap' }}>{formatFcfa(paidRevenueThisMonth)}</div>
                   <div className="admin-stat-label">CA vérifié ce mois</div>
                 </div>
                 <div className="admin-stat-card">
@@ -744,10 +982,37 @@ const AdminDashboard = () => {
               </div>
 
               <div className="admin-card" style={{ padding: '2rem' }}>
+                <form className="admin-reference-search" onSubmit={searchReservationsByReference}>
+                  <label htmlFor="reservation-reference-search">Rechercher par référence</label>
+                  <div className="admin-reference-search-controls">
+                    <input
+                      id="reservation-reference-search"
+                      className="form-input"
+                      type="search"
+                      value={reservationReferenceQuery}
+                      onChange={(event) => setReservationReferenceQuery(event.target.value)}
+                      placeholder="GSP-AAMMJJ-XXXX"
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                      maxLength={32}
+                    />
+                    <button className="btn btn-primary admin-sm-btn" type="submit" disabled={reservationSearchSubmitting}>
+                      {reservationSearchSubmitting ? 'Recherche...' : 'Rechercher'}
+                    </button>
+                    {(reservationReferenceQuery || reservationSearchResults) && (
+                      <button className="btn btn-secondary admin-sm-btn" type="button" onClick={clearReservationReferenceSearch}>
+                        Effacer
+                      </button>
+                    )}
+                  </div>
+                  <small>La recherche accepte aussi les références historiques et ignore la casse.</small>
+                </form>
+
                 <div className="admin-table-wrap">
                   <table className="admin-table">
                     <thead>
                       <tr>
+                        <th>Référence publique</th>
                         <th>Date & Heure</th>
                         <th>Client</th>
                         <th>Pack Sélectionné</th>
@@ -757,14 +1022,21 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {reservations.map((reservation) => {
+                      {displayedReservations.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="admin-table-empty">Aucune réservation ne correspond à cette référence.</td>
+                        </tr>
+                      )}
+                      {displayedReservations.map((reservation) => {
                         const payment = reservation.payments?.[0];
+                        const contact = reservationContact(reservation);
                         return (
                           <tr key={reservation.id}>
+                            <td><code className="admin-public-reference">{reservation.reference}</code></td>
                             <td>{dateTime(reservation.startAt)}</td>
                             <td>
-                              <strong>{reservation.customer?.firstName} {reservation.customer?.lastName}</strong>
-                              <small>{reservation.customer?.phone}</small>
+                              <strong>{contact.firstName} {contact.lastName}</strong>
+                              <small>{contact.phone}</small>
                             </td>
                             <td>{reservation.package?.name}</td>
                             <td>{pill(reservation.status)}</td>
@@ -842,47 +1114,15 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'tarifs' && (
-            <Motion.div 
-              key="tarifs"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Édition des <span>Tarifs</span></h1>
-                <button className="btn btn-primary admin-sm-btn" onClick={createPackageItem}>Créer une formule</button>
-              </div>
-
-              <div className="admin-card">
-                {packs.map((pack) => (
-                  <div 
-                    key={pack.id} 
-                    style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', padding: '1.5rem 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}
-                  >
-                    <div>
-                      <strong style={{ color: '#fff', fontSize: '1.05rem' }}>{pack.name}</strong>
-                      <small style={{ color: 'rgba(255,255,255,0.4)', display: 'block', marginTop: '0.25rem' }}>
-                        {pack.category}
-                      </small>
-                      <small style={{ color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: '0.35rem' }}>
-                        {currency(pack.price)} · {pack.durationMin} min · version {pack.version} · ordre {pack.sortOrder}
-                      </small>
-                      <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>{pill(pack.isArchived ? 'ARCHIVED' : pack.isActive ? 'ACTIVE' : 'INACTIVE')} {pill(`${packageReferenceCount(pack)} référence(s)`)}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewPack(pack)}>Aperçu</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => editPackageItem(pack)} disabled={editingPack === pack.id}>{editingPack === pack.id ? 'Modification...' : 'Modifier'}</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => duplicatePackageItem(pack)}>Dupliquer</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => movePackage(pack, -1)} aria-label={`Monter ${pack.name}`}>↑</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => movePackage(pack, 1)} aria-label={`Descendre ${pack.name}`}>↓</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => updatePackageState(pack, { isActive: !pack.isActive, isArchived: false }, pack.isActive ? 'Désactivation' : 'Activation')}>{pack.isActive ? 'Désactiver' : 'Activer'}</button>
-                      <button className="btn btn-secondary admin-sm-btn" onClick={() => updatePackageState(pack, { isArchived: !pack.isArchived, isActive: false }, pack.isArchived ? 'Restauration' : 'Archivage')}>{pack.isArchived ? 'Restaurer' : 'Archiver'}</button>
-                      <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => removePackageItem(pack)} disabled={packageReferenceCount(pack) > 0}><Trash2 size={12} /> Supprimer</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <Motion.div key="tarifs" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement des tarifs...</div>}>
+                <AdminPackagesPanel
+                  packs={packs}
+                  adminUser={adminUser}
+                  onRefresh={() => refreshAdminTab('tarifs')}
+                  onFeedback={setFeedback}
+                />
+              </React.Suspense>
             </Motion.div>
           )}
 
@@ -946,7 +1186,7 @@ const AdminDashboard = () => {
                       </button>
                       <button
                         className="btn btn-secondary admin-sm-btn text-danger"
-                        onClick={() => runAction('Suppression blocage', () => deleteAdminAvailabilityBlock(block.id))}
+                        onClick={() => removeAvailabilityBlock(block)}
                       >
                         <Trash2 size={14} /> Supprimer
                       </button>
@@ -1053,7 +1293,7 @@ const AdminDashboard = () => {
                         </button>
                         <button 
                           className="btn btn-secondary admin-sm-btn text-danger" 
-                          onClick={() => runAction('Suppression média', () => deleteAdminMedia(item.id))}
+                          onClick={() => removeMediaItem(item)}
                           style={{ width: '100%', marginTop: '0.5rem' }}
                         >
                           <Trash2 size={12} /> Supprimer
@@ -1102,12 +1342,28 @@ const AdminDashboard = () => {
                           <td>
                             <strong>{statusLabel(item.type)}</strong>
                             <small>{item.reservation?.reference || item.lead?.name || 'Général'}</small>
+                            {item.templateCode && (
+                              <small>Modèle {item.templateCode}{item.templateVersion ? ` · v${item.templateVersion}` : ''}</small>
+                            )}
                           </td>
                           <td>{item.recipient}</td>
-                          <td>{pill(item.status)}</td>
+                          <td>
+                            {pill(item.status)}
+                            {item.providerStatus && <small>Fournisseur : {item.providerStatus}</small>}
+                            {item.deliveredAt && <small>Livré : {dateTime(item.deliveredAt)}</small>}
+                            {item.readAt && <small>Lu : {dateTime(item.readAt)}</small>}
+                          </td>
                           <td>
                             {item.attemptCount}/{item.maxAttempts}
                             {item.nextAttemptAt && <small>Prochain essai : {dateTime(item.nextAttemptAt)}</small>}
+                            {item.attempts?.map((attempt) => (
+                              <small key={attempt.id}>
+                                Essai {attempt.attemptNumber} : {statusLabel(attempt.status)}
+                                {attempt.startedAt ? ` · ${dateTime(attempt.startedAt)}` : ''}
+                                {attempt.providerStatus ? ` · ${attempt.providerStatus}` : ''}
+                                {attempt.providerMessageId ? ` · ID ${maskedProviderId(attempt.providerMessageId)}` : ''}
+                              </small>
+                            ))}
                           </td>
                           <td style={{ color: item.error ? '#ff6b6b' : 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
                             {item.error || 'Aucune erreur détectée'}
@@ -1161,6 +1417,12 @@ const AdminDashboard = () => {
         </AnimatePresence>
       </main>
 
+      {actionDialog && (
+        <React.Suspense fallback={null}>
+          <AdminActionDialog config={actionDialog} onClose={() => setActionDialog(null)} />
+        </React.Suspense>
+      )}
+
       {/* Details modal with AnimatePresence */}
       <AnimatePresence>
         {selectedRes && (
@@ -1178,11 +1440,14 @@ const AdminDashboard = () => {
               
               <div className="admin-modal-info-row">
                 <span>Client :</span>
-                <strong>{selectedRes.customer?.firstName} {selectedRes.customer?.lastName} ({selectedRes.customer?.phone})</strong>
+                <strong>{selectedContact.firstName} {selectedContact.lastName} ({selectedContact.phone})</strong>
               </div>
+              <React.Suspense fallback={<div className="admin-modal-info-row"><span>Consentement WhatsApp :</span><strong>Chargement…</strong></div>}>
+                <AdminWhatsAppPanel reservation={selectedRes} />
+              </React.Suspense>
               <div className="admin-modal-info-row">
                 <span>Formule :</span>
-                <strong>{selectedRes.package?.name} ({currency(selectedRes.package?.price)})</strong>
+                <strong>{selectedRes.package?.name} ({formatFcfa(selectedRes.package?.price)})</strong>
               </div>
               <div className="admin-modal-info-row">
                 <span>Séance programmée :</span>
@@ -1215,6 +1480,8 @@ const AdminDashboard = () => {
                   <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>
                     Action : {latestCalendarSync(selectedRes).action || '—'} · Tentatives : {latestCalendarSync(selectedRes).attemptCount || 0}
                     {latestCalendarSync(selectedRes).lastAttemptAt ? ` · ${dateTime(latestCalendarSync(selectedRes).lastAttemptAt)}` : ''}
+                    {latestCalendarSync(selectedRes).nextAttemptAt ? ` · prochaine tentative ${dateTime(latestCalendarSync(selectedRes).nextAttemptAt)}` : ''}
+                    {latestCalendarSync(selectedRes).syncedAt ? ` · synchronisé ${dateTime(latestCalendarSync(selectedRes).syncedAt)}` : ''}
                   </p>
                   {latestCalendarSync(selectedRes).externalEventId && (
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
@@ -1263,6 +1530,9 @@ const AdminDashboard = () => {
                       {transition.oldStartAt && transition.newStartAt && transition.oldStartAt !== transition.newStartAt && (
                         <><br /><small>Créneau : {dateTime(transition.oldStartAt)} → {dateTime(transition.newStartAt)}</small></>
                       )}
+                      {isTemporalOverrideTransition(transition) && (
+                        <><br /><small className="admin-temporal-override">Dérogation temporelle — clôture avant la fin programmée</small></>
+                      )}
                       {transition.reason && <><br /><small>Motif : {transition.reason}</small></>}
                     </p>
                   ))}
@@ -1280,28 +1550,102 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               )}
+              <React.Suspense>
+                <AdminOpsPanel
+                  reservation={selectedRes}
+                  dateTime={dateTime}
+                  pill={pill}
+                  busy={reservationDecisionBusy}
+                  ownerDisabled={ownerDecisionDisabled}
+                  onPublished={() => getAdminReservation(selectedRes.id).then(setSelectedRes)}
+                  onDecision={(request, decision, reason) =>
+                    decideRescheduleRequest(selectedRes, request, decision, reason)}
+                />
+              </React.Suspense>
               <div className="admin-action-row" style={{ marginTop: '2.5rem', justifyContent: 'flex-end' }}>
-                {reservationActions(selectedRes.status).map((action) => (
+                {reservationActions(selectedRes.status).map((action) => {
+                  const confirmationBlocked =
+                    action.status === 'CONFIRMED' && !canConfirmReservation(selectedPayment?.status);
+                  const temporalClosureBlocked = action.temporalClosure && !selectedEndReached;
+                  const permissionBlocked =
+                    ['CONFIRMED', 'REJECTED', 'CANCELLED'].includes(action.status) && ownerDecisionDisabled;
+                  return (
+                    <button
+                      key={action.status}
+                      className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
+                      onClick={() => updateReservationStatus(selectedRes, action.status, action)}
+                      disabled={reservationDecisionBusy || confirmationBlocked || permissionBlocked || temporalClosureBlocked}
+                      title={
+                        temporalClosureBlocked
+                          ? `Action disponible après la fin du créneau (${dateTime(selectedRes.endAt)}).`
+                          : confirmationBlocked
+                            ? 'Vérifiez d’abord le paiement avant de confirmer la réservation.'
+                            : permissionBlocked
+                              ? 'Cette décision nécessite le rôle propriétaire.'
+                              : undefined
+                      }
+                    >
+                      {action.label}
+                    </button>
+                  );
+                })}
+                {!selectedEndReached && reservationActions(selectedRes.status)
+                  .filter((action) => action.temporalClosure)
+                  .map((action) => (
+                    <button
+                      key={`override-${action.status}`}
+                      className="btn btn-secondary admin-sm-btn text-danger"
+                      onClick={() => updateReservationStatus(selectedRes, action.status, {
+                        ...action,
+                        temporalOverride: true,
+                        label: `Dérogation : ${action.label.toLowerCase()}`,
+                      })}
+                      disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                      title={ownerDecisionDisabled
+                        ? 'La dérogation temporelle nécessite le rôle propriétaire.'
+                        : 'Clôture exceptionnelle avant la fin; motif et confirmation obligatoires.'}
+                    >
+                      Dérogation : {action.label.toLowerCase()}
+                    </button>
+                  ))}
+                {selectedPayment && paymentActions(selectedPayment.status).map((action) => (
                   <button
-                    key={action.status}
+                    key={`payment-${action.status}`}
                     className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
-                    onClick={() => updateReservationStatus(selectedRes, action.status, action)}
-                    disabled={Boolean(busyActions['reservations:Mise à jour de la réservation'])}
+                    onClick={() => updateFirstPayment(selectedRes, action)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
                   >
                     {action.label}
                   </button>
                 ))}
-                {selectedRes.payments?.[0]?.status === 'PENDING' && <>
-                  <button className="btn btn-primary admin-sm-btn" onClick={() => updateFirstPayment(selectedRes, 'VERIFIED')}>Vérifier le paiement</button>
-                  <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => updateFirstPayment(selectedRes, 'REJECTED')}>Rejeter le paiement</button>
-                </>}
+                {!selectedPayment && selectedRes.status === 'PENDING_CONFIRMATION' && (
+                  <button
+                    className="btn btn-secondary admin-sm-btn"
+                    onClick={() => addReservationPayment(selectedRes)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette action nécessite le rôle propriétaire.' : undefined}
+                  >
+                    Ajouter un paiement
+                  </button>
+                )}
+                {canVerifyAndConfirm(selectedRes.status, selectedPayment?.status) && (
+                  <button
+                    className="btn btn-primary admin-sm-btn"
+                    onClick={() => verifyAndConfirmReservation(selectedRes)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
+                  >
+                    Vérifier et confirmer
+                  </button>
+                )}
                 {['PENDING_CONFIRMATION', 'CONFIRMED'].includes(selectedRes.status) && (
                   <button
                     className="btn btn-secondary admin-sm-btn"
                     onClick={() => rescheduleReservationItem(selectedRes)}
                     disabled={Boolean(busyActions['reservations:Déplacement de la réservation'])}
                   >
-                    Déplacer le créneau
+                    Demander un report
                   </button>
                 )}
                 {['CONFIRMED', 'CANCELLED'].includes(selectedRes.status) && (
@@ -1309,34 +1653,16 @@ const AdminDashboard = () => {
                     className="btn btn-secondary admin-sm-btn"
                     onClick={() => syncReservationCalendar(selectedRes)}
                     disabled={
-                      latestCalendarSync(selectedRes)?.status === 'PROCESSING' ||
+                      latestCalendarSync(selectedRes)?.status === 'SYNCING' ||
                       Boolean(busyActions['reservations:Synchronisation calendrier'])
                     }
                   >
-                    {['FAILED', 'SKIPPED'].includes(latestCalendarSync(selectedRes)?.status)
+                    {['FAILED', 'RETRYING'].includes(latestCalendarSync(selectedRes)?.status)
                       ? 'Réessayer la synchronisation'
                       : 'Synchroniser le calendrier'}
                   </button>
                 )}
               </div>
-            </Motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {previewPack && (
-          <div className="admin-modal-backdrop" onClick={() => setPreviewPack(null)}>
-            <Motion.div className="admin-modal-content" onClick={(event) => event.stopPropagation()} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-              <button onClick={() => setPreviewPack(null)} className="admin-modal-close" type="button" aria-label="Fermer la fenêtre">&times;</button>
-              <h2>Aperçu — <span>{previewPack.name}</span></h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)' }}>{previewPack.category}</p>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{previewPack.description || 'Aucune description.'}</p>
-              <div className="admin-modal-info-row"><span>Prix :</span><strong>{currency(previewPack.price)}</strong></div>
-              <div className="admin-modal-info-row"><span>Durée :</span><strong>{previewPack.durationMin} minutes</strong></div>
-              <div className="admin-modal-info-row"><span>Livraison :</span><strong>{previewPack.deliveryLabel || 'Non renseignée'}</strong></div>
-              <div className="admin-modal-info-row"><span>Publication :</span><strong>{pill(previewPack.isArchived ? 'ARCHIVED' : previewPack.isActive ? 'ACTIVE' : 'INACTIVE')}</strong></div>
-              <div className="admin-modal-info-row"><span>Version :</span><strong>{previewPack.version}</strong></div>
-              {previewPack.legalText && <div className="admin-modal-block"><strong>Texte légal</strong><p style={{ whiteSpace: 'pre-wrap' }}>{previewPack.legalText}</p></div>}
             </Motion.div>
           </div>
         )}

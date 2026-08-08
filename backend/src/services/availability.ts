@@ -13,7 +13,11 @@ import {
   businessDayOfWeek,
   businessLocalToInstant,
 } from '../utils/business-time.js';
-import { BLOCKING_RESERVATION_STATUSES, SLOT_INTERVAL_MIN } from './booking-slots.js';
+import {
+  BLOCKING_RESERVATION_STATUSES,
+  SLOT_INTERVAL_MIN,
+  blockingReservationWhere,
+} from './booking-slots.js';
 
 type AvailabilityQuery = {
   from: string;
@@ -173,7 +177,7 @@ export const getAvailability = async ({ from, to, packageId }: AvailabilityQuery
       where: {
         startAt: { lt: windowEnd },
         endAt: { gt: windowStart },
-        status: { in: BLOCKING_RESERVATION_STATUSES },
+        ...blockingReservationWhere(now),
       },
       orderBy: { startAt: 'asc' },
     }),

@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { submitB2BInquiry } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
+import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
+import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
 import { motion as Motion } from 'framer-motion';
 import { Briefcase, Users, Camera, Building2, CheckCircle2, Send } from 'lucide-react';
 import './Corporate.css';
@@ -23,23 +25,46 @@ const Corporate = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const submissionController = useRef(createLeadSubmissionController());
 
   const startAnotherRequest = () => {
     submissionController.current.next();
     setError('');
+    setFieldErrors({});
     setSubmitted(false);
+  };
+
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const submission = submissionController.current.start(event.currentTarget);
-    if (!submission) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const contactErrors = validateContactFields({
+      phone: form.get('phone'),
+      email: form.get('email'),
+      phoneRequired: true,
+      emailRequired: true,
+    });
+    setFieldErrors(contactErrors);
+    if (Object.keys(contactErrors).length > 0) {
+      setError(FRENCH_VALIDATION_SUMMARY);
+      return;
+    }
 
+    const submission = submissionController.current.start(formElement);
+    if (!submission) return;
     setError('');
     setSubmitting(true);
 
-    const form = new FormData(submission.formElement);
     const service = form.get('service');
     const details = form.get('message');
 
@@ -62,7 +87,9 @@ const Corporate = () => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      setError(err.message || "Impossible d'envoyer la demande. Veuillez réessayer.");
+      const apiFields = validationErrorsFromApi(err, { company: 'company', rccm: 'rccm', name: 'name', email: 'email', phone: 'phone', packageName: 'service', message: 'message' });
+      if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
+      setError(validationSummaryForApiError(err) || "Impossible d'envoyer la demande. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
     }
@@ -163,49 +190,56 @@ const Corporate = () => {
                       <div className="form-row">
                         <div>
                           <label className="form-label" htmlFor="b2b-company">Nom de l'entreprise *</label>
-                          <input id="b2b-company" autoComplete="organization" name="company" type="text" placeholder="Ex: Groupe S.A." required className="form-input corporate-form-input" />
+                          <input id="b2b-company" autoComplete="organization" name="company" type="text" placeholder="Ex: Groupe S.A." required className="form-input corporate-form-input" onChange={() => clearFieldError('company')} aria-invalid={Boolean(fieldErrors.company)} aria-describedby={fieldErrors.company ? 'b2b-company-error' : undefined} />
+                          {fieldErrors.company && <p id="b2b-company-error" className="form-field-error" role="alert">{fieldErrors.company}</p>}
                         </div>
                         <div>
                           <label className="form-label" htmlFor="b2b-rccm">NIU / RCCM *</label>
-                          <input id="b2b-rccm" autoComplete="off" name="rccm" type="text" placeholder="Numéro d'enregistrement" required className="form-input corporate-form-input" />
+                          <input id="b2b-rccm" autoComplete="off" name="rccm" type="text" placeholder="Numéro d'enregistrement" required className="form-input corporate-form-input" onChange={() => clearFieldError('rccm')} aria-invalid={Boolean(fieldErrors.rccm)} aria-describedby={fieldErrors.rccm ? 'b2b-rccm-error' : undefined} />
+                          {fieldErrors.rccm && <p id="b2b-rccm-error" className="form-field-error" role="alert">{fieldErrors.rccm}</p>}
                         </div>
                       </div>
 
                       <div className="form-row">
                         <div>
                           <label className="form-label" htmlFor="b2b-name">Personne de contact *</label>
-                          <input id="b2b-name" autoComplete="name" name="name" type="text" placeholder="Nom du responsable" required className="form-input corporate-form-input" />
+                          <input id="b2b-name" autoComplete="name" name="name" type="text" placeholder="Nom du responsable" required className="form-input corporate-form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'b2b-name-error' : undefined} />
+                          {fieldErrors.name && <p id="b2b-name-error" className="form-field-error" role="alert">{fieldErrors.name}</p>}
                         </div>
                         <div>
                           <label className="form-label" htmlFor="b2b-phone">Téléphone direct *</label>
-                          <input id="b2b-phone" autoComplete="tel" name="phone" type="tel" placeholder="Numéro professionnel" required className="form-input corporate-form-input" />
+                          <input id="b2b-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder="Ex : 233 42 11 22" required className="form-input corporate-form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'b2b-phone-error' : undefined} />
+                          {fieldErrors.phone && <p id="b2b-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                         </div>
                       </div>
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
                         <div>
                           <label className="form-label" htmlFor="b2b-email">Email de l'entreprise *</label>
-                          <input id="b2b-email" autoComplete="email" name="email" type="email" placeholder="contact@entreprise.cm" required className="form-input corporate-form-input" />
+                          <input id="b2b-email" autoComplete="email" name="email" type="email" inputMode="email" placeholder="contact@entreprise.cm" required className="form-input corporate-form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'b2b-email-error' : undefined} />
+                          {fieldErrors.email && <p id="b2b-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                         </div>
                       </div>
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
                         <div>
                           <label className="form-label" htmlFor="b2b-service">Nature du besoin *</label>
-                          <select id="b2b-service" name="service" required className="form-input corporate-form-input" defaultValue="">
+                          <select id="b2b-service" name="service" required className="form-input corporate-form-input" defaultValue="" onChange={() => clearFieldError('service')} aria-invalid={Boolean(fieldErrors.service)} aria-describedby={fieldErrors.service ? 'b2b-service-error' : undefined}>
                             <option value="" disabled hidden>Sélectionnez le type de prestation</option>
                             <option value="Portraits de collaborateurs">Portraits de collaborateurs (Trombinoscope)</option>
                             <option value="Couverture evenementielle">Couverture photographique événementielle</option>
                             <option value="Photographie de produits">Photographie de produits (Packshots)</option>
                             <option value="Autre">Autre (préciser ci-dessous)</option>
                           </select>
+                          {fieldErrors.service && <p id="b2b-service-error" className="form-field-error" role="alert">{fieldErrors.service}</p>}
                         </div>
                       </div>
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr', marginBottom: '2rem' }}>
                         <div>
                           <label className="form-label" htmlFor="b2b-message">Détails (effectif, budget, lieu...) *</label>
-                          <textarea id="b2b-message" name="message" rows="4" minLength={10} required className="form-input corporate-form-input" placeholder="Décrivez votre projet ici..." style={{ resize: 'vertical' }}></textarea>
+                          <textarea id="b2b-message" name="message" rows="4" minLength={10} required className="form-input corporate-form-input" placeholder="Décrivez votre projet ici..." style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'b2b-message-error' : undefined}></textarea>
+                          {fieldErrors.message && <p id="b2b-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                         </div>
                       </div>
 

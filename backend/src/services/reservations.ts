@@ -2,7 +2,7 @@ import { HttpError } from '../errors/http-error.js';
 import { queueReservationCreatedNotifications } from '../emails/notifications.js';
 import { PaymentStatus, Prisma, ReservationStatus } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
-import { ensureCurrentPackageVersion } from './packages.js';
+import { ensurePublishedPackageVersion } from './packages.js';
 import { assertBookableSlot, lockBookingWindow } from './booking-slots.js';
 import {
   normalizePaymentReference,
@@ -17,7 +17,8 @@ type ReservationCreateInput = {
     firstName: string;
     lastName: string;
     phone: string;
-    email?: string;
+    phoneRaw: string;
+    email: string;
     birthDate?: Date;
     gender?: string;
     discoveryChannel?: string;
@@ -37,12 +38,16 @@ const reservationInclude = {
   package: true,
   packageVersion: true,
   payments: true,
+  snapshot: true,
 } satisfies Prisma.ReservationInclude;
 
 const findOrCreateCustomer = async (tx: Prisma.TransactionClient, input: ReservationCreateInput['customer']) => {
   const existing = await tx.customer.findFirst({
     where: {
-      OR: [{ phone: input.phone }, ...(input.email ? [{ email: input.email }] : [])],
+      phone: input.phone,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email ?? null,
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -77,7 +82,7 @@ export const createReservation = async (input: ReservationCreateInput) => {
           await lockBookingWindow(tx, initialIntent.startAt, initialIntent.endAt);
           const intent = await tx.reservationIntent.findFirst({
             where: { id: input.intentId, idempotencyKey: input.idempotencyKey },
-            include: { package: true },
+            include: { package: true, packageVersion: true },
           });
           if (!intent) {
             throw new HttpError(404, 'RESERVATION_INTENT_NOT_FOUND', 'The booking intent was not found.');
@@ -107,9 +112,10 @@ export const createReservation = async (input: ReservationCreateInput) => {
           }
 
           const customer = await findOrCreateCustomer(tx, input.customer);
-          const packageVersion = await ensureCurrentPackageVersion(tx, intent.package);
+          const packageVersion = intent.packageVersion ?? await ensurePublishedPackageVersion(tx, intent.package);
           const transactionRef = input.paymentChoice === 'base' ? input.transactionRef?.trim() : undefined;
           const transactionRefNormalized = normalizePaymentReference(transactionRef);
+          const capturedAt = new Date();
 
           const reservation = await tx.reservation.create({
             data: {
@@ -122,9 +128,51 @@ export const createReservation = async (input: ReservationCreateInput) => {
               status: ReservationStatus.PENDING_CONFIRMATION,
               paymentChoice: input.paymentChoice,
               extraInfo: input.extraInfo,
-              acceptedTermsAt: new Date(),
+              acceptedTermsAt: capturedAt,
               consentImage: input.consentImage,
-              whatsappConsentAt: input.whatsappConsent ? new Date() : null,
+              whatsappConsentAt: input.whatsappConsent ? capturedAt : null,
+              snapshot: {
+                create: {
+                  firstName: input.customer.firstName,
+                  lastName: input.customer.lastName,
+                  phoneRaw: input.customer.phoneRaw,
+                  phoneE164: input.customer.phone,
+                  email: input.customer.email,
+                  notificationEmail: input.customer.email,
+                  notificationPhoneE164: input.customer.phone,
+                  packageId: intent.package.id,
+                  packageVersionId: packageVersion.id,
+                  packageVersion: packageVersion.version,
+                  packageName: packageVersion.name,
+                  packageContent: packageVersion.content,
+                  packageInclusions: packageVersion.inclusions ?? undefined,
+                  packageConditions: packageVersion.conditions,
+                  packageLegalText: packageVersion.legalText,
+                  packageEffectiveAt: packageVersion.effectiveAt,
+                  packagePublishedAt: packageVersion.publishedAt,
+                  startAt: intent.startAt,
+                  endAt: intent.endAt,
+                  durationMin: packageVersion.durationMin,
+                  amount: packageVersion.price,
+                  currency: packageVersion.currency,
+                  termsAccepted: input.acceptedTerms,
+                  termsVersion: '2026-07-31',
+                  termsAcceptedAt: capturedAt,
+                  privacyAccepted: input.acceptedTerms,
+                  privacyVersion: '2026-07-31',
+                  privacyAcceptedAt: capturedAt,
+                  whatsappConsent: input.whatsappConsent,
+                  whatsappConsentAt: input.whatsappConsent ? capturedAt : null,
+                  imageConsent: input.consentImage,
+                  imageAuthorizationVersion: '2026-07-31',
+                  imageConsentAt: input.consentImage ? capturedAt : null,
+                  source: 'PUBLIC_BOOKING',
+                  evidence: {
+                    intentId: input.intentId,
+                    idempotencyKey: input.idempotencyKey,
+                  },
+                },
+              },
               transitions: {
                 create: {
                   fromStatus: null,
@@ -139,7 +187,7 @@ export const createReservation = async (input: ReservationCreateInput) => {
               payments: transactionRef
                 ? {
                     create: {
-                      amount: intent.package.price,
+                      amount: packageVersion.price,
                       method: input.paymentMethod ?? 'mobile_money',
                       transactionRef,
                       transactionRefNormalized,

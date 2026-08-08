@@ -12,6 +12,20 @@ export const BLOCKING_RESERVATION_STATUSES: ReservationStatus[] = [
   ReservationStatus.PENDING_CONFIRMATION,
   ReservationStatus.CONFIRMED,
 ];
+export const FUTURE_CLOSURE_BLOCKING_STATUSES: ReservationStatus[] = [
+  ReservationStatus.COMPLETED,
+  ReservationStatus.NO_SHOW,
+];
+
+export const blockingReservationWhere = (now = new Date()): Prisma.ReservationWhereInput => ({
+  OR: [
+    { status: { in: BLOCKING_RESERVATION_STATUSES } },
+    {
+      status: { in: FUTURE_CLOSURE_BLOCKING_STATUSES },
+      endAt: { gt: now },
+    },
+  ],
+});
 
 export const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60_000);
 
@@ -83,7 +97,7 @@ export const assertBookableSlot = async (
         id: options.excludeReservationId ? { not: options.excludeReservationId } : undefined,
         startAt: { lt: endAt },
         endAt: { gt: startAt },
-        status: { in: BLOCKING_RESERVATION_STATUSES },
+        ...blockingReservationWhere(now),
       },
       orderBy: { startAt: 'asc' },
     }),

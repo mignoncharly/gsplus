@@ -1,11 +1,11 @@
 import { lazy, Suspense } from 'react';
-import { MessageCircle } from 'lucide-react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ScrollManager from './components/ScrollManager';
 import RouteMetadata from './components/RouteMetadata';
+import WhatsAppFab from './components/WhatsAppFab';
 import './index.css';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -62,17 +62,7 @@ const AppLayout = () => {
       </main>
       {!isAdmin && <Footer />}
 
-      {!isAdmin && (
-        <a
-          href="https://wa.me/237673026654"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="whatsapp-fab"
-          aria-label="Contacter Golden Studio Plus sur WhatsApp"
-        >
-          <MessageCircle size={32} aria-hidden="true" />
-        </a>
-      )}
+      {!isAdmin && <WhatsAppFab />}
     </>
   );
 };

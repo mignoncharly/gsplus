@@ -1,10 +1,10 @@
-import { randomBytes } from 'node:crypto';
-
 import { HttpError } from '../errors/http-error.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
-import { BUSINESS_TIME_ZONE, businessDateKey } from '../utils/business-time.js';
+import { BUSINESS_TIME_ZONE } from '../utils/business-time.js';
+import { allocatePublicReservationReference } from '../utils/reservation-reference.js';
 import { addMinutes, assertBookableSlot, lockBookingWindow } from './booking-slots.js';
+import { ensurePublishedPackageVersion } from './packages.js';
 
 const INTENT_TTL_MINUTES = 30;
 
@@ -12,12 +12,6 @@ type ReservationIntentInput = {
   idempotencyKey: string;
   packageId: string;
   startAt: Date;
-};
-
-const generateReference = () => {
-  const date = businessDateKey(new Date()).replaceAll('-', '');
-  const suffix = randomBytes(5).toString('hex').toUpperCase();
-  return `GSP${date}${suffix}`;
 };
 
 const publicIntent = <T extends {
@@ -40,7 +34,7 @@ const publicIntent = <T extends {
 });
 
 export const createOrRefreshReservationIntent = async (input: ReservationIntentInput) => {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     try {
       return await prisma.$transaction(
         async (tx) => {
@@ -59,19 +53,32 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
             throw new HttpError(404, 'PACKAGE_NOT_FOUND', 'Package not found or inactive.');
           }
 
+          const packageVersion = await ensurePublishedPackageVersion(tx, pack);
           const startAt = input.startAt;
-          const endAt = addMinutes(startAt, pack.durationMin);
+          const endAt = addMinutes(startAt, packageVersion.durationMin);
           await lockBookingWindow(tx, startAt, endAt);
           await assertBookableSlot(tx, pack, startAt, endAt, {
             excludeIntentId: existing?.id,
           });
 
           const expiresAt = addMinutes(new Date(), INTENT_TTL_MINUTES);
+          const reference = existing
+            ? existing.reference
+            : await allocatePublicReservationReference({
+                exists: async (candidate) => {
+                  const [intentMatch, reservationMatch] = await Promise.all([
+                    tx.reservationIntent.findUnique({ where: { reference: candidate }, select: { id: true } }),
+                    tx.reservation.findUnique({ where: { reference: candidate }, select: { id: true } }),
+                  ]);
+                  return Boolean(intentMatch || reservationMatch);
+                },
+              });
           const intent = existing
             ? await tx.reservationIntent.update({
                 where: { id: existing.id },
                 data: {
                   packageId: pack.id,
+                  packageVersionId: packageVersion.id,
                   startAt,
                   endAt,
                   expiresAt,
@@ -80,7 +87,7 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
             : await tx.reservationIntent.create({
                 data: {
                   idempotencyKey: input.idempotencyKey,
-                  reference: generateReference(),
+                  reference,
                   packageId: pack.id,
                   startAt,
                   endAt,
@@ -94,11 +101,18 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
       );
     } catch (error) {
       if (error instanceof HttpError) throw error;
+      if (error instanceof Error && error.message.startsWith('PUBLIC_REFERENCE_')) {
+        throw new HttpError(
+          409,
+          'RESERVATION_REFERENCE_CONFLICT',
+          'Unable to allocate a public reservation reference. Please try again.',
+        );
+      }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-        if (attempt < 3) continue;
+        if (attempt < 7) continue;
         throw new HttpError(409, 'SLOT_TEMPORARILY_HELD', 'The selected slot was claimed concurrently.');
       }
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && attempt < 3) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && attempt < 7) {
         continue;
       }
       throw error;

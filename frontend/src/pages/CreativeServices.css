@@ -133,6 +133,7 @@
 
 /* Quote Form Card */
 .creative-quote-card {
+  scroll-margin-top: 7rem;
   background: rgba(22, 31, 29, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-lg);

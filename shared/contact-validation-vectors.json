@@ -1,0 +1,35 @@
+{
+  "validPhones": [
+    { "raw": "640 70 32 49", "normalized": "+237640703249" },
+    { "raw": "+237 640 70 32 49", "normalized": "+237640703249" },
+    { "raw": "00237 640-70-32-49", "normalized": "+237640703249" },
+    { "raw": "(+237) 233 42 11 22", "normalized": "+237233421122" }
+  ],
+  "invalidPhones": [
+    "",
+    "64070324",
+    "6407032490",
+    "+33640703249",
+    "740703249",
+    "640ABC249",
+    "640/70/32/49",
+    "++237640703249",
+    "237640703249"
+  ],
+  "validEmails": [
+    { "raw": "client@example.com", "normalized": "client@example.com" },
+    { "raw": "  Client.Test+studio@EXAMPLE.COM  ", "normalized": "Client.Test+studio@example.com" },
+    { "raw": "a@b.cm", "normalized": "a@b.cm" }
+  ],
+  "invalidEmails": [
+    "",
+    "client",
+    "client@",
+    "@example.com",
+    "client@@example.com",
+    "client@example",
+    ".client@example.com",
+    "client..studio@example.com",
+    "client name@example.com"
+  ]
+}

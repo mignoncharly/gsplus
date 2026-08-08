@@ -1,5 +1,8 @@
 export const BUSINESS_TIME_ZONE = 'Africa/Douala';
 
+const BUSINESS_WEEKDAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+const BUSINESS_MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
 const partsFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: BUSINESS_TIME_ZONE,
   year: 'numeric',
@@ -30,6 +33,12 @@ export const businessDateLabelParts = (dateKey) => {
     day: date.getUTCDate(),
     month: date.getUTCMonth(),
   };
+};
+
+export const formatBusinessDateKey = (dateKey) => {
+  if (!dateKey) return '';
+  const parts = businessDateLabelParts(dateKey);
+  return `${BUSINESS_WEEKDAY_LABELS[parts.dayOfWeek]} ${parts.day} ${BUSINESS_MONTH_LABELS[parts.month]}`;
 };
 
 export const doualaLocalDateTimeToIso = (value) => {

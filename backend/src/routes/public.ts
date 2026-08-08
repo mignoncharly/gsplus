@@ -12,6 +12,7 @@ import { getAvailability } from '../services/availability.js';
 import { createLeadSubmission } from '../services/leads.js';
 import { createOrRefreshReservationIntent } from '../services/reservation-intents.js';
 import { createReservation } from '../services/reservations.js';
+import { listPublishedPackages } from '../services/packages.js';
 import {
   availabilityQuerySchema,
   b2bInquirySchema,
@@ -25,10 +26,7 @@ const router = Router();
 router.get(
   '/packages',
   asyncHandler(async (_req, res) => {
-    const packages = await prisma.package.findMany({
-      where: { isActive: true, isArchived: false },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    });
+    const packages = await listPublishedPackages();
 
     res.json({ data: packages });
   }),
@@ -94,6 +92,8 @@ router.post(
   validate('body', reservationCreateSchema),
   asyncHandler(async (req, res) => {
     const reservation = await createReservation(req.body);
+    if (!reservation.snapshot) throw new Error('RESERVATION_SNAPSHOT_MISSING');
+    const snapshot = reservation.snapshot;
     res.status(201).json({
       data: {
         id: reservation.id,
@@ -102,8 +102,19 @@ router.post(
         startAt: reservation.startAt,
         endAt: reservation.endAt,
         paymentChoice: reservation.paymentChoice,
-        customer: reservation.customer,
-        package: reservation.package,
+        customer: {
+          ...reservation.customer,
+          firstName: snapshot.firstName,
+          lastName: snapshot.lastName,
+          phone: snapshot.phoneE164,
+          email: snapshot.email,
+        },
+        package: {
+          ...reservation.package,
+          name: snapshot.packageName,
+          price: snapshot.amount,
+          durationMin: snapshot.durationMin,
+        },
         payments: reservation.payments,
       },
     });

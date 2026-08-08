@@ -1,23 +1,25 @@
-const categoryLabels = {
+import { formatFcfa } from './display-formatters.js';
+
+export const PACKAGE_CATEGORY_LABELS = Object.freeze({
   all: 'Tous',
   portrait: 'Portraits',
   famille: 'Famille & Enfants',
   maternite: 'Maternité',
   fiancailles: 'Fiançailles & Pré-mariage',
   event: 'Événementiel',
-};
+});
 
 export const shootingCategories = [
-  { key: 'all', label: categoryLabels.all },
-  { key: 'portrait', label: categoryLabels.portrait },
-  { key: 'famille', label: categoryLabels.famille },
-  { key: 'maternite', label: categoryLabels.maternite },
-  { key: 'fiancailles', label: categoryLabels.fiancailles },
-  { key: 'event', label: categoryLabels.event },
+  { key: 'all', label: PACKAGE_CATEGORY_LABELS.all },
+  { key: 'portrait', label: PACKAGE_CATEGORY_LABELS.portrait },
+  { key: 'famille', label: PACKAGE_CATEGORY_LABELS.famille },
+  { key: 'maternite', label: PACKAGE_CATEGORY_LABELS.maternite },
+  { key: 'fiancailles', label: PACKAGE_CATEGORY_LABELS.fiancailles },
+  { key: 'event', label: PACKAGE_CATEGORY_LABELS.event },
 ];
 
 export const formatPrice = (pack) => {
-  const price = `${Number(pack.price).toLocaleString('fr-FR')} FCFA`;
+  const price = formatFcfa(pack.price);
   return pack.isRange ? `À partir de ${price}` : price;
 };
 
@@ -52,7 +54,7 @@ export const categoryKey = (category = '') => {
   return 'portrait';
 };
 
-const publicPackageName = (name = '') => name
+export const normalizeFrenchPackageName = (name = '') => name
   .replace(/\bMaternite\b/g, 'Maternité')
   .replace(/\bBebe\b/g, 'Bébé')
   .replace(/\bFiancailles\b/g, 'Fiançailles')
@@ -61,9 +63,9 @@ const publicPackageName = (name = '') => name
 
 export const packageView = (pack) => ({
   ...pack,
-  name: publicPackageName(pack.name),
+  name: normalizeFrenchPackageName(pack.name),
   cat: categoryKey(pack.category),
-  categoryLabel: categoryLabels[categoryKey(pack.category)] || pack.category,
+  categoryLabel: PACKAGE_CATEGORY_LABELS[categoryKey(pack.category)] || pack.category,
   priceLabel: formatPrice(pack),
   durationLabel: formatDuration(pack.durationMin),
   deliveryLabel: deliveryLabel(pack.durationMin),

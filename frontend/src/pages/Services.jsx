@@ -4,6 +4,8 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Camera, Palette, Printer, Image as ImageIcon, FileText, LayoutTemplate, Shirt, BookOpen, Frame, CheckCircle2, Clock3, Images, Sparkles, Send } from 'lucide-react';
 import { getPackages, submitQuoteRequest } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
+import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
+import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
 import { packageView, shootingCategories as packageCategories } from '../lib/packages';
 import ServiceGallery from '../components/ServiceGallery';
 import './Services.css';
@@ -38,23 +40,46 @@ const DevisForm = ({ context, options, formId }) => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const submissionController = useRef(createLeadSubmissionController());
 
   const startAnotherRequest = () => {
     submissionController.current.next();
     setError('');
+    setFieldErrors({});
     setSubmitted(false);
+  };
+
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const submission = submissionController.current.start(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const contactErrors = validateContactFields({
+      phone: form.get('phone'),
+      email: form.get('email'),
+      phoneRequired: true,
+      whatsappConsent: form.get('whatsappConsent') === 'on',
+    });
+    setFieldErrors(contactErrors);
+    if (Object.keys(contactErrors).length > 0) {
+      setError(FRENCH_VALIDATION_SUMMARY);
+      return;
+    }
+
+    const submission = submissionController.current.start(formElement);
     if (!submission) return;
 
     setError('');
     setSubmitting(true);
-
-    const form = new FormData(submission.formElement);
     const service = form.get('service');
     const message = form.get('message');
 
@@ -75,7 +100,9 @@ const DevisForm = ({ context, options, formId }) => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      setError(err.message || "Impossible d'envoyer la demande. Veuillez réessayer.");
+      const apiFields = validationErrorsFromApi(err, { name: 'name', phone: 'phone', email: 'email', packageName: 'service', message: 'message' });
+      if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
+      setError(validationSummaryForApiError(err) || "Impossible d'envoyer la demande. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
     }
@@ -106,27 +133,34 @@ const DevisForm = ({ context, options, formId }) => {
       <div className="form-row">
         <div>
           <label className="sr-only" htmlFor={`${formId}-name`}>Nom complet</label>
-          <input id={`${formId}-name`} autoComplete="name" name="name" type="text" placeholder="Nom complet *" required className="form-input devis-form-input" />
+          <input id={`${formId}-name`} autoComplete="name" name="name" type="text" placeholder="Nom complet *" required className="form-input devis-form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? `${formId}-name-error` : undefined} />
+          {fieldErrors.name && <p id={`${formId}-name-error`} className="form-field-error" role="alert">{fieldErrors.name}</p>}
         </div>
         <div>
           <label className="sr-only" htmlFor={`${formId}-phone`}>Téléphone / WhatsApp</label>
-          <input id={`${formId}-phone`} autoComplete="tel" name="phone" type="tel" placeholder="Téléphone / WhatsApp *" required className="form-input devis-form-input" />
+          <input id={`${formId}-phone`} autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder="Ex : 640 70 32 49 *" required className="form-input devis-form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? `${formId}-phone-error` : undefined} />
+          {fieldErrors.phone && <p id={`${formId}-phone-error`} className="form-field-error" role="alert">{fieldErrors.phone}</p>}
         </div>
       </div>
       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
         <label className="sr-only" htmlFor={`${formId}-email`}>Adresse email</label>
-        <input id={`${formId}-email`} autoComplete="email" name="email" type="email" placeholder="Email" className="form-input devis-form-input" />
+        <div>
+          <input id={`${formId}-email`} autoComplete="email" name="email" type="email" inputMode="email" placeholder="Email" className="form-input devis-form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? `${formId}-email-error` : undefined} />
+          {fieldErrors.email && <p id={`${formId}-email-error`} className="form-field-error" role="alert">{fieldErrors.email}</p>}
+        </div>
       </div>
       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
         <label className="sr-only" htmlFor={`${formId}-service`}>{context}</label>
-        <select id={`${formId}-service`} name="service" required className="form-input devis-form-input" style={{ cursor: 'pointer' }} defaultValue="">
+        <select id={`${formId}-service`} name="service" required className="form-input devis-form-input" style={{ cursor: 'pointer' }} defaultValue="" onChange={() => clearFieldError('service')} aria-invalid={Boolean(fieldErrors.service)} aria-describedby={fieldErrors.service ? `${formId}-service-error` : undefined}>
           <option value="" disabled hidden>{context}</option>
           {options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
         </select>
+        {fieldErrors.service && <p id={`${formId}-service-error`} className="form-field-error" role="alert">{fieldErrors.service}</p>}
       </div>
       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
         <label className="sr-only" htmlFor={`${formId}-message`}>Description détaillée du besoin</label>
-        <textarea id={`${formId}-message`} name="message" placeholder="Décrivez votre besoin en détail : formats, quantités, délais et budget indicatif." required minLength={10} rows="4" className="form-input devis-form-input" style={{ resize: 'vertical' }}></textarea>
+        <textarea id={`${formId}-message`} name="message" placeholder="Décrivez votre besoin en détail : formats, quantités, délais et budget indicatif." required minLength={10} rows="4" className="form-input devis-form-input" style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? `${formId}-message-error` : undefined}></textarea>
+        {fieldErrors.message && <p id={`${formId}-message-error`} className="form-field-error" role="alert">{fieldErrors.message}</p>}
       </div>
       <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', marginTop: '1rem', fontSize: '0.88rem' }}>
         <input name="whatsappConsent" type="checkbox" style={{ marginTop: '0.2rem', accentColor: 'var(--c-gold)' }} />

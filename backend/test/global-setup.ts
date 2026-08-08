@@ -48,6 +48,7 @@ export default async () => {
   process.env.DATABASE_URL = databaseUrl;
   process.env.ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET ?? 'test-admin-session-secret';
   process.env.SMTP_HOST = '';
+  process.env.EMAIL_DELIVERY_WEBHOOK_SECRET = 'test-email-delivery-webhook-secret';
   process.env.TURNSTILE_SECRET_KEY = '';
   process.env.CALCOM_API_BASE_URL = '';
   process.env.CALCOM_API_KEY = '';

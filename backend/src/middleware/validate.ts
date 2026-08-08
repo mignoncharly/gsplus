@@ -1,15 +1,10 @@
 import type { RequestHandler } from 'express';
-import { z, type ZodType } from 'zod';
+import { type ZodType } from 'zod';
 
 import { HttpError } from '../errors/http-error.js';
+import { formatValidationIssues } from '../utils/validation-localization.js';
 
 type RequestTarget = 'body' | 'params' | 'query';
-
-const formatIssues = (error: z.ZodError) =>
-  error.issues.map((issue) => ({
-    path: issue.path.join('.'),
-    message: issue.message,
-  }));
 
 export const validate =
   (target: RequestTarget, schema: ZodType): RequestHandler =>
@@ -17,7 +12,12 @@ export const validate =
     const result = schema.safeParse(req[target]);
 
     if (!result.success) {
-      return next(new HttpError(400, 'VALIDATION_ERROR', 'Request validation failed', formatIssues(result.error)));
+      return next(new HttpError(
+        400,
+        'VALIDATION_ERROR',
+        'Corrigez les champs invalides avant de continuer.',
+        formatValidationIssues(result.error.issues),
+      ));
     }
 
     res.locals.validated = {

@@ -2,8 +2,14 @@ import { Router } from 'express';
 import type { ZodType } from 'zod';
 
 import { HttpError, notFound } from '../errors/http-error.js';
+import { formatValidationIssues } from '../utils/validation-localization.js';
 import {
-  queuePaymentVerifiedNotification,
+  queuePaymentAddedNotifications,
+  queueCancellationNotifications,
+  queueRescheduleRequestDecisionNotification,
+  queueRescheduleRequestNotifications,
+  queueRefundStatusNotifications,
+  queuePaymentStatusNotifications,
   queueReservationRescheduledNotification,
   queueReservationStatusNotification,
   resolveNotificationEvent,
@@ -23,21 +29,39 @@ import {
   setAdminSessionCookie,
   verifyAdminCredentials,
 } from '../services/admin-auth.js';
-import { syncReservationToCalendar } from '../services/calendar.js';
+import { assertAdminPermission } from '../services/admin-permissions.js';
+import {
+  executeAddPayment,
+  executeCancellationDecision,
+  executeRefundDecision,
+  executePaymentDecision,
+  executeReservationDecision,
+  executeVerifyAndConfirm,
+} from '../services/payment-reservation-commands.js';
+import { retryCalendarSync, syncReservationToCalendar } from '../services/calendar.js';
+import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
+import { publishReservationDeliverables } from '../services/reservation-deliveries.js';
 import { deleteMediaFiles, processUploadedMedia } from '../services/media.js';
-import { rescheduleReservation } from '../services/reservation-rescheduling.js';
+import {
+  executeCreateRescheduleRequest,
+  executeRescheduleRequestDecision,
+} from '../services/reservation-rescheduling.js';
 import {
   createAvailabilityBlock,
   deleteAvailabilityBlock,
   updateAvailabilityBlock,
 } from '../services/availability-blocks.js';
 import {
+  archivePublishedPackage,
   createPackageWithVersion,
   deleteUnreferencedPackage,
   duplicatePackageWithVersion,
+  listAdminPackages,
+  publishPackageVersion,
   updatePackageWithVersion,
+  validatePackageVersion,
 } from '../services/packages.js';
-import { transitionPaymentStatus, transitionReservationStatus } from '../services/status-transitions.js';
+import { transitionReservationStatus } from '../services/status-transitions.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
 import {
   adminLoginSchema,
@@ -53,10 +77,18 @@ import {
   packageCreateSchema,
   packageDuplicateSchema,
   packageUpdateSchema,
+  packageValidationSchema,
+  packageVersionCommandSchema,
+  paymentAddSchema,
   paymentVerificationSchema,
+  refundDecisionSchema,
   reservationIdParamsSchema,
-  reservationRescheduleSchema,
+  reservationCancellationSchema,
+  reservationDeliveryPublishSchema,
+  rescheduleRequestCreateSchema,
+  rescheduleRequestDecisionSchema,
   reservationStatusUpdateSchema,
+  verifyAndConfirmSchema,
 } from '../validation/schemas.js';
 
 const router = Router();
@@ -68,6 +100,10 @@ const routeParam = (value: string | string[] | undefined) => {
 
   return value ?? '';
 };
+const TEMPORAL_CLOSURE_STATUSES = new Set<ReservationStatus>([
+  ReservationStatus.COMPLETED,
+  ReservationStatus.NO_SHOW,
+]);
 
 const writeAuditLog = async (
   adminUserId: string | undefined,
@@ -101,11 +137,8 @@ const parseMediaPayload = <T>(schema: ZodType<T>, value: unknown) => {
     throw new HttpError(
       400,
       'VALIDATION_ERROR',
-      'Request validation failed',
-      result.error.issues.map((issue) => ({
-        path: issue.path.map(String).join('.'),
-        message: issue.message,
-      })),
+      'Corrigez les champs invalides avant de continuer.',
+      formatValidationIssues(result.error.issues),
     );
   }
 
@@ -151,17 +184,53 @@ router.get(
 
 router.use(requireAdmin);
 
+router.post(
+  '/reservations/:id/cancel',
+  validate('params', idParamsSchema),
+  validate('body', reservationCancellationSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_CANCEL');
+    const outcome = await executeCancellationDecision({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      origin: req.body.origin,
+      reason: req.body.reason,
+      admin,
+    });
+    if (!outcome.replayed) {
+      await queueCancellationNotifications(reservationId, { commandId: outcome.commandId });
+    }
+    const calendarSync = !outcome.replayed
+      ? await syncReservationToCalendar(reservationId)
+      : null;
+    res.json({
+      data: {
+        ...outcome.value.reservation,
+        financialTask: outcome.value.financialTask,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+        calendarSync,
+      },
+    });
+  }),
+);
+
 router.get(
   '/reservations',
   validate('query', listQuerySchema),
   asyncHandler(async (req, res) => {
     const query = res.locals.validated.query;
     const reservations = await prisma.reservation.findMany({
+      where: query.reference ? { reference: query.reference } : undefined,
       take: query.limit,
       skip: query.offset,
       orderBy: { startAt: 'desc' },
       include: {
         customer: true,
+        snapshot: true,
         package: true,
         packageVersion: true,
         payments: true,
@@ -174,8 +243,16 @@ router.get(
           orderBy: { createdAt: 'desc' },
           take: 5,
         },
+        financialTasks: { orderBy: { createdAt: 'desc' } },
+        rescheduleRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
       },
     });
+
+    await Promise.all(
+      reservations
+        .filter((reservation) => !reservation.snapshot)
+        .map((reservation) => recordMissingReservationSnapshot(reservation.id, 'admin_reservation_list')),
+    );
 
     res.json({ data: reservations });
   }),
@@ -190,6 +267,7 @@ router.get(
       where: { id },
       include: {
         customer: true,
+        snapshot: true,
         package: true,
         packageVersion: true,
         payments: {
@@ -198,21 +276,43 @@ router.get(
               orderBy: { createdAt: 'desc' },
               include: { adminUser: { select: { id: true, name: true } } },
             },
+
           },
         },
         transitions: {
           orderBy: { createdAt: 'desc' },
           include: { adminUser: { select: { id: true, name: true } } },
         },
-        notifications: true,
+        notifications: {
+          include: { attempts: { orderBy: { attemptNumber: 'asc' } } },
+        },
         calendarSyncLogs: {
           orderBy: { createdAt: 'desc' },
+        },
+        financialTasks: {
+          orderBy: { createdAt: 'desc' },
+          include: { createdBy: { select: { id: true, name: true } } },
+        },
+        deliveries: {
+          orderBy: { createdAt: 'desc' },
+          include: { publishedBy: { select: { id: true, name: true } } },
+        },
+        rescheduleRequests: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            requestedBy: { select: { id: true, name: true } },
+            decidedBy: { select: { id: true, name: true } },
+          },
         },
       },
     });
 
     if (!reservation) {
       throw notFound('Reservation not found');
+    }
+
+    if (!reservation.snapshot) {
+      await recordMissingReservationSnapshot(reservation.id, 'admin_reservation_detail');
     }
 
     res.json({ data: reservation });
@@ -225,85 +325,248 @@ router.patch(
   validate('body', reservationStatusUpdateSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const adminUserId = res.locals.admin?.id;
-    const reservation = await prisma.$transaction(async (tx) => {
-      const current = await tx.reservation.findUnique({ where: { id } });
-      if (!current) {
-        throw notFound('Reservation not found');
-      }
+    const admin = res.locals.admin;
+    const adminUserId = admin?.id;
+    let replayed = false;
+    let commandId: string | undefined;
+    let reservation;
 
-      let updated =
-        req.body.status && req.body.status !== current.status
-          ? await transitionReservationStatus(tx, id, {
-              toStatus: req.body.status,
-              reason: req.body.reason,
-              adminUserId,
-              actorType: 'ADMIN',
-            })
-          : current;
-
-      if (req.body.notes !== undefined) {
-        updated = await tx.reservation.update({
+    if (
+      req.body.status === ReservationStatus.CONFIRMED ||
+      req.body.status === ReservationStatus.REJECTED
+    ) {
+      assertAdminPermission(
+        admin,
+        req.body.status === ReservationStatus.CONFIRMED
+          ? 'RESERVATION_CONFIRM'
+          : 'RESERVATION_REJECT',
+      );
+      const outcome = await executeReservationDecision({
+        reservationId: id,
+        commandId: req.body.commandId,
+        expectedVersion: req.body.expectedVersion,
+        status: req.body.status,
+        reason: req.body.reason,
+        admin,
+      });
+      reservation = outcome.value;
+      replayed = outcome.replayed;
+      commandId = outcome.commandId;
+      if (req.body.notes !== undefined && !replayed) {
+        reservation = await prisma.reservation.update({
           where: { id },
           data: { notes: req.body.notes },
         });
       }
+    } else {
+      const temporalClosure = req.body.status && TEMPORAL_CLOSURE_STATUSES.has(req.body.status);
+      if (temporalClosure) {
+        assertAdminPermission(admin, 'RESERVATION_CLOSE');
+        if (req.body.temporalOverride) {
+          assertAdminPermission(admin, 'RESERVATION_EARLY_CLOSE_OVERRIDE');
+        }
+      }
 
-      return updated;
-    });
-
-    await writeAuditLog(adminUserId, 'reservation.update', 'Reservation', reservation.id, {
-      status: req.body.status,
-      reason: req.body.reason,
-      notesChanged: req.body.notes !== undefined,
-    });
+      const outcome = await prisma.$transaction(async (tx) => {
+        const current = await tx.reservation.findUnique({ where: { id } });
+        if (!current) throw notFound('Reservation not found');
+        let updated =
+          req.body.status && req.body.status !== current.status
+            ? await transitionReservationStatus(tx, id, {
+                toStatus: req.body.status,
+                expectedVersion: req.body.expectedVersion,
+                reason: req.body.reason,
+                adminUserId,
+                actorType: 'ADMIN',
+                temporalOverride: req.body.temporalOverride,
+                overrideConfirmed: req.body.overrideConfirmed,
+              })
+            : current;
+        if (req.body.notes !== undefined) {
+          updated = await tx.reservation.update({
+            where: { id },
+            data: { notes: req.body.notes },
+          });
+        }
+        return { reservation: updated, previousStatus: current.status };
+      });
+      reservation = outcome.reservation;
+      const transition = req.body.status && req.body.status !== outcome.previousStatus
+        ? await prisma.reservationTransition.findFirst({
+            where: {
+              reservationId: reservation.id,
+              fromStatus: outcome.previousStatus,
+              toStatus: req.body.status,
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null;
+      await writeAuditLog(
+        adminUserId,
+        req.body.temporalOverride ? 'reservation.early_close_override' : 'reservation.update',
+        'Reservation',
+        reservation.id,
+        {
+          oldStatus: outcome.previousStatus,
+          newStatus: reservation.status,
+          reason: req.body.reason,
+          notesChanged: req.body.notes !== undefined,
+          endAt: reservation.endAt,
+          changedAt: transition?.createdAt ?? reservation.statusChangedAt,
+          temporalOverride: transition?.metadata ?? null,
+        },
+      );
+    }
 
     let calendarSync = null;
     if (
-      reservation.status === ReservationStatus.CONFIRMED ||
-      reservation.status === ReservationStatus.CANCELLED ||
-      reservation.status === ReservationStatus.REJECTED
+      !replayed &&
+      (reservation.status === ReservationStatus.CONFIRMED ||
+        reservation.status === ReservationStatus.CANCELLED ||
+        reservation.status === ReservationStatus.REJECTED ||
+        reservation.status === ReservationStatus.EXPIRED ||
+        reservation.status === ReservationStatus.COMPLETED ||
+        reservation.status === ReservationStatus.NO_SHOW)
     ) {
-      await queueReservationStatusNotification(reservation.id, reservation.status);
+      await queueReservationStatusNotification(reservation.id, reservation.status, { commandId });
     }
-    if (reservation.status === ReservationStatus.CONFIRMED || reservation.status === ReservationStatus.CANCELLED) {
+    if (
+      !replayed &&
+      (reservation.status === ReservationStatus.CONFIRMED || reservation.status === ReservationStatus.CANCELLED)
+    ) {
       calendarSync = await syncReservationToCalendar(reservation.id);
     }
 
-    res.json({ data: { ...reservation, calendarSync } });
+    res.json({ data: { ...reservation, commandId, replayed, calendarSync } });
+  }),
+);
+
+router.post(
+  '/reservations/:id/deliveries',
+  validate('params', idParamsSchema),
+  validate('body', reservationDeliveryPublishSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'DELIVERY_PUBLISH');
+    const outcome = await publishReservationDeliverables({
+      reservationId: routeParam(req.params.id),
+      commandId: req.body.commandId,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      deliveryUrl: req.body.deliveryUrl,
+      accessInstruction: req.body.accessInstruction,
+      expiresAt: req.body.expiresAt,
+      admin,
+    });
+    res.status(outcome.replayed ? 200 : 201).json({
+      data: { delivery: outcome.value, commandId: outcome.commandId, replayed: outcome.replayed },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/verify-and-confirm',
+  validate('params', idParamsSchema),
+  validate('body', verifyAndConfirmSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'VERIFY_AND_CONFIRM');
+    const transactionRef = req.body.transactionRef?.trim();
+    const outcome = await executeVerifyAndConfirm({
+      reservationId,
+      paymentId: req.body.paymentId,
+      commandId: req.body.commandId,
+      expectedPaymentVersion: req.body.expectedPaymentVersion,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      reason: req.body.reason,
+      transactionRef,
+      transactionRefNormalized:
+        transactionRef === undefined ? undefined : normalizePaymentReference(transactionRef),
+      admin,
+    });
+
+    let calendarSync = null;
+    if (!outcome.replayed) {
+      await queueReservationStatusNotification(reservationId, ReservationStatus.CONFIRMED, { commandId: outcome.commandId });
+      calendarSync = await syncReservationToCalendar(reservationId);
+    }
+    res.json({
+      data: {
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+        payment: outcome.value.payment,
+        reservation: outcome.value.reservation,
+        calendarSync,
+      },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/reschedule-requests',
+  validate('params', idParamsSchema),
+  validate('body', rescheduleRequestCreateSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const outcome = await executeCreateRescheduleRequest({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      requestedStartAt: req.body.requestedStartAt,
+      reason: req.body.reason,
+      admin,
+    });
+    if (!outcome.replayed) {
+      await queueRescheduleRequestNotifications(outcome.value.request.id, { commandId: outcome.commandId });
+    }
+    res.status(201).json({
+      data: {
+        request: outcome.value.request,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+      },
+    });
   }),
 );
 
 router.patch(
-  '/reservations/:id/reschedule',
+  '/reschedule-requests/:id/decision',
   validate('params', idParamsSchema),
-  validate('body', reservationRescheduleSchema),
+  validate('body', rescheduleRequestDecisionSchema),
   asyncHandler(async (req, res) => {
-    const id = routeParam(req.params.id);
-    const adminUserId = res.locals.admin?.id;
-    const reservation = await rescheduleReservation(id, {
-      startAt: req.body.startAt,
+    const requestId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const outcome = await executeRescheduleRequestDecision({
+      requestId,
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      decision: req.body.decision,
       reason: req.body.reason,
-      adminUserId,
+      admin,
     });
-    const transition = await prisma.reservationTransition.findFirst({
-      where: { reservationId: id },
-      orderBy: { createdAt: 'desc' },
+    let calendarSync = null;
+    if (!outcome.replayed) {
+      await queueRescheduleRequestDecisionNotification(requestId, { commandId: outcome.commandId });
+      if (
+        outcome.value.request.status === 'ACCEPTED' &&
+        outcome.value.reservation.status === ReservationStatus.CONFIRMED
+      ) {
+        calendarSync = await syncReservationToCalendar(outcome.value.reservation.id);
+      }
+    }
+    res.json({
+      data: {
+        request: outcome.value.request,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+        calendarSync,
+      },
     });
-    await writeAuditLog(adminUserId, 'reservation.reschedule', 'Reservation', id, {
-      reason: req.body.reason,
-      oldStartAt: transition?.oldStartAt,
-      oldEndAt: transition?.oldEndAt,
-      newStartAt: reservation.startAt,
-      newEndAt: reservation.endAt,
-    });
-
-    await queueReservationRescheduledNotification(id);
-    const calendarSync =
-      reservation.status === ReservationStatus.CONFIRMED
-        ? await syncReservationToCalendar(id)
-        : null;
-    res.json({ data: { ...reservation, calendarSync } });
   }),
 );
 
@@ -341,10 +604,7 @@ router.patch(
 router.get(
   '/packages',
   asyncHandler(async (_req, res) => {
-    const packages = await prisma.package.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      include: { _count: { select: { reservations: true, reservationIntents: true } } },
-    });
+    const packages = await listAdminPackages();
 
     res.json({ data: packages });
   }),
@@ -375,6 +635,63 @@ router.post(
   }),
 );
 
+
+router.post(
+  '/packages/:id/validate',
+  validate('params', idParamsSchema),
+  validate('body', packageValidationSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const id = routeParam(req.params.id);
+    const packageItem = await validatePackageVersion(id, req.body, admin!.id);
+    await writeAuditLog(admin!.id, 'package.validate', 'Package', id, {
+      version: packageItem.version,
+      mentionsApproved: true,
+      fromStatus: 'DRAFT',
+      toStatus: 'VALIDATED',
+    });
+    res.json({ data: packageItem });
+  }),
+);
+
+router.post(
+  '/packages/:id/publish',
+  validate('params', idParamsSchema),
+  validate('body', packageVersionCommandSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const id = routeParam(req.params.id);
+    const packageItem = await publishPackageVersion(id, req.body.expectedVersion, admin!.id);
+    await writeAuditLog(admin!.id, 'package.publish', 'Package', id, {
+      version: packageItem.publishedVersion,
+      fromStatus: 'VALIDATED',
+      toStatus: 'PUBLISHED',
+      effectiveAt: packageItem.effectiveAt,
+    });
+    res.json({ data: packageItem });
+  }),
+);
+
+router.post(
+  '/packages/:id/archive',
+  validate('params', idParamsSchema),
+  validate('body', packageVersionCommandSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const id = routeParam(req.params.id);
+    const packageItem = await archivePublishedPackage(id, req.body.expectedVersion);
+    await writeAuditLog(admin!.id, 'package.archive', 'Package', id, {
+      version: req.body.expectedVersion,
+      fromStatus: 'PUBLISHED',
+      toStatus: 'ARCHIVED',
+    });
+    res.json({ data: packageItem });
+  }),
+);
+
 router.patch(
   '/packages/:id',
   validate('params', idParamsSchema),
@@ -382,7 +699,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
     const packageItem = await updatePackageWithVersion(id, req.body, res.locals.admin?.id);
-    await writeAuditLog(res.locals.admin?.id, 'package.update', 'Package', packageItem.id, {
+    await writeAuditLog(res.locals.admin?.id, 'package.draft.update', 'Package', packageItem.id, {
       ...req.body,
       version: packageItem.version,
     });
@@ -502,34 +819,103 @@ router.patch(
   validate('body', paymentVerificationSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const adminUserId = res.locals.admin?.id;
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PAYMENT_DECIDE');
     const transactionRef = req.body.transactionRef?.trim();
-    const payment = await prisma.$transaction((tx) =>
-      transitionPaymentStatus(tx, id, {
-        toStatus: req.body.status,
-        reason: req.body.reason,
-        adminUserId,
-        actorType: 'ADMIN',
-        transactionRef,
-        transactionRefNormalized:
-          transactionRef === undefined ? undefined : normalizePaymentReference(transactionRef),
-      }),
-    );
-    const reservation = await prisma.reservation.findUniqueOrThrow({
-      where: { id: payment.reservationId },
-    });
-
-    await writeAuditLog(adminUserId, 'payment.verify', 'Payment', payment.id, {
-      status: payment.status,
+    const outcome = await executePaymentDecision({
+      paymentId: id,
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      status: req.body.status,
       reason: req.body.reason,
-      reservationStatus: reservation.status,
+      transactionRef,
+      transactionRefNormalized:
+        transactionRef === undefined ? undefined : normalizePaymentReference(transactionRef),
+      admin,
     });
 
-    if (payment.status === PaymentStatus.VERIFIED) {
-      await queuePaymentVerifiedNotification(payment.reservationId);
+    if (!outcome.replayed) {
+      await queuePaymentStatusNotifications(outcome.value.payment.reservationId, outcome.value.payment.status, {
+        commandId: outcome.commandId,
+      });
     }
 
-    res.json({ data: { ...payment, reservation, calendarSync: null } });
+    res.json({
+      data: {
+        ...outcome.value.payment,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+        calendarSync: null,
+      },
+    });
+  }),
+);
+
+router.patch(
+  '/payments/:id/refund',
+  validate('params', idParamsSchema),
+  validate('body', refundDecisionSchema),
+  asyncHandler(async (req, res) => {
+    const paymentId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'REFUND_MANAGE');
+    const outcome = await executeRefundDecision({
+      paymentId,
+      commandId: req.body.commandId,
+      expectedVersion: req.body.expectedVersion,
+      status: req.body.status,
+      refundAmount: req.body.refundAmount,
+      channel: req.body.channel,
+      providerReference: req.body.providerReference,
+      reason: req.body.reason,
+      admin,
+    });
+
+    if (!outcome.replayed) {
+      await queueRefundStatusNotifications(paymentId, outcome.value.payment.status);
+    }
+
+    res.json({
+      data: {
+        ...outcome.value.payment,
+        reservation: outcome.value.reservation,
+        financialTask: outcome.value.financialTask,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+      },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/payments',
+  validate('params', idParamsSchema),
+  validate('body', paymentAddSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PAYMENT_ADD');
+    const outcome = await executeAddPayment({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      method: req.body.method,
+      paymentPhone: req.body.paymentPhone,
+      transactionRef: req.body.transactionRef,
+      admin,
+    });
+    if (!outcome.replayed) {
+      await queuePaymentAddedNotifications(outcome.value.payment.id, { commandId: outcome.commandId });
+    }
+    res.status(outcome.replayed ? 200 : 201).json({
+      data: {
+        payment: outcome.value.payment,
+        reservation: outcome.value.reservation,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+      },
+    });
   }),
 );
 
@@ -543,6 +929,7 @@ router.get(
       skip: query.offset,
       orderBy: { createdAt: 'desc' },
       include: {
+        attempts: { orderBy: { attemptNumber: 'asc' } },
         reservation: {
           select: {
             id: true,
@@ -646,7 +1033,7 @@ router.post(
   validate('params', reservationIdParamsSchema),
   asyncHandler(async (req, res) => {
     const reservationId = routeParam(req.params.reservationId);
-    const log = await syncReservationToCalendar(reservationId);
+    const log = await retryCalendarSync(reservationId);
     await writeAuditLog(res.locals.admin?.id, 'calendar.sync', 'Reservation', reservationId, { logId: log.id });
 
     res.status(200).json({

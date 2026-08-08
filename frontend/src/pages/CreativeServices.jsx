@@ -3,6 +3,8 @@ import { motion as Motion } from 'framer-motion';
 import { Palette, PenTool, Image as ImageIcon, Shirt, Check, Send, AlertTriangle } from 'lucide-react';
 import { submitQuoteRequest } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
+import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
+import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
 import './CreativeServices.css';
 
 const CREATIVE_SERVICES = [
@@ -46,23 +48,46 @@ const CreativeServices = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const submissionController = useRef(createLeadSubmissionController());
 
   const startAnotherRequest = () => {
     submissionController.current.next();
     setError('');
+    setFieldErrors({});
     setSubmitted(false);
+  };
+
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const submission = submissionController.current.start(event.currentTarget);
-    if (!submission) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const contactErrors = validateContactFields({
+      phone: form.get('phone'),
+      email: form.get('email'),
+      phoneRequired: true,
+      whatsappConsent: form.get('whatsappConsent') === 'on',
+    });
+    setFieldErrors(contactErrors);
+    if (Object.keys(contactErrors).length > 0) {
+      setError(FRENCH_VALIDATION_SUMMARY);
+      return;
+    }
 
+    const submission = submissionController.current.start(formElement);
+    if (!submission) return;
     setError('');
     setSubmitting(true);
 
-    const form = new FormData(submission.formElement);
     const service = form.get('service');
     const message = form.get('message');
 
@@ -83,7 +108,9 @@ const CreativeServices = () => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      setError(err.message || "Impossible d'envoyer la demande. Veuillez réessayer.");
+      const apiFields = validationErrorsFromApi(err, { name: 'name', phone: 'phone', email: 'email', packageName: 'service', message: 'message' });
+      if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
+      setError(validationSummaryForApiError(err) || "Impossible d'envoyer la demande. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
     }
@@ -133,6 +160,7 @@ const CreativeServices = () => {
         {/* Quote Form Card */}
         <Motion.div 
           id="devis-creatif"
+          tabIndex="-1"
           className="creative-quote-card"
           initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
@@ -165,22 +193,25 @@ const CreativeServices = () => {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="creative-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Nom complet ou Entreprise *</label>
-                    <input id="creative-name" autoComplete="name" name="name" type="text" placeholder="Ex: Cabinet Alpha ou Eric M." required className="form-input" />
+                    <input id="creative-name" autoComplete="name" name="name" type="text" placeholder="Ex: Cabinet Alpha ou Eric M." required className="form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'creative-name-error' : undefined} />
+                    {fieldErrors.name && <p id="creative-name-error" className="form-field-error" role="alert">{fieldErrors.name}</p>}
                   </div>
                   <div>
                     <label htmlFor="creative-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Téléphone / WhatsApp *</label>
-                    <input id="creative-phone" autoComplete="tel" name="phone" type="tel" placeholder="Ex: +237 6xx xx xx xx" required className="form-input" />
+                    <input id="creative-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder="Ex: 640 70 32 49" required className="form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'creative-phone-error' : undefined} />
+                    {fieldErrors.phone && <p id="creative-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                   </div>
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
                   <label htmlFor="creative-email" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Adresse email (Optionnel)</label>
-                  <input id="creative-email" autoComplete="email" name="email" type="email" placeholder="Ex: direction@entreprise.com" className="form-input" />
+                  <input id="creative-email" autoComplete="email" name="email" type="email" inputMode="email" placeholder="Ex: direction@entreprise.com" className="form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'creative-email-error' : undefined} />
+                  {fieldErrors.email && <p id="creative-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
                   <label htmlFor="creative-service" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Service souhaité *</label>
-                  <select id="creative-service" name="service" required className="form-input">
+                  <select id="creative-service" name="service" required className="form-input" onChange={() => clearFieldError('service')} aria-invalid={Boolean(fieldErrors.service)} aria-describedby={fieldErrors.service ? 'creative-service-error' : undefined}>
                     <option value="">Quel service vous intéresse ?</option>
                     <option value="Retouche & Restauration">Retouche & Restauration Photo</option>
                     <option value="Conception de Flyers">Conception de Flyers Prestige</option>
@@ -188,11 +219,13 @@ const CreativeServices = () => {
                     <option value="Personnalisation">Personnalisation d'Objets d'Art (T-shirts, Mugs, etc.)</option>
                     <option value="Autre">Autre projet de création sur-mesure</option>
                   </select>
+                  {fieldErrors.service && <p id="creative-service-error" className="form-field-error" role="alert">{fieldErrors.service}</p>}
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
                   <label htmlFor="creative-message" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Description détaillée du besoin *</label>
-                  <textarea id="creative-message" name="message" placeholder="Décrivez les formats souhaités, vos objectifs de communication, vos délais et votre budget prévisionnel..." required minLength={10} rows="4" className="form-input"></textarea>
+                  <textarea id="creative-message" name="message" placeholder="Décrivez les formats souhaités, vos objectifs de communication, vos délais et votre budget prévisionnel..." required minLength={10} rows="4" className="form-input" onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'creative-message-error' : undefined}></textarea>
+                  {fieldErrors.message && <p id="creative-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                 </div>
                 
                 <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', margin: '1rem 0', fontSize: '0.88rem' }}>

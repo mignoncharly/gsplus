@@ -4,18 +4,38 @@ import { PUBLIC_MEDIA_CATEGORIES } from '../constants/media.js';
 
 import { LeadStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { paymentReferenceValidationMessage } from '../utils/payment-reference.js';
-import { isE164Phone, normalizeE164Phone } from '../utils/phone.js';
+import {
+  isValidCameroonPhone,
+  isValidEmailAddress,
+  normalizeCameroonPhone,
+  normalizeEmailAddress,
+} from '../utils/contact-validation.js';
 
 const requiredString = z.string().trim().min(1);
 const optionalString = z.string().trim().min(1).optional();
 const cuid = z.string().trim().min(1);
+const PHONE_INVALID_MESSAGE = 'Saisissez un numéro camerounais valide, par exemple 640 70 32 49.';
+const EMAIL_INVALID_MESSAGE = 'Saisissez une adresse e-mail valide.';
 const phone = z
   .string()
   .trim()
-  .min(6)
-  .max(32)
-  .transform(normalizeE164Phone)
-  .refine(isE164Phone, 'Use a valid international phone number');
+  .min(1, PHONE_INVALID_MESSAGE)
+  .max(32, PHONE_INVALID_MESSAGE)
+  .refine(isValidCameroonPhone, PHONE_INVALID_MESSAGE)
+  .transform((value) => normalizeCameroonPhone(value)!);
+const reservationPhone = z
+  .string()
+  .trim()
+  .min(1, PHONE_INVALID_MESSAGE)
+  .max(32, PHONE_INVALID_MESSAGE)
+  .refine(isValidCameroonPhone, PHONE_INVALID_MESSAGE);
+const emailAddress = z
+  .string()
+  .trim()
+  .min(1, EMAIL_INVALID_MESSAGE)
+  .max(254, EMAIL_INVALID_MESSAGE)
+  .refine(isValidEmailAddress, EMAIL_INVALID_MESSAGE)
+  .transform(normalizeEmailAddress);
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const publicProtectionFields = {
   website: z.string().optional(),
@@ -34,6 +54,7 @@ export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
   status: z.string().trim().min(1).optional(),
+  reference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
 });
 
 export const availabilityQuerySchema = z
@@ -69,15 +90,21 @@ export const reservationCreateSchema = z.object({
   ...publicProtectionFields,
   intentId: requiredString,
   idempotencyKey: z.uuid(),
-  customer: z.object({
-    firstName: requiredString,
-    lastName: requiredString,
-    phone,
-    email: z.email().optional(),
-    birthDate: z.coerce.date().optional(),
-    gender: optionalString,
-    discoveryChannel: optionalString,
-  }),
+  customer: z
+    .object({
+      firstName: requiredString,
+      lastName: requiredString,
+      phone: reservationPhone,
+      email: emailAddress,
+      birthDate: z.coerce.date().optional(),
+      gender: optionalString,
+      discoveryChannel: optionalString,
+    })
+    .transform((value) => ({
+      ...value,
+      phoneRaw: value.phone,
+      phone: normalizeCameroonPhone(value.phone)!,
+    })),
   consentImage: z.boolean().default(false),
   whatsappConsent: z.boolean().default(false),
   acceptedTerms: z.literal(true),
@@ -90,10 +117,10 @@ export const reservationCreateSchema = z.object({
   if (value.paymentChoice !== 'base') return;
 
   if (!value.paymentMethod) {
-    context.addIssue({ code: 'custom', path: ['paymentMethod'], message: 'Payment method is required.' });
+    context.addIssue({ code: 'custom', path: ['paymentMethod'], message: 'Choisissez un moyen de paiement.' });
   }
   if (!value.paymentPhone) {
-    context.addIssue({ code: 'custom', path: ['paymentPhone'], message: 'Payment phone is required.' });
+    context.addIssue({ code: 'custom', path: ['paymentPhone'], message: 'Renseignez le téléphone utilisé pour le paiement.' });
   }
 
   const referenceIssue = paymentReferenceValidationMessage(value.paymentMethod, value.transactionRef);
@@ -107,7 +134,7 @@ export const contactSchema = z
     ...publicProtectionFields,
     submissionKey: z.uuid(),
     name: requiredString,
-    email: z.email(),
+    email: emailAddress,
     phone: phone.optional(),
     whatsappConsent: z.boolean().default(false),
     subject: optionalString,
@@ -115,7 +142,7 @@ export const contactSchema = z
   })
   .superRefine((value, context) => {
     if (value.whatsappConsent && !value.phone) {
-      context.addIssue({ code: 'custom', path: ['phone'], message: 'A phone number is required for WhatsApp notifications.' });
+      context.addIssue({ code: 'custom', path: ['phone'], message: 'Renseignez un téléphone camerounais pour recevoir les informations sur WhatsApp.' });
     }
   });
 
@@ -125,7 +152,7 @@ export const b2bInquirySchema = z.object({
   company: requiredString,
   rccm: optionalString,
   name: requiredString,
-  email: z.email().optional(),
+  email: emailAddress,
   phone,
   whatsappConsent: z.boolean().default(false),
   subject: optionalString,
@@ -136,7 +163,7 @@ export const quoteRequestSchema = z.object({
   ...publicProtectionFields,
   submissionKey: z.uuid(),
   name: requiredString,
-  email: z.email().optional(),
+  email: emailAddress.optional(),
   phone,
   whatsappConsent: z.boolean().default(false),
   packageName: optionalString,
@@ -161,18 +188,29 @@ export const notificationResolutionSchema = z.object({
   replacementEventId: z.string().trim().min(1).max(100).optional(),
 });
 
+export const emailDeliveryReportSchema = z.object({
+  providerEventId: z.string().trim().min(1).max(255),
+  providerMessageId: z.string().trim().min(1).max(500),
+  status: z.enum(['DELIVERED', 'TEMPORARY_FAILURE', 'PERMANENT_FAILURE']),
+  smtpCode: z.string().trim().min(3).max(20).optional().nullable(),
+  occurredAt: z.coerce.date(),
+});
+
 const packageSlug = z
   .string()
   .trim()
   .min(2)
   .max(100)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and hyphens only');
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Utilisez uniquement des minuscules, chiffres et tirets.');
 
 const packageFieldsSchema = z.object({
   slug: packageSlug,
   name: requiredString,
   category: requiredString,
   description: z.string().trim().nullable(),
+  content: z.string().trim().min(10).nullable(),
+  inclusions: z.array(z.string().trim().min(1).max(500)).min(1).max(50).nullable(),
+  conditions: z.string().trim().min(10).nullable(),
   price: z.coerce.number().int().min(0),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
   durationMin: z.coerce.number().int().min(15).max(1440),
@@ -180,31 +218,32 @@ const packageFieldsSchema = z.object({
   options: z.json().nullable(),
   legalText: z.string().trim().min(10).nullable(),
   legalApprovedAt: z.coerce.date().nullable(),
+  effectiveAt: z.coerce.date().nullable(),
   isPromo: z.boolean(),
   isRange: z.boolean(),
-  isActive: z.boolean(),
-  isArchived: z.boolean(),
   sortOrder: z.coerce.number().int().min(0),
 });
 
 export const packageCreateSchema = packageFieldsSchema.extend({
   description: packageFieldsSchema.shape.description.optional().default(null),
+  content: packageFieldsSchema.shape.content.optional().default(null),
+  inclusions: packageFieldsSchema.shape.inclusions.optional().default(null),
+  conditions: packageFieldsSchema.shape.conditions.optional().default(null),
   currency: packageFieldsSchema.shape.currency.optional().default('XAF'),
   deliveryLabel: packageFieldsSchema.shape.deliveryLabel.optional().default(null),
   options: packageFieldsSchema.shape.options.optional().default(null),
   legalText: packageFieldsSchema.shape.legalText.optional().default(null),
   legalApprovedAt: packageFieldsSchema.shape.legalApprovedAt.optional().default(null),
+  effectiveAt: packageFieldsSchema.shape.effectiveAt.optional().default(null),
   isPromo: packageFieldsSchema.shape.isPromo.optional().default(false),
   isRange: packageFieldsSchema.shape.isRange.optional().default(false),
-  isActive: packageFieldsSchema.shape.isActive.optional().default(true),
-  isArchived: packageFieldsSchema.shape.isArchived.optional().default(false),
   sortOrder: packageFieldsSchema.shape.sortOrder.optional().default(0),
 }).superRefine((value, context) => {
   if (value.legalApprovedAt && !value.legalText) {
-    context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Legal text is required before approval.' });
+    context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Les mentions sont obligatoires avant approbation.' });
   }
   if (value.legalApprovedAt && value.legalApprovedAt > new Date()) {
-    context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Legal approval date cannot be in the future.' });
+    context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'La date d’approbation ne peut pas être future.' });
   }
 });
 
@@ -214,31 +253,83 @@ export const packageDuplicateSchema = z.object({
 });
 
 export const packageUpdateSchema = packageFieldsSchema
+  .omit({ legalApprovedAt: true })
   .partial()
-  .refine((value) => Object.keys(value).length > 0, { message: 'At least one field must be provided' })
-  .superRefine((value, context) => {
-    if (value.legalApprovedAt && !value.legalText) {
-      context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Legal text must be submitted with legal approval.' });
-    }
-    if (value.legalApprovedAt && value.legalApprovedAt > new Date()) {
-      context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Legal approval date cannot be in the future.' });
-    }
-  });
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, { message: 'Au moins un champ doit être fourni.' });
+
+export const packageValidationSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  mentionsApproved: z.literal(true),
+});
+
+export const packageVersionCommandSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+});
 
 export const reservationRescheduleSchema = z.object({
   startAt: z.coerce.date(),
   reason: z.string().trim().min(1).max(1000),
 });
 
+export const rescheduleRequestCreateSchema = z.object({
+  commandId: z.uuid(),
+  expectedReservationVersion: z.number().int().positive(),
+  requestedStartAt: z.coerce.date(),
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const rescheduleRequestDecisionSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  decision: z.enum(['ACCEPTED', 'REJECTED']),
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const reservationDeliveryPublishSchema = z.object({
+  commandId: z.uuid(),
+  expectedReservationVersion: z.number().int().positive(),
+  deliveryUrl: z.url().max(2000),
+  accessInstruction: z.string().trim().min(1).max(1000),
+  expiresAt: z.coerce.date(),
+});
+
+export const reservationCancellationSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  origin: z.enum(['CUSTOMER', 'STUDIO']),
+  reason: z.string().trim().min(1).max(1000),
+});
+
 export const reservationStatusUpdateSchema = z
   .object({
-    status: z.enum(Object.values(ReservationStatus)),
+    status: z.enum(Object.values(ReservationStatus)).optional(),
     reason: z.string().trim().min(1).max(1000).optional().nullable(),
     notes: z.string().trim().optional().nullable(),
+    commandId: z.uuid().optional(),
+    expectedVersion: z.number().int().positive().optional(),
+    temporalOverride: z.boolean().optional(),
+    overrideConfirmed: z.boolean().optional(),
   })
-  .partial()
   .refine((value) => value.status !== undefined || value.notes !== undefined, {
-    message: 'A status or notes field must be provided',
+    message: 'Un statut ou des notes doivent être fournis.',
+  })
+  .superRefine((value, context) => {
+    if (value.status === ReservationStatus.CANCELLED) {
+      context.addIssue({
+        code: 'custom',
+        path: ['status'],
+        message: 'Utilisez la commande d’annulation dédiée.',
+      });
+    }
+    const sensitiveDecision =
+      value.status === ReservationStatus.CONFIRMED || value.status === ReservationStatus.REJECTED;
+    if (sensitiveDecision && !value.commandId) {
+      context.addIssue({ code: 'custom', path: ['commandId'], message: 'Identifiant de commande obligatoire.' });
+    }
+    if (sensitiveDecision && value.expectedVersion === undefined) {
+      context.addIssue({ code: 'custom', path: ['expectedVersion'], message: 'Version attendue obligatoire.' });
+    }
   });
 
 export const leadUpdateSchema = z
@@ -249,7 +340,47 @@ export const leadUpdateSchema = z
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field must be provided' });
 
 export const paymentVerificationSchema = z.object({
-  status: z.enum([PaymentStatus.VERIFIED, PaymentStatus.REJECTED]),
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  status: z.enum([
+    PaymentStatus.PENDING,
+    PaymentStatus.PAYMENT_INFO_REQUIRED,
+    PaymentStatus.VERIFICATION_BLOCKED,
+    PaymentStatus.VERIFIED,
+    PaymentStatus.REJECTED,
+  ]),
+  transactionRef: optionalString,
+  reason: z.string().trim().min(1).max(1000).optional(),
+});
+
+export const paymentAddSchema = z.object({
+  commandId: z.uuid(),
+  expectedReservationVersion: z.number().int().positive(),
+  method: z.enum(['mtn_momo', 'orange_money']),
+  paymentPhone: phone,
+  transactionRef: requiredString.max(32),
+}).superRefine((value, context) => {
+  const referenceIssue = paymentReferenceValidationMessage(value.method, value.transactionRef);
+  if (referenceIssue) {
+    context.addIssue({ code: 'custom', path: ['transactionRef'], message: referenceIssue });
+  }
+});
+
+export const refundDecisionSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  status: z.enum([PaymentStatus.REFUND_PENDING, PaymentStatus.REFUNDED]),
+  refundAmount: z.number().int().positive(),
+  channel: z.string().trim().min(1).max(100),
+  providerReference: z.string().trim().min(1).max(255),
+  reason: z.string().trim().min(1).max(1000),
+});
+
+export const verifyAndConfirmSchema = z.object({
+  commandId: z.uuid(),
+  paymentId: z.string().trim().min(1),
+  expectedPaymentVersion: z.number().int().positive(),
+  expectedReservationVersion: z.number().int().positive(),
   transactionRef: optionalString,
   reason: z.string().trim().min(1).max(1000).optional(),
 });

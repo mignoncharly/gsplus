@@ -25,9 +25,19 @@ import {
   addBusinessDays,
   businessDateKey,
   businessDateLabelParts,
+  formatBusinessDateKey,
 } from '../lib/business-time';
+import { formatFcfa } from '../lib/display-formatters';
 import { packageView, selectPackageFromQuery } from '../lib/packages';
 import { createLatestRequestGate } from '../lib/latest-request';
+import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
+import {
+  packageSelectionDisabledReason,
+  paymentSubmissionDisabledReason,
+  slotSelectionDisabledReason,
+} from '../lib/disabled-actions';
+import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
+import ActionAvailabilityHint from '../components/ActionAvailabilityHint';
 import './Reservation.css';
 
 const JOURS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -71,6 +81,7 @@ const Reservation = () => {
     paymentChoice: 'base'
   });
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [bookingMode, setBookingMode] = useState('calendar'); // 'calendar' | 'free'
   const [reservationIntent, setReservationIntent] = useState(null);
   const [slotVerification, setSlotVerification] = useState(null);
@@ -82,6 +93,7 @@ const Reservation = () => {
   const [checkResult, setCheckResult] = useState(null); // null | 'available' | 'unavailable'
   const [minFreeDate] = useState(() => addBusinessDays(businessDateKey(), 1));
   const slotRequestGate = useRef(createLatestRequestGate());
+  const slotRequestInFlight = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -149,6 +161,24 @@ const Reservation = () => {
   }, [formData.packageId]);
 
   const availableDays = availabilityDays.filter((day) => !day.isClosed && day.slots.length > 0).slice(0, 21);
+  const expectedSlotVerification = `${bookingMode}:${formData.date}:${formData.time}`;
+  const packageDisabledReason = packageSelectionDisabledReason({
+    loading: packsLoading,
+    packageCount: packs.length,
+    packageId: formData.packageId,
+  });
+  const slotDisabledReason = slotSelectionDisabledReason({
+    date: formData.date,
+    time: formData.time,
+    checking: checkingSlot,
+    verified: slotVerification === expectedSlotVerification,
+  });
+  const paymentDisabledReason = paymentSubmissionDisabledReason({
+    submitting: submittingReservation,
+    paymentChoice: formData.paymentChoice,
+    paymentPhone: formData.paymentPhone,
+    transactionId: formData.transactionId,
+  });
 
   const buildReservationPayload = () => ({
     intentId: reservationIntent?.id,
@@ -173,6 +203,15 @@ const Reservation = () => {
     website: '',
   });
 
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
   const nextStep = async () => {
     setError('');
 
@@ -187,16 +226,31 @@ const Reservation = () => {
     }
 
     if (step === 3) {
-      if (!formData.lastName || !formData.firstName || !formData.phone || !formData.email || !formData.gender) {
-        setError("Veuillez remplir toutes les informations obligatoires (Nom, Prénom, Téléphone, Email, Genre).");
-        return;
-      }
-      if (!formData.acceptCGV) {
-        setError("Vous devez accepter les conditions générales de vente et la politique de confidentialité pour continuer.");
-        return;
-      }
-      if (formData.isPromo && !formData.consent) {
-        setError("Ce pack promotionnel nécessite impérativement votre accord pour l'utilisation de votre image.");
+      const contactErrors = validateContactFields({
+        phone: formData.phone,
+        email: formData.email,
+        phoneRequired: true,
+        emailRequired: true,
+      });
+      const profileErrors = {
+        ...(!formData.lastName ? { lastName: 'Renseignez votre nom.' } : {}),
+        ...(!formData.firstName ? { firstName: 'Renseignez votre prénom.' } : {}),
+        ...(!formData.gender ? { gender: 'Sélectionnez votre genre.' } : {}),
+        ...contactErrors,
+        ...(!formData.acceptCGV ? { acceptedTerms: 'Acceptez les conditions générales pour continuer.' } : {}),
+        ...(formData.isPromo && !formData.consent
+          ? { consentImage: 'Acceptez l’utilisation des images pour bénéficier de ce tarif promotionnel.' }
+          : {}),
+      };
+      setFieldErrors((current) => {
+        const next = { ...current };
+        for (const field of ['lastName', 'firstName', 'gender', 'phone', 'email', 'acceptedTerms', 'consentImage']) {
+          delete next[field];
+        }
+        return { ...next, ...profileErrors };
+      });
+      if (Object.keys(profileErrors).length > 0) {
+        setError(FRENCH_VALIDATION_SUMMARY);
         return;
       }
     }
@@ -206,9 +260,25 @@ const Reservation = () => {
         setError('Le maintien temporaire du créneau a expiré. Veuillez vérifier le créneau à nouveau.');
         return;
       }
-      if (formData.paymentChoice === 'base' && (!formData.transactionId || !formData.paymentPhone)) {
-        setError('Veuillez renseigner le numéro ID de transaction et le téléphone de paiement.');
-        return;
+      if (formData.paymentChoice === 'base') {
+        const paymentContactErrors = validateContactFields({
+          phone: formData.paymentPhone,
+          phoneRequired: true,
+        });
+        const paymentErrors = {
+          ...(paymentContactErrors.phone ? { paymentPhone: paymentContactErrors.phone } : {}),
+          ...(!formData.transactionId ? { transactionRef: 'Renseignez la référence de transaction.' } : {}),
+        };
+        setFieldErrors((current) => {
+          const next = { ...current };
+          delete next.paymentPhone;
+          delete next.transactionRef;
+          return { ...next, ...paymentErrors };
+        });
+        if (Object.keys(paymentErrors).length > 0) {
+          setError(FRENCH_VALIDATION_SUMMARY);
+          return;
+        }
       }
 
       setSubmittingReservation(true);
@@ -216,7 +286,24 @@ const Reservation = () => {
         const reservation = await createReservation(buildReservationPayload());
         setReservationResult(reservation);
       } catch (err) {
-        setError(err.message || "Impossible d'enregistrer la réservation. Veuillez réessayer.");
+        const apiFields = validationErrorsFromApi(err, {
+          'customer.firstName': 'firstName',
+          'customer.lastName': 'lastName',
+          'customer.phone': 'phone',
+          'customer.email': 'email',
+          'customer.gender': 'gender',
+          acceptedTerms: 'acceptedTerms',
+          consentImage: 'consentImage',
+          paymentMethod: 'paymentMethod',
+          paymentPhone: 'paymentPhone',
+          transactionRef: 'transactionRef',
+        });
+        if (Object.keys(apiFields).length > 0) {
+          setFieldErrors((current) => ({ ...current, ...apiFields }));
+          if (apiFields.firstName || apiFields.lastName || apiFields.phone || apiFields.email ||
+              apiFields.gender || apiFields.acceptedTerms || apiFields.consentImage) setStep(3);
+        }
+        setError(validationSummaryForApiError(err) || "Impossible d'enregistrer la réservation. Veuillez réessayer.");
         return;
       } finally {
         setSubmittingReservation(false);
@@ -235,6 +322,7 @@ const Reservation = () => {
     const selected = packs.find(p => p.id === e.target.value || p.name === e.target.value);
     if (!selected) return;
 
+    invalidateSlotRequest();
     setFormData({
       ...formData, 
       packageId: selected.id,
@@ -287,7 +375,28 @@ const Reservation = () => {
     if (reason === 'missing') return "Ce créneau n'est pas proposé pour cette durée.";
     return "Ce créneau n'est pas disponible.";
   };
+  const beginSlotRequest = () => {
+    if (slotRequestInFlight.current) return null;
+    slotRequestInFlight.current = true;
+    const requestVersion = slotRequestGate.current.begin();
+    setCheckingSlot(true);
+    return requestVersion;
+  };
+
+  const finishSlotRequest = (requestVersion) => {
+    if (!slotRequestGate.current.isCurrent(requestVersion)) return;
+    slotRequestInFlight.current = false;
+    setCheckingSlot(false);
+  };
+
+  const invalidateSlotRequest = () => {
+    slotRequestGate.current.invalidate();
+    slotRequestInFlight.current = false;
+    setCheckingSlot(false);
+  };
+
   const clearVerifiedSelection = () => {
+    invalidateSlotRequest();
     setReservationIntent(null);
     setFormData((current) => ({ ...current, date: '', time: '', startAt: '' }));
     setSlotVerification(null);
@@ -296,25 +405,22 @@ const Reservation = () => {
   };
 
   const switchBookingMode = (mode) => {
-    slotRequestGate.current.invalidate();
-    setCheckingSlot(false);
     setBookingMode(mode);
     clearVerifiedSelection();
     setError('');
   };
 
   const selectCalendarDay = (date) => {
-    slotRequestGate.current.invalidate();
-    setCheckingSlot(false);
+    invalidateSlotRequest();
     setFormData((current) => ({ ...current, date, time: '', startAt: '' }));
     setSlotVerification(null);
     setCheckResult(null);
     setError('');
   };
 
-  const holdSlot = async (slot, date, mode) => {
-    const requestVersion = slotRequestGate.current.begin();
-    setCheckingSlot(true);
+  const holdSlot = async (slot, date, mode, existingRequestVersion = null) => {
+    const requestVersion = existingRequestVersion ?? beginSlotRequest();
+    if (requestVersion === null || !slotRequestGate.current.isCurrent(requestVersion)) return false;
     setError('');
     setSlotVerification(null);
     setFormData((current) => ({ ...current, date, time: '', startAt: '' }));
@@ -339,7 +445,7 @@ const Reservation = () => {
       setError(err.message || "Ce créneau n'est plus disponible. Veuillez en choisir un autre.");
       return false;
     } finally {
-      if (slotRequestGate.current.isCurrent(requestVersion)) setCheckingSlot(false);
+      finishSlotRequest(requestVersion);
     }
   };
 
@@ -374,47 +480,66 @@ const Reservation = () => {
     setCheckResult(null);
     setSlotVerification(null);
     setSuggestions([]);
-    
+
     if (!freeDate || !freeTime) {
       setError('Veuillez renseigner une date et une heure souhaitées.');
+      setCheckResult('unavailable');
       return;
     }
     if (freeDate <= businessDateKey()) {
       setError('La date doit être dans le futur.');
+      setCheckResult('unavailable');
       return;
     }
 
+    const requestVersion = beginSlotRequest();
+    if (requestVersion === null) return;
+    const requestedDate = freeDate;
+    const requestedTime = freeTime;
+
     try {
       const availability = await getAvailability({
-        from: freeDate,
-        to: freeDate,
+        from: requestedDate,
+        to: requestedDate,
         packageId: formData.packageId,
       });
+      if (!slotRequestGate.current.isCurrent(requestVersion)) return;
+
       const day = availability.days?.[0];
       setAvailabilityDays((current) => [
-        ...current.filter((item) => item.date !== freeDate),
+        ...current.filter((item) => item.date !== requestedDate),
         ...(day ? [day] : []),
       ].sort((a, b) => a.date.localeCompare(b.date)));
 
-      const exactSlot = day?.slots?.find((slot) => slot.time === freeTime);
-      if (!exactSlot) {
-        setError("Cet horaire exact n'est pas proposé pour la durée choisie.");
-        setSuggestions(findSuggestions(freeDate, freeTime));
-        setCheckResult('unavailable');
-        return;
-      }
-      const heldByThisFlow = reservationIntent?.startAt === exactSlot.startAt;
-      if (!exactSlot.available && !heldByThisFlow) {
-        setError(getUnavailableMessage(exactSlot.reason, freeDate, freeTime));
-        setSuggestions(findSuggestions(freeDate, freeTime));
+      if (day?.isClosed) {
+        setError('Le studio est fermé ce jour-là.');
         setCheckResult('unavailable');
         return;
       }
 
-      await holdSlot(exactSlot, freeDate, 'free');
+      const exactSlot = day?.slots?.find((slot) => slot.time === requestedTime);
+      if (!exactSlot) {
+        setError("Cet horaire exact n'est pas proposé pour la durée choisie.");
+        setSuggestions(findSuggestions(requestedDate, requestedTime));
+        setCheckResult('unavailable');
+        return;
+      }
+
+      const heldByThisFlow = reservationIntent?.startAt === exactSlot.startAt;
+      if (!exactSlot.available && !heldByThisFlow) {
+        setError(getUnavailableMessage(exactSlot.reason, requestedDate, requestedTime));
+        setSuggestions(findSuggestions(requestedDate, requestedTime));
+        setCheckResult('unavailable');
+        return;
+      }
+
+      await holdSlot(exactSlot, requestedDate, 'free', requestVersion);
     } catch (err) {
+      if (!slotRequestGate.current.isCurrent(requestVersion)) return;
       setCheckResult('unavailable');
       setError(err.message || 'Impossible de vérifier ce créneau. Veuillez réessayer.');
+    } finally {
+      finishSlotRequest(requestVersion);
     }
   };
 
@@ -427,11 +552,7 @@ const Reservation = () => {
     await holdSlot(slot, sug.date, 'free');
   };
 
-  const formatSelectedDate = (dateStr) => {
-    if (!dateStr) return '';
-    const parts = businessDateLabelParts(dateStr);
-    return `${JOURS[parts.dayOfWeek]} ${parts.day} ${MOIS[parts.month]}`;
-  };
+  const formatSelectedDate = formatBusinessDateKey;
 
   return (
     <div className="reservation-page">
@@ -472,7 +593,7 @@ const Reservation = () => {
                   <select 
                     id="booking-package"
                     name="packageId"
-                    aria-describedby="booking-package-help"
+                    aria-describedby={`booking-package-help${packageDisabledReason ? ' booking-package-disabled-help' : ''}`}
                     required
                    
                     className="form-input" 
@@ -484,7 +605,7 @@ const Reservation = () => {
                     {packsLoading && <option>Chargement des packs...</option>}
                     {!packsLoading && packs.map(p => (
                       <option key={p.name} value={p.name}>
-                        {p.name} — {p.isRange ? 'À partir de ' : ''}{p.price.toLocaleString('fr-FR')} FCFA ({p.durationLabel})
+                        {p.name} — {p.isRange ? 'À partir de ' : ''}{formatFcfa(p.price)} ({p.durationLabel})
                       </option>
                     ))}
                   </select>
@@ -517,9 +638,11 @@ const Reservation = () => {
                     style={{ width: '100%', padding: '1.25rem' }} 
                     onClick={nextStep} 
                     disabled={!formData.packageId}
+                    aria-describedby={packageDisabledReason ? 'booking-package-disabled-help' : undefined}
                   >
                     Continuer <ChevronRight size={16} />
                   </button>
+                  <ActionAvailabilityHint id="booking-package-disabled-help" message={packageDisabledReason} />
                 </div>
               </Motion.div>
             )}
@@ -613,7 +736,7 @@ const Reservation = () => {
                           </div>
                           <div className="legend-item">
                             <span className="legend-color" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}></span>
-                            <span>Réservé</span>
+                            <span>Indisponible — horaire barré</span>
                           </div>
                           <div className="legend-item">
                             <span className="legend-color" style={{ background: 'var(--grad-gold)' }}></span>
@@ -637,7 +760,9 @@ const Reservation = () => {
                                 key={slot}
                                 type="button"
                                 aria-pressed={isSelected}
-                                disabled={isUnavail || checkingSlot}
+                                aria-disabled={isUnavail || checkingSlot ? 'true' : undefined}
+                                aria-label={isUnavail ? `${slot} — ${title}` : undefined}
+                                disabled={checkingSlot}
                                 title={title}
                                 onClick={() => !isUnavail && holdSlot(slotInfo, formData.date, 'calendar')}
                                 className={`slot-btn ${isSelected ? 'slot-selected' : isUnavail ? 'slot-reserved' : 'slot-available'}`}
@@ -688,13 +813,15 @@ const Reservation = () => {
                       </div>
                     </div>
 
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ width: '100%', padding: '1rem', marginBottom: '2rem' }} 
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: '100%', padding: '1rem', marginBottom: '2rem' }}
                       onClick={handleFreeCheck}
                       disabled={checkingSlot}
+                      aria-busy={checkingSlot}
                     >
-                      Vérifier la disponibilité
+                      {checkingSlot ? 'Vérification en cours…' : 'Vérifier la disponibilité'}
                     </button>
 
                     {/* Result Available */}
@@ -738,8 +865,10 @@ const Reservation = () => {
                             {suggestions.map((sug, i) => (
                               <button
                                 key={i}
+                                type="button"
                                 onClick={() => selectSuggestion(sug)}
                                 className="suggestion-btn"
+                                disabled={checkingSlot}
                               >
                                 <div>
                                   <strong>{formatSelectedDate(sug.date)}</strong>
@@ -785,11 +914,13 @@ const Reservation = () => {
                   <button 
                     className="btn btn-primary" 
                     onClick={nextStep}
-                    disabled={!formData.date || !formData.time || checkingSlot || slotVerification !== `${bookingMode}:${formData.date}:${formData.time}`}
+                    disabled={Boolean(slotDisabledReason)}
+                    aria-describedby={slotDisabledReason ? 'booking-slot-disabled-help' : undefined}
                   >
                     Continuer <ChevronRight size={16} />
                   </button>
                 </div>
+                <ActionAvailabilityHint id="booking-slot-disabled-help" message={slotDisabledReason} />
               </Motion.div>
             )}
 
@@ -806,22 +937,26 @@ const Reservation = () => {
                 <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.25rem', marginTop: '1rem' }}>
                   <div>
                     <label htmlFor="booking-last-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Nom *</label>
-                    <input id="booking-last-name" name="lastName" autoComplete="family-name" type="text" placeholder="Votre nom de famille" className="form-input" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} required />
+                    <input id="booking-last-name" name="lastName" autoComplete="family-name" type="text" placeholder="Votre nom de famille" className="form-input" value={formData.lastName} onChange={e => { setFormData({...formData, lastName: e.target.value}); clearFieldError('lastName'); }} required aria-invalid={Boolean(fieldErrors.lastName)} aria-describedby={fieldErrors.lastName ? 'booking-last-name-error' : undefined} />
+                    {fieldErrors.lastName && <p id="booking-last-name-error" className="form-field-error" role="alert">{fieldErrors.lastName}</p>}
                   </div>
                   <div>
                     <label htmlFor="booking-first-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Prénom *</label>
-                    <input id="booking-first-name" name="firstName" autoComplete="given-name" type="text" placeholder="Votre prénom" className="form-input" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} required />
+                    <input id="booking-first-name" name="firstName" autoComplete="given-name" type="text" placeholder="Votre prénom" className="form-input" value={formData.firstName} onChange={e => { setFormData({...formData, firstName: e.target.value}); clearFieldError('firstName'); }} required aria-invalid={Boolean(fieldErrors.firstName)} aria-describedby={fieldErrors.firstName ? 'booking-first-name-error' : undefined} />
+                    {fieldErrors.firstName && <p id="booking-first-name-error" className="form-field-error" role="alert">{fieldErrors.firstName}</p>}
                   </div>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label htmlFor="booking-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Téléphone (WhatsApp) *</label>
-                  <input id="booking-phone" name="phone" autoComplete="tel" type="tel" placeholder="Ex: +237 6xx xx xx xx" className="form-input" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required />
+                  <input id="booking-phone" name="phone" autoComplete="tel" type="tel" inputMode="tel" placeholder="Ex: 640 70 32 49" className="form-input" value={formData.phone} onChange={e => { setFormData({...formData, phone: e.target.value}); clearFieldError('phone'); }} required aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'booking-phone-error' : undefined} />
+                  {fieldErrors.phone && <p id="booking-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label htmlFor="booking-email" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Adresse email *</label>
-                  <input id="booking-email" name="email" autoComplete="email" type="email" placeholder="Ex: client@exemple.com" className="form-input" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+                  <input id="booking-email" name="email" autoComplete="email" type="email" inputMode="email" placeholder="Ex: client@exemple.com" className="form-input" value={formData.email} onChange={e => { setFormData({...formData, email: e.target.value}); clearFieldError('email'); }} required aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'booking-email-error' : undefined} />
+                  {fieldErrors.email && <p id="booking-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                 </div>
                 
                 <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
@@ -831,11 +966,12 @@ const Reservation = () => {
                   </div>
                   <div>
                     <label htmlFor="booking-gender" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Genre *</label>
-                    <select id="booking-gender" name="gender" autoComplete="sex" className="form-input" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} required>
+                    <select id="booking-gender" name="gender" autoComplete="sex" className="form-input" value={formData.gender} onChange={e => { setFormData({...formData, gender: e.target.value}); clearFieldError('gender'); }} required aria-invalid={Boolean(fieldErrors.gender)} aria-describedby={fieldErrors.gender ? 'booking-gender-error' : undefined}>
                       <option value="">Sélectionner</option>
                       <option value="Feminin">Féminin</option>
                       <option value="Masculin">Masculin</option>
                     </select>
+                    {fieldErrors.gender && <p id="booking-gender-error" className="form-field-error" role="alert">{fieldErrors.gender}</p>}
                   </div>
                 </div>
 
@@ -859,7 +995,7 @@ const Reservation = () => {
                 {/* Consent & Terms Checkboxes */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                   <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <input id="booking-image-consent" name="consentImage" type="checkbox" checked={formData.consent} onChange={e => setFormData({...formData, consent: e.target.checked})} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
+                    <input id="booking-image-consent" name="consentImage" type="checkbox" checked={formData.consent} onChange={e => { setFormData({...formData, consent: e.target.checked}); clearFieldError('consentImage'); }} aria-invalid={Boolean(fieldErrors.consentImage)} aria-describedby={fieldErrors.consentImage ? 'booking-image-consent-error' : undefined} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
                     {formData.isPromo ? (
                       <span>
                         J'accepte expressément que Golden Studio Plus utilise mes clichés à des fins promotionnelles et de portfolio (Site web, Instagram, TikTok). <br />
@@ -871,6 +1007,7 @@ const Reservation = () => {
                       </span>
                     )}
                   </label>
+                  {fieldErrors.consentImage && <p id="booking-image-consent-error" className="form-field-error" role="alert">{fieldErrors.consentImage}</p>}
 
                   <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
                     <input id="booking-whatsapp-consent" name="whatsappConsent" type="checkbox" checked={formData.whatsappConsent} onChange={e => setFormData({...formData, whatsappConsent: e.target.checked})} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
@@ -880,11 +1017,12 @@ const Reservation = () => {
                   </label>
 
                   <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <input id="booking-terms" name="acceptedTerms" type="checkbox" checked={formData.acceptCGV} required onChange={e => setFormData({...formData, acceptCGV: e.target.checked})} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
+                    <input id="booking-terms" name="acceptedTerms" type="checkbox" checked={formData.acceptCGV} required onChange={e => { setFormData({...formData, acceptCGV: e.target.checked}); clearFieldError('acceptedTerms'); }} aria-invalid={Boolean(fieldErrors.acceptedTerms)} aria-describedby={fieldErrors.acceptedTerms ? 'booking-terms-error' : undefined} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
                     <span>
                       J'accepte et certifie avoir lu les <a href="/cgv" target="_blank" style={{ color: 'var(--c-gold-light)', textDecoration: 'underline' }}>Conditions Générales de Vente (CGV)</a> et la <a href="/confidentialite" target="_blank" style={{ color: 'var(--c-gold-light)', textDecoration: 'underline' }}>Politique de Confidentialité</a>. *
                     </span>
                   </label>
+                  {fieldErrors.acceptedTerms && <p id="booking-terms-error" className="form-field-error" role="alert">{fieldErrors.acceptedTerms}</p>}
                 </div>
 
                 {error && (
@@ -958,14 +1096,14 @@ const Reservation = () => {
                       <div className="payment-ref-code">{reservationIntent?.reference}</div>
                       <div className="payment-amount-wrap">
                         Montant de base à régler :
-                        <strong>{formData.packPrice.toLocaleString('fr-FR')} FCFA</strong>
+                        <strong>{formatFcfa(formData.packPrice)}</strong>
                       </div>
                     </div>
                     
                     <div style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.01)', padding: '1.5rem', borderRadius: '8px', borderLeft: '3px solid var(--c-gold)' }}>
                       <h4 style={{ color: '#fff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Instructions de Paiement Mobile</h4>
                       <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
-                        Veuillez effectuer le transfert de <strong>{formData.packPrice.toLocaleString('fr-FR')} FCFA</strong> via MTN MoMo ou Orange Money à notre numéro de réception.
+                        Veuillez effectuer le transfert de <strong>{formatFcfa(formData.packPrice)}</strong> via MTN MoMo ou Orange Money à notre numéro de réception.
                       </p>
                       <p style={{ fontSize: '0.88rem', color: 'var(--c-gold-light)', margin: 0, fontWeight: 600 }}>
                         ⚠️ Renseignez impérativement la référence <span style={{ textDecoration: 'underline' }}>{reservationIntent?.reference}</span> dans le motif ou commentaire du transfert.
@@ -997,12 +1135,14 @@ const Reservation = () => {
 
                     <div style={{ marginBottom: '1.25rem' }}>
                       <label htmlFor="booking-payment-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Téléphone de paiement (MoMo/Orange)</label>
-                      <input id="booking-payment-phone" name="paymentPhone" autoComplete="tel" type="tel" placeholder="Ex: 6xx xx xx xx" className="form-input" value={formData.paymentPhone} onChange={e => setFormData({...formData, paymentPhone: e.target.value})} required />
+                      <input id="booking-payment-phone" name="paymentPhone" autoComplete="tel" type="tel" inputMode="tel" placeholder="Ex: 640 70 32 49" className="form-input" value={formData.paymentPhone} onChange={e => { setFormData({...formData, paymentPhone: e.target.value}); clearFieldError('paymentPhone'); }} required aria-invalid={Boolean(fieldErrors.paymentPhone)} aria-describedby={fieldErrors.paymentPhone ? 'booking-payment-phone-error' : undefined} />
+                      {fieldErrors.paymentPhone && <p id="booking-payment-phone-error" className="form-field-error" role="alert">{fieldErrors.paymentPhone}</p>}
                     </div>
 
                     <div>
                       <label htmlFor="booking-transaction-reference" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Identifiant ID / Réf de Transaction SMS</label>
-                      <input id="booking-transaction-reference" name="transactionId" autoComplete="off" type="text" placeholder="Ex: TXN123456789 ou Ref 928372" className="form-input" value={formData.transactionId} onChange={e => setFormData({...formData, transactionId: e.target.value})} required />
+                      <input id="booking-transaction-reference" name="transactionId" autoComplete="off" type="text" placeholder="Ex: TXN123456789 ou Ref 928372" className="form-input" value={formData.transactionId} onChange={e => { setFormData({...formData, transactionId: e.target.value}); clearFieldError('transactionRef'); }} required aria-invalid={Boolean(fieldErrors.transactionRef)} aria-describedby={fieldErrors.transactionRef ? 'booking-transaction-reference-error' : undefined} />
+                      {fieldErrors.transactionRef && <p id="booking-transaction-reference-error" className="form-field-error" role="alert">{fieldErrors.transactionRef}</p>}
                     </div>
                   </Motion.div>
                 )}
@@ -1015,13 +1155,14 @@ const Reservation = () => {
                 )}
 
                 <div className="flex justify-between" style={{ marginTop: '2.5rem' }}>
-                  <button className="btn btn-secondary" onClick={prevStep} disabled={submittingReservation}>
+                  <button className="btn btn-secondary" onClick={prevStep} disabled={submittingReservation} aria-describedby={submittingReservation ? 'booking-payment-disabled-help' : undefined}>
                     <ChevronLeft size={16} /> Retour
                   </button>
                   <button 
                     className="btn btn-primary" 
                     onClick={nextStep} 
-                    disabled={submittingReservation || (formData.paymentChoice === 'base' && (!formData.transactionId || !formData.paymentPhone))}
+                    disabled={Boolean(paymentDisabledReason)}
+                    aria-describedby={paymentDisabledReason ? 'booking-payment-disabled-help' : undefined}
                   >
                     {submittingReservation ? (
                       <>Traitement...</>
@@ -1032,6 +1173,7 @@ const Reservation = () => {
                     )}
                   </button>
                 </div>
+                <ActionAvailabilityHint id="booking-payment-disabled-help" message={paymentDisabledReason} />
               </Motion.div>
             )}
 

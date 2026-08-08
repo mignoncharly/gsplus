@@ -3,6 +3,8 @@ import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, MessageSquareText } fro
 import { motion as Motion } from 'framer-motion';
 import { submitContact } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
+import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
+import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
 import './Contact.css';
 
 const fadeIn = {
@@ -23,23 +25,46 @@ const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const submissionController = useRef(createLeadSubmissionController());
 
   const startAnotherMessage = () => {
     submissionController.current.next();
     setError('');
+    setFieldErrors({});
     setSubmitted(false);
+  };
+
+  const clearFieldError = (field) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const submission = submissionController.current.start(event.currentTarget);
-    if (!submission) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const contactErrors = validateContactFields({
+      phone: form.get('phone'),
+      email: form.get('email'),
+      emailRequired: true,
+      whatsappConsent: form.get('whatsappConsent') === 'on',
+    });
+    setFieldErrors(contactErrors);
+    if (Object.keys(contactErrors).length > 0) {
+      setError(FRENCH_VALIDATION_SUMMARY);
+      return;
+    }
 
+    const submission = submissionController.current.start(formElement);
+    if (!submission) return;
     setError('');
     setSubmitting(true);
 
-    const form = new FormData(submission.formElement);
     try {
       await submitContact({
         submissionKey: submission.submissionKey,
@@ -55,7 +80,9 @@ const Contact = () => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      setError(err.message || "Impossible d'envoyer le message. Veuillez réessayer.");
+      const apiFields = validationErrorsFromApi(err, { name: 'name', email: 'email', phone: 'phone', message: 'message' });
+      if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
+      setError(validationSummaryForApiError(err) || "Impossible d'envoyer le message. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
     }
@@ -180,25 +207,29 @@ const Contact = () => {
                       <div className="form-row split">
                         <div>
                           <label className="form-label" htmlFor="contact-name">Nom complet *</label>
-                          <input id="contact-name" autoComplete="name" name="name" type="text" placeholder="Votre nom" required className="form-input contact-form-input" />
+                          <input id="contact-name" autoComplete="name" name="name" type="text" placeholder="Votre nom" required className="form-input contact-form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined} />
+                          {fieldErrors.name && <p id="contact-name-error" className="form-field-error" role="alert">{fieldErrors.name}</p>}
                         </div>
                         <div>
                           <label className="form-label" htmlFor="contact-email">Email *</label>
-                          <input id="contact-email" autoComplete="email" name="email" type="email" placeholder="votre@email.com" required className="form-input contact-form-input" />
+                          <input id="contact-email" autoComplete="email" name="email" type="email" inputMode="email" placeholder="votre@email.com" required className="form-input contact-form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'contact-email-error' : undefined} />
+                          {fieldErrors.email && <p id="contact-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                         </div>
                       </div>
 
                       <div className="form-row">
                         <div>
                           <label className="form-label" htmlFor="contact-phone">Téléphone (requis uniquement pour WhatsApp)</label>
-                          <input id="contact-phone" autoComplete="tel" name="phone" type="tel" placeholder="Ex : +237 6xx xx xx xx" className="form-input contact-form-input" />
+                          <input id="contact-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder="Ex : 640 70 32 49" className="form-input contact-form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'contact-phone-error' : undefined} />
+                          {fieldErrors.phone && <p id="contact-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                         </div>
                       </div>
 
                       <div className="form-row">
                         <div>
                           <label className="form-label" htmlFor="contact-message">Votre message *</label>
-                          <textarea id="contact-message" name="message" placeholder="Comment pouvons-nous vous aider ?" required minLength={10} rows="5" className="form-input contact-form-input" style={{ resize: 'vertical' }}></textarea>
+                          <textarea id="contact-message" name="message" placeholder="Comment pouvons-nous vous aider ?" required minLength={10} rows="5" className="form-input contact-form-input" style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'contact-message-error' : undefined}></textarea>
+                          {fieldErrors.message && <p id="contact-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                         </div>
                       </div>
 

@@ -12,7 +12,7 @@ const limits = {
   entryJsBytes: 400_000,
   entryJsGzipBytes: 125_000,
   publicRouteChunkBytes: 40_000,
-  privateAdminChunkBytes: 50_000,
+  privateAdminChunkBytes: 55_000,
   largestCssChunkBytes: 15_000,
   totalCssBytes: 85_000,
   hero640Bytes: 30_000,

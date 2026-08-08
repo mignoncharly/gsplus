@@ -18,7 +18,11 @@ export const apiFetch = async (path, options = {}) => {
 
   if (!response.ok) {
     const message = payload?.error?.message || `API request failed with ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.code = payload?.error?.code;
+    error.details = payload?.error?.details || [];
+    error.status = response.status;
+    throw error;
   }
 
   return payload;
@@ -142,8 +146,11 @@ export const getAdminLeads = async () => {
   return payload.data;
 };
 
-export const getAdminReservations = async () => {
-  const payload = await apiFetch('/api/admin/reservations');
+export const getAdminReservations = async ({ reference } = {}) => {
+  const params = new URLSearchParams();
+  if (reference?.trim()) params.set('reference', reference.trim().toUpperCase());
+  const query = params.toString();
+  const payload = await apiFetch(`/api/admin/reservations${query ? `?${query}` : ''}`);
   return payload.data;
 };
 
@@ -155,6 +162,14 @@ export const getAdminReservation = async (id) => {
 export const updateAdminReservation = async (id, data) => {
   const payload = await apiFetch(`/api/admin/reservations/${id}`, {
     method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const cancelAdminReservation = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/reservations/${id}/cancel`, {
+    method: 'POST',
     body: JSON.stringify(data),
   });
   return payload.data;
@@ -176,6 +191,30 @@ export const updateAdminPackage = async (id, data) => {
   return payload.data;
 };
 
+export const validateAdminPackage = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/packages/${id}/validate`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const publishAdminPackage = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/packages/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const archiveAdminPackage = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/packages/${id}/archive`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
 export const verifyAdminPayment = async (id, data) => {
   const payload = await apiFetch(`/api/admin/payments/${id}/verify`, {
     method: 'PATCH',
@@ -184,8 +223,40 @@ export const verifyAdminPayment = async (id, data) => {
   return payload.data;
 };
 
+export const addAdminReservationPayment = async (reservationId, data) => {
+  const payload = await apiFetch(`/api/admin/reservations/${reservationId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const publishAdminReservationDelivery = async (reservationId, data) => {
+  const payload = await apiFetch('/api/admin/reservations/' + reservationId + '/deliveries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const verifyAndConfirmAdminReservation = async (reservationId, data) => {
+  const payload = await apiFetch(`/api/admin/reservations/${reservationId}/verify-and-confirm`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
 export const rescheduleAdminReservation = async (id, data) => {
-  const payload = await apiFetch(`/api/admin/reservations/${id}/reschedule`, {
+  const payload = await apiFetch(`/api/admin/reservations/${id}/reschedule-requests`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const decideAdminRescheduleRequest = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/reschedule-requests/${id}/decision`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

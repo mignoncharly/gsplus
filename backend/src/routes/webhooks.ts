@@ -1,6 +1,9 @@
 import { Router } from 'express';
 
 import { asyncHandler } from '../middleware/async-handler.js';
+import { validate } from '../middleware/validate.js';
+import { handleEmailDeliveryReport, isValidEmailDeliverySignature } from '../emails/email-delivery-reports.js';
+import { emailDeliveryReportSchema } from '../validation/schemas.js';
 import {
   handleWhatsAppWebhook,
   isValidWhatsAppSignature,
@@ -19,6 +22,21 @@ router.get('/whatsapp', (req, res) => {
   }
   res.sendStatus(403);
 });
+
+router.post(
+  '/email-delivery',
+  validate('body', emailDeliveryReportSchema),
+  asyncHandler(async (req, res) => {
+    const rawBody = (req as typeof req & { rawBody?: Buffer }).rawBody;
+    const signature = req.get('x-gsplus-signature-256');
+    if (!Buffer.isBuffer(rawBody) || !isValidEmailDeliverySignature(rawBody, signature)) {
+      res.sendStatus(401);
+      return;
+    }
+    await handleEmailDeliveryReport(req.body);
+    res.sendStatus(200);
+  }),
+);
 
 router.post(
   '/whatsapp',

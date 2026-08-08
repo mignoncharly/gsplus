@@ -27,7 +27,10 @@ enum ReservationStatus {
 
 enum PaymentStatus {
   PENDING
+  PAYMENT_INFO_REQUIRED
+  VERIFICATION_BLOCKED
   VERIFIED
+  PAID
   REJECTED
   FAILED
   EXPIRED
@@ -54,23 +57,38 @@ enum NotificationStatus {
   PROCESSING
   SENT
   FAILED
+  CANCELLED
+}
+
+enum PackageVersionStatus {
+  DRAFT
+  VALIDATED
+  PUBLISHED
+  ARCHIVED
 }
 
 model AdminUser {
-  id                     String                  @id @default(cuid())
-  email                  String                  @unique
-  passwordHash           String
-  name                   String
-  role                   AdminRole               @default(STAFF)
-  isActive               Boolean                 @default(true)
-  sessionVersion         Int                     @default(0)
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  auditLogs              AuditLog[]
-  packageVersions        PackageVersion[]
-  paymentTransitions     PaymentTransition[]
-  reservationTransitions ReservationTransition[]
-  verifiedPayments       Payment[]               @relation("PaymentVerifiedBy")
+  id                         String                         @id @default(cuid())
+  email                      String                         @unique
+  passwordHash               String
+  name                       String
+  role                       AdminRole                      @default(STAFF)
+  isActive                   Boolean                        @default(true)
+  sessionVersion             Int                            @default(0)
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  auditLogs                  AuditLog[]
+  packageVersions            PackageVersion[]               @relation("PackageVersionCreatedBy")
+  validatedPackageVersions   PackageVersion[]               @relation("PackageVersionValidatedBy")
+  publishedPackageVersions   PackageVersion[]               @relation("PackageVersionPublishedBy")
+  paymentTransitions         PaymentTransition[]
+  reservationTransitions     ReservationTransition[]
+  verifiedPayments           Payment[]                      @relation("PaymentVerifiedBy")
+  adminCommands              AdminCommand[]
+  financialTasks             FinancialTask[]
+  rescheduleRequestsRecorded ReservationRescheduleRequest[] @relation("RescheduleRequestedBy")
+  rescheduleRequestsDecided  ReservationRescheduleRequest[] @relation("RescheduleDecidedBy")
+  reservationDeliveries      ReservationDelivery[]
 }
 
 model Customer {
@@ -105,6 +123,7 @@ model Package {
   legalText          String?
   legalApprovedAt    DateTime?
   version            Int                 @default(1)
+  publishedVersion   Int?
   isPromo            Boolean             @default(false)
   isRange            Boolean             @default(false)
   isActive           Boolean             @default(true)
@@ -121,59 +140,80 @@ model Package {
 }
 
 model PackageVersion {
-  id              String        @id @default(cuid())
-  packageId       String
-  version         Int
-  name            String
-  category        String
-  description     String?
-  price           Int
-  currency        String        @default("XAF")
-  durationMin     Int
-  deliveryLabel   String?
-  options         Json?
-  legalText       String?
-  legalApprovedAt DateTime?
-  createdById     String?
-  createdAt       DateTime      @default(now())
-  package         Package       @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  createdBy       AdminUser?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  reservations    Reservation[]
+  id                 String               @id @default(cuid())
+  packageId          String
+  version            Int
+  name               String
+  category           String
+  description        String?
+  content            String?
+  inclusions         Json?
+  conditions         String?
+  price              Int
+  currency           String               @default("XAF")
+  durationMin        Int
+  deliveryLabel      String?
+  options            Json?
+  legalText          String?
+  legalApprovedAt    DateTime?
+  status             PackageVersionStatus @default(DRAFT)
+  effectiveAt        DateTime?
+  validatedAt        DateTime?
+  validatedById      String?
+  publishedAt        DateTime?
+  publishedById      String?
+  archivedAt         DateTime?
+  createdById        String?
+  createdAt          DateTime             @default(now())
+  package            Package              @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdBy          AdminUser?           @relation("PackageVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  validatedBy        AdminUser?           @relation("PackageVersionValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  publishedBy        AdminUser?           @relation("PackageVersionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  reservations       Reservation[]
+  reservationIntents ReservationIntent[]
 
   @@unique([packageId, version])
+  @@index([packageId, status, version])
   @@index([packageId, createdAt])
   @@index([createdById])
+  @@index([validatedById])
+  @@index([publishedById])
 }
 
 model Reservation {
-  id                String                  @id @default(cuid())
-  reference         String                  @unique
-  customerId        String
-  packageId         String
-  packageVersionId  String
-  startAt           DateTime
-  endAt             DateTime
-  status            ReservationStatus       @default(PENDING_CONFIRMATION)
-  statusReason      String?
-  statusChangedAt   DateTime                @default(now())
-  version           Int                     @default(1)
-  expiresAt         DateTime?
-  paymentChoice     String?
-  notes             String?
-  extraInfo         String?
-  acceptedTermsAt   DateTime?
-  consentImage      Boolean                 @default(false)
-  whatsappConsentAt DateTime?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  customer          Customer                @relation(fields: [customerId], references: [id])
-  package           Package                 @relation(fields: [packageId], references: [id])
-  packageVersion    PackageVersion          @relation(fields: [packageVersionId], references: [id])
-  payments          Payment[]
-  transitions       ReservationTransition[]
-  notifications     NotificationEvent[]
-  calendarSyncLogs  CalendarSyncLog[]
-  reservationIntent ReservationIntent?
+  id                 String                         @id @default(cuid())
+  reference          String                         @unique
+  customerId         String
+  packageId          String
+  packageVersionId   String
+  startAt            DateTime
+  endAt              DateTime
+  status             ReservationStatus              @default(PENDING_CONFIRMATION)
+  statusReason       String?
+  statusChangedAt    DateTime                       @default(now())
+  version            Int                            @default(1)
+  expiresAt          DateTime?
+  paymentChoice      String?
+  notes              String?
+  extraInfo          String?
+  acceptedTermsAt    DateTime?
+  consentImage       Boolean                        @default(false)
+  whatsappConsentAt  DateTime?
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  customer           Customer                       @relation(fields: [customerId], references: [id])
+  package            Package                        @relation(fields: [packageId], references: [id])
+  packageVersion     PackageVersion                 @relation(fields: [packageVersionId], references: [id])
+  payments           Payment[]
+  transitions        ReservationTransition[]
+  notifications      NotificationEvent[]
+  calendarSyncLogs   CalendarSyncLog[]
+  reservationIntent  ReservationIntent?
+  snapshot           ReservationSnapshot?
+  integrityIncidents DataIntegrityIncident[]
+  financialTasks     FinancialTask[]
+  rescheduleRequests ReservationRescheduleRequest[]
+  deliveries         ReservationDelivery[]
 
   @@index([startAt, endAt])
   @@index([status])
@@ -183,23 +223,91 @@ model Reservation {
   @@index([expiresAt])
 }
 
+model ReservationSnapshot {
+  id                        String      @id @default(cuid())
+  reservationId             String      @unique
+  firstName                 String
+  lastName                  String
+  phoneRaw                  String
+  phoneE164                 String
+  email                     String?
+  notificationEmail         String?
+  notificationPhoneE164     String
+  packageId                 String
+  packageVersionId          String
+  packageVersion            Int
+  packageName               String
+  packageContent            String?
+  packageInclusions         Json?
+  packageConditions         String?
+  packageLegalText          String?
+  packageEffectiveAt        DateTime?
+  packagePublishedAt        DateTime?
+  startAt                   DateTime
+  endAt                     DateTime
+  durationMin               Int
+  amount                    Int
+  currency                  String
+  termsAccepted             Boolean
+  termsVersion              String
+  termsAcceptedAt           DateTime
+  privacyAccepted           Boolean
+  privacyVersion            String
+  privacyAcceptedAt         DateTime
+  whatsappConsent           Boolean
+  whatsappConsentAt         DateTime?
+  imageConsent              Boolean
+  imageAuthorizationVersion String
+  imageConsentAt            DateTime?
+  source                    String
+  evidence                  Json?
+  createdAt                 DateTime    @default(now())
+  reservation               Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([phoneE164])
+  @@index([email])
+  @@index([packageId, packageVersion])
+  @@index([createdAt])
+}
+
+model DataIntegrityIncident {
+  id              String       @id @default(cuid())
+  code            String
+  reservationId   String?
+  dedupeKey       String       @unique
+  status          String       @default("OPEN")
+  occurrenceCount Int          @default(1)
+  metadata        Json?
+  firstSeenAt     DateTime     @default(now())
+  lastSeenAt      DateTime     @default(now())
+  resolvedAt      DateTime?
+  reservation     Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([code, status])
+  @@index([reservationId])
+  @@index([lastSeenAt])
+}
+
 model ReservationIntent {
-  id             String       @id @default(cuid())
-  idempotencyKey String       @unique
-  reference      String       @unique
-  packageId      String
-  startAt        DateTime
-  endAt          DateTime
-  expiresAt      DateTime
-  consumedAt     DateTime?
-  reservationId  String?      @unique
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  package        Package      @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  reservation    Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  id               String          @id @default(cuid())
+  idempotencyKey   String          @unique
+  reference        String          @unique
+  packageId        String
+  packageVersionId String?
+  startAt          DateTime
+  endAt            DateTime
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  reservationId    String?         @unique
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  package          Package         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageVersion   PackageVersion? @relation(fields: [packageVersionId], references: [id], onDelete: SetNull)
+  reservation      Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
 
   @@index([startAt, endAt, expiresAt])
   @@index([packageId])
+  @@index([packageVersionId])
 }
 
 model ReservationTransition {
@@ -244,6 +352,7 @@ model Payment {
   reservation              Reservation         @relation(fields: [reservationId], references: [id])
   verifiedBy               AdminUser?          @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
   transitions              PaymentTransition[]
+  financialTasks           FinancialTask[]
 
   @@unique([method, transactionRefNormalized])
   @@index([reservationId])
@@ -267,6 +376,88 @@ model PaymentTransition {
 
   @@index([paymentId, createdAt])
   @@index([adminUserId])
+}
+
+model FinancialTask {
+  id                String      @id @default(cuid())
+  reservationId     String
+  paymentId         String
+  createdById       String?
+  dedupeKey         String      @unique
+  type              String
+  status            String      @default("PENDING")
+  amount            Int
+  currency          String      @default("XAF")
+  reason            String
+  channel           String?
+  providerReference String?
+  proof             Json?
+  dueAt             DateTime
+  initiatedAt       DateTime?
+  completedAt       DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  reservation       Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  payment           Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  createdBy         AdminUser?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status, dueAt])
+  @@index([reservationId, createdAt])
+  @@index([paymentId])
+  @@index([createdById])
+}
+
+model ReservationRescheduleRequest {
+  id                          String      @id @default(cuid())
+  reservationId               String
+  commandId                   String      @unique
+  requestedById               String?
+  decidedById                 String?
+  status                      String      @default("PENDING")
+  version                     Int         @default(1)
+  reservationVersionAtRequest Int
+  oldStartAt                  DateTime
+  oldEndAt                    DateTime
+  requestedStartAt            DateTime
+  requestedEndAt              DateTime
+  reason                      String
+  decisionReason              String?
+  requestedAt                 DateTime    @default(now())
+  decidedAt                   DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+  reservation                 Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  requestedBy                 AdminUser?  @relation("RescheduleRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedBy                   AdminUser?  @relation("RescheduleDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([status, requestedAt])
+  @@index([requestedById])
+  @@index([decidedById])
+}
+
+model ReservationDelivery {
+  id                          String      @id @default(cuid())
+  reservationId               String
+  commandId                   String      @unique
+  publishedById               String?
+  reservationVersionAtPublish Int
+  deliveryUrl                 String
+  accessInstruction           String
+  expiresAt                   DateTime
+  status                      String      @default("AVAILABLE")
+  verificationStatusCode      Int
+  verifiedAt                  DateTime
+  revokedAt                   DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+  reservation                 Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  publishedBy                 AdminUser?  @relation(fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, createdAt])
+  @@index([status, expiresAt])
+  @@index([publishedById])
 }
 
 model Lead {
@@ -341,35 +532,41 @@ model MediaItem {
 }
 
 model NotificationEvent {
-  id                 String             @id @default(cuid())
-  reservationId      String?
-  leadId             String?
-  channel            String
-  type               String
-  recipient          String
-  idempotencyKey     String?            @unique
-  providerMessageId  String?
-  providerStatus     String?
-  status             NotificationStatus @default(PENDING)
-  attemptCount       Int                @default(0)
-  maxAttempts        Int                @default(5)
-  lastAttemptAt      DateTime?
-  nextAttemptAt      DateTime?
-  lockedAt           DateTime?
-  lastWebhookAt      DateTime?
-  deliveredAt        DateTime?
-  error              String?
-  resolution         String?
-  resolutionNote     String?
-  resolvedAt         DateTime?
-  resolvedBy         String?
-  replacementEventId String?
-  metadata           Json?
-  sentAt             DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  reservation        Reservation?       @relation(fields: [reservationId], references: [id])
-  lead               Lead?              @relation(fields: [leadId], references: [id])
+  id                   String                @id @default(cuid())
+  reservationId        String?
+  leadId               String?
+  channel              String
+  type                 String
+  recipient            String
+  idempotencyKey       String?               @unique
+  providerMessageId    String?
+  providerStatus       String?
+  templateCode         String?
+  templateVersion      String?
+  renderedContent      Json?
+  status               NotificationStatus    @default(PENDING)
+  attemptCount         Int                   @default(0)
+  maxAttempts          Int                   @default(5)
+  lastAttemptAt        DateTime?
+  nextAttemptAt        DateTime?
+  lockedAt             DateTime?
+  lastWebhookAt        DateTime?
+  deliveredAt          DateTime?
+  readAt               DateTime?
+  error                String?
+  resolution           String?
+  resolutionNote       String?
+  resolvedAt           DateTime?
+  resolvedBy           String?
+  replacementEventId   String?
+  metadata             Json?
+  sentAt               DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  reservation          Reservation?          @relation(fields: [reservationId], references: [id])
+  lead                 Lead?                 @relation(fields: [leadId], references: [id])
+  attempts             NotificationAttempt[]
+  emailDeliveryReports EmailDeliveryReport[]
 
   @@unique([channel, providerMessageId])
   @@index([status, resolvedAt])
@@ -378,6 +575,41 @@ model NotificationEvent {
   @@index([status])
   @@index([status, nextAttemptAt])
   @@index([status, lockedAt])
+}
+
+model EmailDeliveryReport {
+  id                  String            @id @default(cuid())
+  notificationEventId String
+  providerEventId     String            @unique
+  providerMessageId   String
+  status              String
+  smtpCode            String?
+  safeMessage         String
+  occurredAt          DateTime
+  createdAt           DateTime          @default(now())
+  notificationEvent   NotificationEvent @relation(fields: [notificationEventId], references: [id], onDelete: Cascade)
+
+  @@index([notificationEventId, occurredAt])
+  @@index([status, occurredAt])
+}
+
+model NotificationAttempt {
+  id                  String            @id @default(cuid())
+  notificationEventId String
+  attemptNumber       Int
+  channel             String
+  status              String
+  providerMessageId   String?
+  providerStatus      String?
+  error               String?
+  startedAt           DateTime
+  completedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  notificationEvent   NotificationEvent @relation(fields: [notificationEventId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationEventId, attemptNumber])
+  @@index([providerMessageId])
+  @@index([status, startedAt])
 }
 
 model AuditLog {
@@ -394,25 +626,47 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
+model AdminCommand {
+  id          String     @id
+  action      String
+  entityType  String
+  entityId    String
+  requestHash String
+  status      String     @default("PROCESSING")
+  result      Json?
+  adminUserId String?
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([adminUserId, createdAt])
+  @@index([status, createdAt])
+}
+
 model CalendarSyncLog {
-  id              String       @id @default(cuid())
-  reservationId   String?
-  provider        String       @default("cal_com")
-  action          String       @default("UPSERT")
-  idempotencyKey  String?      @unique
-  externalEventId String?
-  providerStatus  String?
-  status          String       @default("PENDING")
-  attemptCount    Int          @default(0)
-  maxAttempts     Int          @default(5)
-  lastAttemptAt   DateTime?
-  lockedAt        DateTime?
-  error           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  reservation     Reservation? @relation(fields: [reservationId], references: [id])
+  id                 String       @id @default(cuid())
+  reservationId      String?
+  provider           String       @default("cal_com")
+  action             String       @default("CREATE")
+  idempotencyKey     String?      @unique
+  payloadHash        String?
+  reservationVersion Int?
+  externalEventId    String?
+  providerStatus     String?
+  status             String       @default("PENDING")
+  attemptCount       Int          @default(0)
+  maxAttempts        Int          @default(3)
+  lastAttemptAt      DateTime?
+  nextAttemptAt      DateTime?
+  syncedAt           DateTime?
+  lockedAt           DateTime?
+  error              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  reservation        Reservation? @relation(fields: [reservationId], references: [id])
 
   @@index([reservationId, createdAt])
   @@index([externalEventId])
-  @@index([status, lockedAt])
+  @@index([status, nextAttemptAt, lockedAt])
 }

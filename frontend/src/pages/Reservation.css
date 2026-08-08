@@ -394,6 +394,16 @@
   text-decoration: line-through;
 }
 
+.slot-btn.slot-reserved[aria-disabled='true']:focus-visible {
+  outline: 3px solid var(--c-gold-light);
+  outline-offset: 3px;
+}
+
+.glass-booking-card .action-availability-hint {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.035);
+}
+
 /* Selected Slot */
 .slot-btn.slot-selected {
   background: var(--grad-gold) !important;

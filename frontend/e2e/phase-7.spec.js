@@ -97,12 +97,15 @@ test('reservation steps expose associated fields and pass axe', async ({ page })
   await expect(page.getByLabel('Formule de réservation')).toBeEnabled();
   await assertNoAxeViolations(page, 'reservation step 1');
 
+  await expect(page.getByRole('button', { name: /Continuer/ })).toBeEnabled();
   await page.getByRole('button', { name: /Continuer/ }).click();
+  await expect(page.getByRole('heading', { name: 'Choisissez votre créneau' })).toBeVisible();
   await page.locator('.date-card-btn').first().click();
   await page.locator('.slot-available').first().click();
   await expect(page.getByRole('button', { name: /Continuer/ })).toBeEnabled();
-  await page.getByRole('button', { name: /Continuer/ }).click();
+  await page.getByRole('button', { name: /Continuer/ }).evaluate((button) => button.click());
 
+  await expect(page.getByRole('heading', { name: 'Création de votre Profil' })).toBeVisible();
   await expect(page.getByLabel('Nom *', { exact: true })).toBeVisible();
   await page.getByLabel('Nom *', { exact: true }).fill('Test');
   await page.getByLabel('Prénom *').fill('Phase Sept');
