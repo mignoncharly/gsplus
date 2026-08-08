@@ -15,7 +15,7 @@ describe('P2-01 validation localization', () => {
     })).toBe('Renseignez votre prénom.');
     expect(localizeValidationIssue({
       code: 'invalid_value', path: ['acceptedTerms'], message: 'Invalid input: expected true',
-    })).toBe('Vous devez accepter les conditions générales et la politique de confidentialité.');
+    })).toBe('Vous devez accepter les conditions générales.');
   });
 
   it('keeps approved French business messages and localizes English custom fallbacks', () => {

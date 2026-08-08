@@ -279,6 +279,14 @@ export const decideAdminWithdrawalRequest = async (id, data) => {
   return payload.data;
 };
 
+export const createAdminImageConsentEvent = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/reservations/${id}/image-consent-events`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
 export const syncAdminReservationCalendar = async (reservationId) => {
   const payload = await apiFetch(`/api/admin/calendar/sync/${reservationId}`, {
     method: 'POST',

@@ -4,6 +4,7 @@ import { PaymentStatus, Prisma, ReservationStatus } from '../generated/prisma/cl
 import { prisma } from '../db/prisma.js';
 import { ensurePublishedPackageVersion } from './packages.js';
 import { assertBookableSlot, lockBookingWindow } from './booking-slots.js';
+import { resolvePublishedLegalVersions } from './legal-consents.js';
 import {
   normalizePaymentReference,
   paymentReferenceValidationMessage,
@@ -26,6 +27,7 @@ type ReservationCreateInput = {
   consentImage: boolean;
   whatsappConsent: boolean;
   acceptedTerms: true;
+  acceptedPrivacy: true;
   paymentChoice?: 'base' | 'quote';
   paymentMethod?: SupportedPaymentMethod;
   paymentPhone?: string;
@@ -116,6 +118,13 @@ export const createReservation = async (input: ReservationCreateInput) => {
           const transactionRef = input.paymentChoice === 'base' ? input.transactionRef?.trim() : undefined;
           const transactionRefNormalized = normalizePaymentReference(transactionRef);
           const capturedAt = new Date();
+          const legalVersions = await resolvePublishedLegalVersions(tx, capturedAt);
+          const imageScope = Array.isArray(legalVersions.imageAuthorization.scope)
+            ? legalVersions.imageAuthorization.scope
+            : [];
+          if (!legalVersions.imageAuthorization.purpose || imageScope.length === 0) {
+            throw new HttpError(503, 'IMAGE_AUTHORIZATION_INCOMPLETE', 'La version publiée de l’autorisation est incomplète.');
+          }
 
           const reservation = await tx.reservation.create({
             data: {
@@ -156,21 +165,46 @@ export const createReservation = async (input: ReservationCreateInput) => {
                   amount: packageVersion.price,
                   currency: packageVersion.currency,
                   termsAccepted: input.acceptedTerms,
-                  termsVersion: '2026-07-31',
+                  termsVersion: legalVersions.terms.version,
                   termsAcceptedAt: capturedAt,
-                  privacyAccepted: input.acceptedTerms,
-                  privacyVersion: '2026-07-31',
+                  privacyAccepted: input.acceptedPrivacy,
+                  privacyVersion: legalVersions.privacy.version,
                   privacyAcceptedAt: capturedAt,
                   whatsappConsent: input.whatsappConsent,
                   whatsappConsentAt: input.whatsappConsent ? capturedAt : null,
                   imageConsent: input.consentImage,
-                  imageAuthorizationVersion: '2026-07-31',
+                  imageAuthorizationVersion: legalVersions.imageAuthorization.version,
                   imageConsentAt: input.consentImage ? capturedAt : null,
                   source: 'PUBLIC_BOOKING',
                   evidence: {
                     intentId: input.intentId,
                     idempotencyKey: input.idempotencyKey,
+                    legalVersionIds: {
+                      terms: legalVersions.terms.id,
+                      privacy: legalVersions.privacy.id,
+                      imageAuthorization: legalVersions.imageAuthorization.id,
+                    },
+                    imagePurpose: legalVersions.imageAuthorization.purpose,
+                    imageScope,
                   },
+                },
+              },
+              imageConsentEvents: {
+                create: {
+                  legalVersionId: legalVersions.imageAuthorization.id,
+                  choice: input.consentImage ? 'GRANTED' : 'REFUSED',
+                  purpose: legalVersions.imageAuthorization.purpose,
+                  scope: imageScope,
+                  evidence: {
+                    intentId: input.intentId,
+                    idempotencyKey: input.idempotencyKey,
+                    selected: input.consentImage,
+                    noticeText: legalVersions.imageAuthorization.noticeText,
+                    optional: !intent.package.isPromo,
+                    promotionalOfferCondition: intent.package.isPromo,
+                  },
+                  source: 'PUBLIC_BOOKING',
+                  effectiveAt: capturedAt,
                 },
               },
               transitions: {

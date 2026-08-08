@@ -1,5 +1,5 @@
 # Matrice de traçabilité — Golden Studio Plus
-Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour LEG-03 au 8 août 2026.
+Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour LEG-04 au 8 août 2026.
 
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|
@@ -42,7 +42,8 @@ Statuts : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` 
 | Confidentialité §7 | LEG-06 | Inventaire traceurs et préférences si nécessaire | Éventuelle | Scan réseau/storage/cookies | Aucun facultatif avant accord | PLANIFIÉ |
 | CGV §§1/2 | LEG-03 | Huit sections CGV du 31/07; paiement, remboursement effectif, retards, annulations et report unique alignés sur les workflows existants | Oui; registre de rétractation additif appliqué, production 24/24 | Statique 3/3, frontend 76/76, backend 125/125, LEG-03 local 6/6, liés 6/6 et production 10/10 | Seuil 48 h calculé à Douala, règles financières publiées et aucune écriture réelle pendant le smoke | VALIDÉ-PROD |
 | CGV §3 | LEG-03 | Demande de rétractation persistante/idempotente; échéance 15 jours, preuve et état d’exécution; décision propriétaire motivée distincte | Oui; sept contraintes, sept index et audit; zéro ligne réelle créée en production | Backend ciblé 3/3; décision acceptée/rejetée, cohérence commencement, STAFF interdit; Playwright admin simulé | Preuve complète et versionnée; aucune annulation, mutation de paiement ou remboursement automatique | VALIDÉ-PROD |
-| Confidentialité/CGV droit à l’image | LEG-04/LEG-07 | Consentement distinct, version, portée, retrait futur | Oui | Accord/refus/retrait | Nouvelles utilisations cessent | PLANIFIÉ |
+| Confidentialité §§2/3/9; CGV §4 | LEG-04 | Trois versions juridiques publiées; CGV/confidentialité séparées; choix image/WhatsApp décochés; événements immuables accord/refus/retrait avec finalité, portée, date, source et preuve | Oui; deux registres additifs, trigger d’immuabilité et reprise 13/13; production 25/25 | Rouge 0/3 puis statique 3/3, frontend 79/79, backend 128/128, LEG-04 local 4/4, liés 26/26 et production 8/8 | 9 accords et 4 refus repris, aucun retrait inventé; retrait futur chaîné/audité sans mutation du snapshot | VALIDÉ-PROD |
+| Confidentialité §§5/9; CGV §4 | LEG-07 | Faire respecter l’état effectif du droit à l’image sur les médias et nouvelles utilisations, avec identification précise des contenus | Selon registre des contenus | Accord/refus/retrait face aux médias liés | Toute nouvelle utilisation retirée cesse effectivement | PLANIFIÉ |
 | CGV §§5/6; E-19 | LEG-07 | Fichiers privés, traitement/livraison vérifiée | Oui si registre livrables | Lien absent/invalide/valide | E-19 seulement accessible | PLANIFIÉ |
 | Prompt §17 audit | Tous | Audit enrichi, corrélation et minimisation | Oui | Actions sensibles/secret masking | Ancien/nouveau/auteur/résultat sans secret | PLANIFIÉ |
 | Prompt §§19–21 | Tous | Suite de non-régression et scénarios A–K | Fixtures dédiées | Unit/intégration/E2E/a11y | Rapports complets par problème | BLOQUÉ-ENV |

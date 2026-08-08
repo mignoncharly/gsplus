@@ -34,14 +34,15 @@ test('P2-01 binds every public business field to an inline error target', () => 
     Corporate: readFileSync(new URL('Corporate.jsx', root), 'utf8'),
     Services: readFileSync(new URL('Services.jsx', root), 'utf8'),
     CreativeServices: readFileSync(new URL('CreativeServices.jsx', root), 'utf8'),
-    Reservation: readFileSync(new URL('Reservation.jsx', root), 'utf8'),
+    Reservation: readFileSync(new URL('Reservation.jsx', root), 'utf8')
+      + readFileSync(new URL('../components/ReservationConsentFields.jsx', root), 'utf8'),
   };
 
   for (const field of ['name', 'message']) assert.match(sources.Contact, new RegExp('fieldErrors\\.' + field));
   for (const field of ['company', 'rccm', 'name', 'message']) assert.match(sources.Corporate, new RegExp('fieldErrors\\.' + field));
   for (const field of ['name', 'service', 'message']) assert.match(sources.Services, new RegExp('fieldErrors\\.' + field));
   for (const field of ['name', 'service', 'message']) assert.match(sources.CreativeServices, new RegExp('fieldErrors\\.' + field));
-  for (const field of ['firstName', 'lastName', 'gender', 'acceptedTerms', 'transactionRef']) {
+  for (const field of ['firstName', 'lastName', 'gender', 'acceptedTerms', 'acceptedPrivacy', 'transactionRef']) {
     assert.match(sources.Reservation, new RegExp('fieldErrors\\.' + field));
   }
 });

@@ -51,6 +51,10 @@ import {
   executeWithdrawalRequestDecision,
 } from '../services/reservation-withdrawals.js';
 import {
+  executeCreateImageConsentEvent,
+  IMAGE_WITHDRAWAL_EFFECT_NOTICE,
+} from '../services/legal-consents.js';
+import {
   createAvailabilityBlock,
   deleteAvailabilityBlock,
   updateAvailabilityBlock,
@@ -93,6 +97,7 @@ import {
   rescheduleRequestDecisionSchema,
   withdrawalRequestCreateSchema,
   withdrawalRequestDecisionSchema,
+  imageConsentEventCreateSchema,
   reservationStatusUpdateSchema,
   verifyAndConfirmSchema,
 } from '../validation/schemas.js';
@@ -252,6 +257,11 @@ router.get(
         financialTasks: { orderBy: { createdAt: 'desc' } },
         rescheduleRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
         withdrawalRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
+        imageConsentEvents: {
+          orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }],
+          take: 10,
+          include: { legalVersion: true, recordedBy: { select: { id: true, name: true } } },
+        },
       },
     });
 
@@ -316,6 +326,13 @@ router.get(
           include: {
             requestedBy: { select: { id: true, name: true } },
             decidedBy: { select: { id: true, name: true } },
+          },
+        },
+        imageConsentEvents: {
+          orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }],
+          include: {
+            legalVersion: true,
+            recordedBy: { select: { id: true, name: true } },
           },
         },
       },
@@ -637,6 +654,35 @@ router.patch(
         reservation: outcome.value.reservation,
         commandId: outcome.commandId,
         replayed: outcome.replayed,
+      },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/image-consent-events',
+  validate('params', idParamsSchema),
+  validate('body', imageConsentEventCreateSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'IMAGE_CONSENT_MANAGE');
+    const outcome = await executeCreateImageConsentEvent({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedPriorEventId: req.body.expectedPriorEventId,
+      choice: req.body.choice,
+      receivedAt: req.body.receivedAt,
+      requestChannel: req.body.requestChannel,
+      requestEvidence: req.body.requestEvidence,
+      admin,
+    });
+    res.status(201).json({
+      data: {
+        event: outcome.value.event,
+        commandId: outcome.commandId,
+        replayed: outcome.replayed,
+        effectNotice: IMAGE_WITHDRAWAL_EFFECT_NOTICE,
       },
     });
   }),

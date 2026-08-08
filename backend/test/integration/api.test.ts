@@ -114,6 +114,7 @@ const reservationPayload = async (packageId: string, startAt = futureDateAt()) =
     consentImage: true,
     whatsappConsent: false,
     acceptedTerms: true,
+    acceptedPrivacy: true,
     paymentChoice: 'base',
     paymentMethod: 'mtn_momo',
     paymentPhone: '+237699000000',
@@ -2241,6 +2242,133 @@ describe('LEG-03 withdrawal request workflow', () => {
       .expect(403);
     expect(response.body.error).toMatchObject({ code: 'ADMIN_PERMISSION_REQUIRED' });
     expect(await prisma.reservationWithdrawalRequest.count()).toBe(0);
+  });
+});
+
+describe('LEG-04 legal versions and image consent evidence', () => {
+  it('requires distinct privacy acknowledgment and records grant or refusal against published versions', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const missingPrivacy = await reservationPayload(pack.id, futureDateAt(9, 0, 34));
+    delete (missingPrivacy as Partial<typeof missingPrivacy>).acceptedPrivacy;
+    const invalid = await request(app).post('/api/reservations').send(missingPrivacy).expect(400);
+    expect(invalid.body.error.details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'acceptedPrivacy' }),
+    ]));
+
+    const grantedPayload = await reservationPayload(pack.id, futureDateAt(10, 0, 35));
+    grantedPayload.consentImage = true;
+    const granted = await request(app).post('/api/reservations').send(grantedPayload).expect(201);
+    const refusedPayload = await reservationPayload(pack.id, futureDateAt(11, 0, 36));
+    refusedPayload.consentImage = false;
+    const refused = await request(app).post('/api/reservations').send(refusedPayload).expect(201);
+
+    const reservations = await prisma.reservation.findMany({
+      where: { id: { in: [granted.body.data.id, refused.body.data.id] } },
+      orderBy: { startAt: 'asc' },
+      include: { snapshot: true, imageConsentEvents: { include: { legalVersion: true } } },
+    });
+    expect(reservations.map((item) => item.snapshot?.privacyAccepted)).toEqual([true, true]);
+    expect(reservations.map((item) => item.snapshot?.privacyVersion)).toEqual(['2026-07-31', '2026-07-31']);
+    expect(reservations.map((item) => item.imageConsentEvents[0].choice)).toEqual(['GRANTED', 'REFUSED']);
+    expect(reservations.every((item) => item.imageConsentEvents[0].purpose === 'PORTFOLIO_AND_PROMOTION')).toBe(true);
+    expect(reservations.every((item) => item.imageConsentEvents[0].legalVersion.documentType === 'IMAGE_AUTHORIZATION')).toBe(true);
+    expect(reservations[0].imageConsentEvents[0].scope).toEqual(['WEBSITE', 'INSTAGRAM', 'TIKTOK']);
+    expect(reservations[0].imageConsentEvents[0].evidence).toMatchObject({ selected: true, optional: true });
+    expect(reservations[1].imageConsentEvents[0].evidence).toMatchObject({ selected: false, optional: true });
+    expect(await prisma.legalDocumentVersion.count({ where: { status: 'PUBLISHED' } })).toBe(3);
+
+    await expect(prisma.imageConsentEvent.update({
+      where: { id: reservations[0].imageConsentEvents[0].id },
+      data: { choice: 'REFUSED' },
+    })).rejects.toThrow(/IMAGE_CONSENT_EVENT_IMMUTABLE/);
+  });
+
+  it('records an idempotent prospective withdrawal without mutating historical reservation evidence', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(12, 0, 37)))
+      .expect(201);
+    const before = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { snapshot: true, customer: true, imageConsentEvents: true },
+    });
+    const initial = before.imageConsentEvents[0];
+    expect(initial.choice).toBe('GRANTED');
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+    const payload = {
+      commandId,
+      expectedPriorEventId: initial.id,
+      choice: 'WITHDRAWN',
+      receivedAt: new Date().toISOString(),
+      requestChannel: 'EMAIL',
+      requestEvidence: 'Message-ID du retrait conservé dans la boîte professionnelle.',
+    };
+    const first = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/image-consent-events`)
+      .send(payload)
+      .expect(201);
+    expect(first.body.data).toMatchObject({
+      replayed: false,
+      event: {
+        choice: 'WITHDRAWN',
+        priorEventId: initial.id,
+        purpose: 'PORTFOLIO_AND_PROMOTION',
+        scope: ['WEBSITE', 'INSTAGRAM', 'TIKTOK'],
+      },
+    });
+    expect(first.body.data.effectNotice).toMatch(/effet pour l’avenir/);
+    const replay = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/image-consent-events`)
+      .send(payload)
+      .expect(201);
+    expect(replay.body.data).toMatchObject({ replayed: true, commandId, event: { id: first.body.data.event.id } });
+
+    const after = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { snapshot: true, customer: true, imageConsentEvents: { orderBy: { createdAt: 'asc' } } },
+    });
+    expect(after.imageConsentEvents.map((event) => event.choice)).toEqual(['GRANTED', 'WITHDRAWN']);
+    expect(after.consentImage).toBe(true);
+    expect(after.snapshot).toEqual(before.snapshot);
+    expect(after.customer).toEqual(before.customer);
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'reservation.image_consent.withdrawn', entityId: first.body.data.event.id },
+    });
+    expect(audit.metadata).toMatchObject({ prospectiveOnly: true, snapshotMutated: false });
+
+    const stale = await agent
+      .post(`/api/admin/reservations/${created.body.data.id}/image-consent-events`)
+      .send({ ...payload, commandId: randomUUID(), choice: 'GRANTED' })
+      .expect(409);
+    expect(stale.body.error).toMatchObject({ code: 'IMAGE_CONSENT_VERSION_CONFLICT' });
+  });
+
+  it('denies image consent recording to staff', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const created = await request(app)
+      .post('/api/reservations')
+      .send(await reservationPayload(pack.id, futureDateAt(13, 0, 38)))
+      .expect(201);
+    const current = await prisma.imageConsentEvent.findFirstOrThrow({ where: { reservationId: created.body.data.id } });
+    const passwordHash = await bcrypt.hash('leg-04-staff-password', 4);
+    await prisma.adminUser.create({ data: {
+      email: 'leg-04-staff@goldenstudioplus.test', name: 'LEG-04 Staff', passwordHash, role: AdminRole.STAFF,
+    } });
+    const staff = request.agent(app);
+    await staff.post('/api/admin/login').send({
+      email: 'leg-04-staff@goldenstudioplus.test', password: 'leg-04-staff-password',
+    }).expect(200);
+    const response = await staff
+      .post(`/api/admin/reservations/${created.body.data.id}/image-consent-events`)
+      .send({
+        commandId: randomUUID(), expectedPriorEventId: current.id, choice: 'WITHDRAWN',
+        receivedAt: new Date().toISOString(), requestChannel: 'EMAIL', requestEvidence: 'Preuve conservée.',
+      })
+      .expect(403);
+    expect(response.body.error).toMatchObject({ code: 'ADMIN_PERMISSION_REQUIRED' });
+    expect(await prisma.imageConsentEvent.count({ where: { reservationId: created.body.data.id } })).toBe(1);
   });
 });
 

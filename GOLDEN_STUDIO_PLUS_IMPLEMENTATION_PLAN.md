@@ -645,3 +645,19 @@ LEG-02 est terminé et `VALIDÉ-PROD`. LEG-03 « Alignement des conditions gén�
 - Déploiement : sauvegarde PostgreSQL valide de 119 530 octets (`sha256:29e0001808a263e5e541ac6a94cec68f145f31d30c8d21e2b7541792f34be1e8`), migration 24/24, frontend servi par Nginx et backend actif PID 4153872 avec `NRestarts=61`; CGV et santé HTTPS 200. Les 13 réservations et 13 paiements sont inchangés; zéro demande de rétractation en production.
 
 LEG-03 est terminé et `VALIDÉ-PROD`. LEG-04 « Consentement distinct au droit à l’image » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 21/25 phases terminées (84 %), 4 restantes.
+
+## 33. Exécution LEG-04 « Consentements, preuve, retrait et versionnement » — 8 août 2026
+
+État : `VALIDÉ-PROD`; choix juridiques publics séparés, registre de versions publié et preuves append-only d’accord, refus et retrait prospectif activés.
+
+- Registre juridique : versions publiées distinctes pour CGV, confidentialité et autorisation d’image, toutes datées du 31 juillet 2026 et reliées au SHA-256 de la source consolidée.
+- Choix public : CGV et lecture de la confidentialité disposent désormais de cases requises séparées; droit à l’image et WhatsApp restent séparés et décochés par défaut. La finalité « Portfolio et promotion du Studio » et la portée site web/Instagram/TikTok sont affichées avant le choix.
+- Preuve : chaque nouvelle réservation crée, dans la même transaction, un événement immuable `GRANTED` ou `REFUSED` avec version, finalité, portée, texte présenté, source, date et identifiants idempotents.
+- Retrait : événement propriétaire idempotent et chaîné à la preuve précédente, avec date Douala, canal et référence de preuve; contrôle de concurrence et audit. Il produit effet pour l’avenir sans réécrire le snapshot, le profil ou les autres données nécessaires.
+- Migration : `20260808194500_leg_04_legal_consents` crée deux registres additifs, publie trois versions et reprend une preuve par snapshot existant; trigger SQL contre UPDATE/DELETE direct des événements.
+- Preuves : test rouge statique 0/3 puis final 3/3; backend ciblé 3/3; LEG-04 local Chromium/WebKit 4/4; parcours liés réservation/axe/validation 26/26; production ciblée 8/8 avec API admin simulée.
+- Non-régression : frontend 79/79, backend 15 fichiers/128 tests, ESLint, TypeScript backend, `git diff --check`, build, prerender et budgets conformes. Playwright global : 120/122 en 12,1 minutes, LEG-04 4/4; les deux instabilités WebKit historiques hors LEG-04 (P1-03 et P2-04) ont repassé séparément 1/1 et 1/1 dans des processus neufs.
+- Performance : entrée 380 353 octets (121 107 gzip), plus grande route publique 37 272/40 000, admin 54 921/55 000, plus grand CSS 14 933/15 000 et CSS total 79 782; le bloc de consentements est chargé à l’étape utile.
+- Production : sauvegarde PostgreSQL valide de 126 843 octets (`sha256:c74e82caf605f3ed75919f884cb0226f0faac4fa3d09195557fb902a47154e9e`), migration 25/25 et backend actif PID 276996 avec `NRestarts=62`; réservation et santé HTTPS 200. Les 13 réservations et 13 paiements sont inchangés; trois versions et 13 preuves historiques (9 accords, 4 refus, aucun retrait artificiel) sont présentes.
+
+LEG-04 est terminé et `VALIDÉ-PROD`. LEG-05 « Conservation, archivage, sécurité et demandes de droits » devient le prochain et seul problème ordonné; il n’est pas commencé. Progression : 22/25 phases terminées (88 %), 3 restantes.

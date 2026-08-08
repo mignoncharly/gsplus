@@ -14,7 +14,8 @@ const FIELD_COPY = {
   packageName: { label: 'La prestation', required: 'Sélectionnez une prestation.' },
   service: { label: 'La prestation', required: 'Sélectionnez une prestation.' },
   gender: { label: 'Le genre', required: 'Sélectionnez votre genre.' },
-  acceptedTerms: { label: 'Les conditions', required: 'Vous devez accepter les conditions générales et la politique de confidentialité.' },
+  acceptedTerms: { label: 'Les conditions', required: 'Vous devez accepter les conditions générales.' },
+  acceptedPrivacy: { label: 'La politique de confidentialité', required: 'Vous devez confirmer avoir lu la politique de confidentialité.' },
   consentImage: { label: 'L’autorisation d’image', required: 'Indiquez votre choix concernant l’utilisation des images.' },
   transactionRef: { label: 'La référence de transaction', required: 'Renseignez la référence de transaction.' },
   paymentMethod: { label: 'Le moyen de paiement', required: 'Sélectionnez un moyen de paiement.' },
@@ -39,6 +40,7 @@ const localizeDetail = (detail) => {
   if (detail.code === 'invalid_type') return copy.required;
   if (detail.code === 'invalid_value') {
     if (String(detail.path || '').endsWith('acceptedTerms')) return FIELD_COPY.acceptedTerms.required;
+    if (String(detail.path || '').endsWith('acceptedPrivacy')) return FIELD_COPY.acceptedPrivacy.required;
     return copy.label + ' est invalide.';
   }
   if (detail.code === 'too_small') {

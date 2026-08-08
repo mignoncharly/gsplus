@@ -83,7 +83,8 @@ test('VAL-01 links French phone and email errors to reservation fields and prese
   await phone.fill('640ABC249');
   await email.fill('alice@localhost');
   await page.getByLabel('Genre *').selectOption('Feminin');
-  await page.getByLabel(/J'accepte et certifie/).check();
+  await page.getByLabel(/J'accepte les Conditions Générales/).check();
+  await page.getByLabel(/Je confirme avoir lu la Politique/).check();
   await page.getByRole('button', { name: /Continuer/ }).click();
 
   await expect(page.getByText('Saisissez un numéro camerounais valide, par exemple 640 70 32 49.')).toBeVisible();

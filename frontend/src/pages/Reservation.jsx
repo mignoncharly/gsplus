@@ -40,6 +40,8 @@ import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/
 import ActionAvailabilityHint from '../components/ActionAvailabilityHint';
 import './Reservation.css';
 
+const ReservationConsentFields = React.lazy(() => import('../components/ReservationConsentFields'));
+
 const JOURS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
@@ -75,6 +77,7 @@ const Reservation = () => {
     consent: false,
     whatsappConsent: false,
     acceptCGV: false,
+    acceptPrivacy: false,
     transactionId: '',
     paymentMethod: 'mtn_momo',
     paymentPhone: '',
@@ -195,6 +198,7 @@ const Reservation = () => {
     consentImage: formData.consent,
     whatsappConsent: formData.whatsappConsent,
     acceptedTerms: formData.acceptCGV,
+    acceptedPrivacy: formData.acceptPrivacy,
     paymentChoice: formData.paymentChoice,
     paymentMethod: formData.paymentChoice === 'base' ? formData.paymentMethod : undefined,
     paymentPhone: formData.paymentChoice === 'base' ? formData.paymentPhone : undefined,
@@ -238,13 +242,14 @@ const Reservation = () => {
         ...(!formData.gender ? { gender: 'Sélectionnez votre genre.' } : {}),
         ...contactErrors,
         ...(!formData.acceptCGV ? { acceptedTerms: 'Acceptez les conditions générales pour continuer.' } : {}),
+        ...(!formData.acceptPrivacy ? { acceptedPrivacy: 'Confirmez avoir lu la politique de confidentialité.' } : {}),
         ...(formData.isPromo && !formData.consent
           ? { consentImage: 'Acceptez l’utilisation des images pour bénéficier de ce tarif promotionnel.' }
           : {}),
       };
       setFieldErrors((current) => {
         const next = { ...current };
-        for (const field of ['lastName', 'firstName', 'gender', 'phone', 'email', 'acceptedTerms', 'consentImage']) {
+        for (const field of ['lastName', 'firstName', 'gender', 'phone', 'email', 'acceptedTerms', 'acceptedPrivacy', 'consentImage']) {
           delete next[field];
         }
         return { ...next, ...profileErrors };
@@ -293,6 +298,7 @@ const Reservation = () => {
           'customer.email': 'email',
           'customer.gender': 'gender',
           acceptedTerms: 'acceptedTerms',
+          acceptedPrivacy: 'acceptedPrivacy',
           consentImage: 'consentImage',
           paymentMethod: 'paymentMethod',
           paymentPhone: 'paymentPhone',
@@ -301,7 +307,7 @@ const Reservation = () => {
         if (Object.keys(apiFields).length > 0) {
           setFieldErrors((current) => ({ ...current, ...apiFields }));
           if (apiFields.firstName || apiFields.lastName || apiFields.phone || apiFields.email ||
-              apiFields.gender || apiFields.acceptedTerms || apiFields.consentImage) setStep(3);
+              apiFields.gender || apiFields.acceptedTerms || apiFields.acceptedPrivacy || apiFields.consentImage) setStep(3);
         }
         setError(validationSummaryForApiError(err) || "Impossible d'enregistrer la réservation. Veuillez réessayer.");
         return;
@@ -992,38 +998,9 @@ const Reservation = () => {
                   <textarea id="booking-notes" name="extraInfo" autoComplete="off" placeholder="Partagez des détails particuliers (tenues souhaitées, objectifs d'image...)" className="form-input" rows="3" value={formData.extraInfo} onChange={e => setFormData({...formData, extraInfo: e.target.value})}></textarea>
                 </div>
                 
-                {/* Consent & Terms Checkboxes */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-                  <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <input id="booking-image-consent" name="consentImage" type="checkbox" checked={formData.consent} onChange={e => { setFormData({...formData, consent: e.target.checked}); clearFieldError('consentImage'); }} aria-invalid={Boolean(fieldErrors.consentImage)} aria-describedby={fieldErrors.consentImage ? 'booking-image-consent-error' : undefined} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
-                    {formData.isPromo ? (
-                      <span>
-                        J'accepte expressément que Golden Studio Plus utilise mes clichés à des fins promotionnelles et de portfolio (Site web, Instagram, TikTok). <br />
-                        <strong style={{ color: 'var(--c-gold-light)' }}>* Cette acceptation est obligatoire pour bénéficier de ce tarif préférentiel.</strong>
-                      </span>
-                    ) : (
-                      <span>
-                        J'autorise Golden Studio Plus à intégrer certaines de mes photos d'art (anonymisées sans mention de mon nom) à des fins promotionnelles. Révocable à tout moment.
-                      </span>
-                    )}
-                  </label>
-                  {fieldErrors.consentImage && <p id="booking-image-consent-error" className="form-field-error" role="alert">{fieldErrors.consentImage}</p>}
-
-                  <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <input id="booking-whatsapp-consent" name="whatsappConsent" type="checkbox" checked={formData.whatsappConsent} onChange={e => setFormData({...formData, whatsappConsent: e.target.checked})} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
-                    <span>
-                      J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette réservation (réception, confirmation, modification ou paiement). Optionnel.
-                    </span>
-                  </label>
-
-                  <label style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <input id="booking-terms" name="acceptedTerms" type="checkbox" checked={formData.acceptCGV} required onChange={e => { setFormData({...formData, acceptCGV: e.target.checked}); clearFieldError('acceptedTerms'); }} aria-invalid={Boolean(fieldErrors.acceptedTerms)} aria-describedby={fieldErrors.acceptedTerms ? 'booking-terms-error' : undefined} style={{ marginTop: '0.15rem', accentColor: 'var(--c-gold)' }} />
-                    <span>
-                      J'accepte et certifie avoir lu les <a href="/cgv" target="_blank" style={{ color: 'var(--c-gold-light)', textDecoration: 'underline' }}>Conditions Générales de Vente (CGV)</a> et la <a href="/confidentialite" target="_blank" style={{ color: 'var(--c-gold-light)', textDecoration: 'underline' }}>Politique de Confidentialité</a>. *
-                    </span>
-                  </label>
-                  {fieldErrors.acceptedTerms && <p id="booking-terms-error" className="form-field-error" role="alert">{fieldErrors.acceptedTerms}</p>}
-                </div>
+                <React.Suspense fallback={<p>Chargement des choix juridiques…</p>}>
+                  <ReservationConsentFields formData={formData} setFormData={setFormData} fieldErrors={fieldErrors} clearFieldError={clearFieldError} />
+                </React.Suspense>
 
                 {error && (
                   <div id="booking-form-error" className="booking-error-banner" role="alert">

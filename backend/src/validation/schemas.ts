@@ -108,6 +108,7 @@ export const reservationCreateSchema = z.object({
   consentImage: z.boolean().default(false),
   whatsappConsent: z.boolean().default(false),
   acceptedTerms: z.literal(true),
+  acceptedPrivacy: z.literal(true),
   paymentChoice: z.enum(['base', 'quote']).optional(),
   paymentMethod: z.enum(['mtn_momo', 'orange_money']).optional(),
   paymentPhone: phone.optional(),
@@ -309,6 +310,15 @@ export const withdrawalRequestDecisionSchema = z.object({
   expectedVersion: z.number().int().positive(),
   decision: z.enum(['ACCEPTED', 'REJECTED']),
   reason: z.string().trim().min(1).max(4000),
+});
+
+export const imageConsentEventCreateSchema = z.object({
+  commandId: z.uuid(),
+  expectedPriorEventId: z.string().trim().min(1).max(100).nullable(),
+  choice: z.enum(['GRANTED', 'REFUSED', 'WITHDRAWN']),
+  receivedAt: z.coerce.date(),
+  requestChannel: z.enum(['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON', 'SIGNED_DOCUMENT', 'OTHER']),
+  requestEvidence: z.string().trim().min(1).max(2000),
 });
 
 export const reservationDeliveryPublishSchema = z.object({

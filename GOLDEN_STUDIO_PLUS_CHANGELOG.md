@@ -1,5 +1,21 @@
 # Changelog — Golden Studio Plus
 
+## 8 août 2026 — LEG-04 consentements versionnés et retrait prospectif validés en production
+
+### Ajouté
+
+- Registre publié des versions CGV, confidentialité et autorisation d’image du 31 juillet 2026, reliées à l’empreinte de la source juridique consolidée.
+- Cases CGV et confidentialité séparées; autorisation d’image et WhatsApp distinctes et décochées par défaut; finalité et portée promotionnelle visibles avant le choix.
+- Événements immuables d’accord ou de refus créés atomiquement avec chaque réservation, avec version, texte présenté, source, date, finalité, portée et preuve.
+- Workflow propriétaire idempotent de retrait ou de nouvelle autorisation, chaîné à l’état précédent, audité et protégé contre les conflits; retrait uniquement prospectif sans mutation du snapshot.
+- Migration additive 25/25 : deux registres, trois versions publiées et reprise contrôlée de 13 preuves historiques — 9 accords, 4 refus et aucun retrait artificiel.
+- Frontend 79/79, backend 128/128, LEG-04 local 4/4, parcours liés 26/26 et production Chromium/WebKit 8/8 sans écriture réelle.
+- Playwright global 120/122, LEG-04 4/4; les deux instabilités WebKit historiques hors périmètre ont repassé séparément 1/1 et 1/1.
+- Build/prerender/budgets conformes : entrée 380 353 octets (121 107 gzip), route publique maximale 37 272/40 000, admin 54 921/55 000 et CSS total 79 782.
+- Production : réservation/API 200; backend actif PID 276996 avec `NRestarts=62`; sauvegarde PostgreSQL validée avant migration.
+
+LEG-04 est terminé et `VALIDÉ-PROD`. LEG-05 « Conservation, archivage, sécurité et demandes de droits » devient le prochain problème ordonné; progression 22/25 (88 %), 3 phases restantes.
+
 ## 8 août 2026 — LEG-03 CGV et rétractation traçable validées en production
 
 ### Ajouté

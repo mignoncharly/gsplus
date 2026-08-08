@@ -53,6 +53,7 @@ describe('VAL-01 contact validation', () => {
       consentImage: false,
       whatsappConsent: false,
       acceptedTerms: true,
+      acceptedPrivacy: true,
       paymentChoice: 'quote',
     });
     expect(parsed.success).toBe(true);

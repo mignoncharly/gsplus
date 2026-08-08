@@ -1166,3 +1166,45 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 10/10; API admin simulée, aucune écriture métier réelle |
 
 LEG-03 est validé en production. LEG-04 est le prochain problème ordonné. Progression : 21/25 phases terminées (84 %), 4 restantes.
+
+# LEG-04 — Consentements, preuve, retrait et versionnement
+
+Date : 8 août 2026. État : `VALIDÉ-PROD`.
+
+## Contrat livré
+
+- Registre de versions juridiques publié pour CGV, confidentialité et autorisation d’image, daté du 31 juillet 2026 et rattaché à l’empreinte de la source consolidée.
+- Acceptation des CGV et lecture de la confidentialité séparées; choix image et WhatsApp autonomes et jamais précochés.
+- Finalité `PORTFOLIO_AND_PROMOTION` et portée `WEBSITE`, `INSTAGRAM`, `TIKTOK` présentées puis figées avec la preuve.
+- Événement append-only `GRANTED` ou `REFUSED` créé atomiquement à la réservation avec version, texte, source, date et preuve idempotente.
+- Workflow propriétaire d’autorisation/retrait avec commande idempotente, chaînage `priorEventId`, contrôle de concurrence, canal, preuve et audit minimisé.
+- Retrait strictement prospectif : snapshot, choix initial de réservation, profil client et autres données du dossier demeurent inchangés; seules les nouvelles utilisations doivent cesser.
+
+## Validation locale
+
+| Contrôle | Résultat |
+|---|---|
+| Test rouge LEG-04 | 0/3 : registre publié, séparation et retrait traçable absents avant implémentation |
+| Statique LEG-04 final | 3/3 : versions, cases distinctes/décochées, accord/refus/retrait et garde prospectif |
+| Backend ciblé | 3/3 : versions publiées, accord/refus, immutabilité, retrait idempotent, conflit et interdiction STAFF |
+| Playwright LEG-04 local | Chromium/WebKit 4/4 : formulaire 320 px et retrait propriétaire simulé |
+| Parcours liés | 26/26 : LEG-04, réservation axe/navigation et validation VAL-01 |
+| Frontend complet | 79/79; ESLint conforme |
+| Backend complet | 15 fichiers, 128/128; TypeScript conforme; base de test 25/25 |
+| Build/prerender/budgets | Entrée 380 353 (121 107 gzip), public 37 272/40 000, admin 54 921/55 000, CSS max 14 933/15 000, CSS total 79 782 |
+| Playwright local complet | 120/122 en 12,1 minutes; LEG-04 4/4. Deux instabilités WebKit historiques hors LEG-04; relances fraîches ciblées 1/1 et 1/1 |
+| Intégrité | `git diff --check`, lint, tests, build, prerender et budgets réussis |
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Sauvegarde | Dump valide de 126 843 octets; SHA-256 `c74e82caf605f3ed75919f884cb0226f0faac4fa3d09195557fb902a47154e9e` |
+| Migration | `20260808194500_leg_04_legal_consents` appliquée; 25/25 migrations |
+| Reprise | Trois versions publiées; 13 preuves pour 13 snapshots : 9 accords, 4 refus, zéro retrait artificiel |
+| Invariants métier | 13 réservations et 13 paiements, inchangés |
+| Service backend | PID 276996, `NRestarts=62`, `ActiveState=active`, `SubState=running` |
+| Santé | `https://gsplus.vip/reservation` et `/api/health` : 200 |
+| Production ciblée | Chromium/WebKit 8/8; API admin simulée, aucune écriture métier réelle |
+
+LEG-04 est validé en production. LEG-05 est le prochain problème ordonné. Progression : 22/25 phases terminées (88 %), 3 restantes.

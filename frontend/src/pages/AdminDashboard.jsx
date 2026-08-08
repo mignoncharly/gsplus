@@ -30,6 +30,7 @@ import {
   createAdminAvailabilityBlock,
   createAdminMedia,
   createAdminWithdrawalRequest,
+  createAdminImageConsentEvent,
   deleteAdminAvailabilityBlock,
   deleteAdminMedia,
   decideAdminRescheduleRequest,
@@ -679,6 +680,39 @@ const AdminDashboard = () => {
         decision,
         reason: values.reason.trim(),
       }), reservation.id),
+    });
+  };
+
+  const recordImageConsentChoice = (reservation, choice, current) => {
+    const withdrawing = choice === 'WITHDRAWN';
+    openActionDialog({
+      title: withdrawing ? 'Enregistrer le retrait du droit à l’image' : 'Enregistrer une autorisation d’image',
+      summary: reservation.reference,
+      consequence: withdrawing
+        ? 'Le retrait cessera les nouvelles utilisations pour l’avenir sans effacer les preuves ni les autres données du dossier.'
+        : 'Une nouvelle autorisation explicite sera versionnée avec sa finalité, sa portée et sa preuve.',
+      confirmLabel: withdrawing ? 'Enregistrer le retrait image' : 'Enregistrer l’autorisation image',
+      destructive: withdrawing,
+      fields: [
+        { name: 'receivedAt', label: 'Date du choix à Douala', type: 'datetime-local', required: true, defaultValue: businessDateTimeLocalValue(new Date()) },
+        { name: 'requestChannel', label: 'Canal de preuve', type: 'select', required: true, defaultValue: 'EMAIL', options: [
+          { value: 'EMAIL', label: 'E-mail' },
+          { value: 'WHATSAPP', label: 'WhatsApp professionnel' },
+          { value: 'PHONE', label: 'Téléphone avec compte rendu' },
+          { value: 'IN_PERSON', label: 'En personne avec compte rendu' },
+          { value: 'SIGNED_DOCUMENT', label: 'Document signé' },
+          { value: 'OTHER', label: 'Autre preuve vérifiable' },
+        ] },
+        { name: 'requestEvidence', label: 'Preuve du choix explicite', type: 'textarea', required: true, help: 'Indiquez le Message-ID, le document signé ou l’emplacement du compte rendu conservé.' },
+      ],
+      onConfirm: (values) => runDialogAction('Choix relatif au droit à l’image', () => createAdminImageConsentEvent(reservation.id, {
+          commandId: window.crypto.randomUUID(),
+          expectedPriorEventId: current?.id ?? null,
+          choice,
+          receivedAt: doualaLocalDateTimeToIso(values.receivedAt),
+          requestChannel: values.requestChannel,
+          requestEvidence: values.requestEvidence.trim(),
+        }), reservation.id),
     });
   };
 
@@ -1616,11 +1650,6 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               )}
-              <div className="admin-modal-info-row">
-                <span>Consentement image :</span>
-                <strong>{selectedRes.consentImage ? 'Accordé (Public)' : 'Refusé (Privé)'}</strong>
-              </div>
-              
               {selectedRes.extraInfo && (
                 <div className="admin-modal-block" style={{ borderLeftColor: '#c5923a' }}>
                   <strong>Notes additionnelles du client</strong>
@@ -1670,6 +1699,8 @@ const AdminDashboard = () => {
                     decideRescheduleRequest(selectedRes, request, decision, reason)}
                   onWithdrawalDecision={(request, decision) =>
                     decideWithdrawalRequest(selectedRes, request, decision)}
+                  onImageConsentRecord={(choice, current) =>
+                    recordImageConsentChoice(selectedRes, choice, current)}
                 />
               </React.Suspense>
               <div className="admin-action-row" style={{ marginTop: '2.5rem', justifyContent: 'flex-end' }}>

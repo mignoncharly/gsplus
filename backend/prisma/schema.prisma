@@ -91,6 +91,7 @@ model AdminUser {
   withdrawalRequestsRecorded ReservationWithdrawalRequest[] @relation("WithdrawalRequestedBy")
   withdrawalRequestsDecided  ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
   reservationDeliveries      ReservationDelivery[]
+  imageConsentEvents         ImageConsentEvent[]
 }
 
 model Customer {
@@ -217,6 +218,7 @@ model Reservation {
   rescheduleRequests ReservationRescheduleRequest[]
   withdrawalRequests ReservationWithdrawalRequest[]
   deliveries         ReservationDelivery[]
+  imageConsentEvents ImageConsentEvent[]
 
   @@index([startAt, endAt])
   @@index([status])
@@ -271,6 +273,49 @@ model ReservationSnapshot {
   @@index([email])
   @@index([packageId, packageVersion])
   @@index([createdAt])
+}
+
+model LegalDocumentVersion {
+  id                 String              @id
+  documentType       String
+  version            String
+  status             String              @default("PUBLISHED")
+  sourceDocumentHash String
+  noticeText         String
+  purpose            String?
+  scope              Json?
+  effectiveAt        DateTime
+  publishedAt        DateTime
+  archivedAt         DateTime?
+  createdAt          DateTime            @default(now())
+  imageConsentEvents ImageConsentEvent[]
+
+  @@unique([documentType, version])
+  @@index([documentType, status, effectiveAt])
+}
+
+model ImageConsentEvent {
+  id             String               @id @default(cuid())
+  reservationId  String
+  legalVersionId String
+  commandId      String?              @unique
+  choice         String
+  purpose        String
+  scope          Json
+  evidence       Json
+  source         String
+  effectiveAt    DateTime
+  priorEventId   String?
+  recordedById   String?
+  createdAt      DateTime             @default(now())
+  reservation    Reservation          @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  legalVersion   LegalDocumentVersion @relation(fields: [legalVersionId], references: [id], onDelete: Restrict)
+  recordedBy     AdminUser?           @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([reservationId, effectiveAt, createdAt])
+  @@index([legalVersionId])
+  @@index([choice, effectiveAt])
+  @@index([recordedById])
 }
 
 model DataIntegrityIncident {
