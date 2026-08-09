@@ -735,11 +735,11 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
 | 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DIFFÉRÉ-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
-| 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
-| 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
+| 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `DIFFÉRÉ-OWNER` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
+| 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `EXÉCUTÉ-NON-CLOS` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
 
-Progression de clôture : 2/6 phases actives terminées; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif. POST-02 clôt un critère transverse sans ajouter artificiellement un identifiant au registre atomique.
+Progression de clôture : 2/6 phases actives clôturées; POST-06 est exécuté mais non clos; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif. POST-02 clôt un critère transverse sans ajouter artificiellement un identifiant au registre atomique.
 
 Ordre d’exécution : POST-01 → POST-02. POST-03 peut avancer en parallèle dès que le contenu OWNER est disponible. POST-04 précède POST-05 afin que la même fenêtre de preuve supervisée couvre réception et retours fournisseur. POST-06 ne commence qu’après POST-01 à POST-05, ou documente précisément toute gate externe encore ouverte.
 
@@ -879,7 +879,7 @@ POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/6
 - Invariants : 13 réservations et 13 snapshots; empreinte SHA-256 des liaisons et données tarifaires figées `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
 - Gate : aucune création DRAFT, validation ou publication avant identification de la source catalogue détaillée, approbation ou correction de la grille de livraison, confirmation de l'application des CGV communes et inventaire des éventuelles conditions particulières.
 
-POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. Le 9 août 2026, l'OWNER a demandé de différer cette phase pendant l'attente des réponses catalogue : son état devient `DIFFÉRÉ-OWNER`, sans requalification en succès. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; POST-06 ne peut donc pas commencer.
+POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. Le 9 août 2026, l'OWNER a demandé de différer cette phase pendant l'attente des réponses catalogue : son état devient `DIFFÉRÉ-OWNER`, sans requalification en succès. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; à ce préflight, POST-06 ne pouvait pas encore commencer; il a ensuite été exécuté avec les gates ouvertes explicitement documentées.
 
 ## 41. Relecture exhaustive et correction de préparation POST-03 — 9 août 2026
 
@@ -933,4 +933,18 @@ POST-05 reste ouvert. I-11 ne sera pas requalifié sur le seul statut SMTP `acce
 - Validation : 4/4 tests du probe, backend complet 19 fichiers et 156/156 tests, build TypeScript vert. Le lancement sans accès échoue avant le réseau avec `ZOHO_SMTP_LOGS_PROBE_ENV_MISSING:ZOHO_MAIL_ORG_ID`.
 - Gate restante : fournir hors Git `ZOHO_MAIL_ORG_ID` et un token d'une heure portant `ZohoMail.partner.organization.READ`; configurer le datacenter régional seulement s'il diffère de `https://mail.zoho.com`, puis exécuter le probe.
 
-Aucune variable production, donnée, notification ou livraison n'a été modifiée. La confirmation OAuth exigera une réponse `accessConfirmed=true`; la présence du Message-ID sera rapportée uniquement comme compteur 0/1.
+Aucune variable production, donnée, notification ou livraison n'a été modifiée. La confirmation OAuth exigera une réponse `accessConfirmed=true`; la présence du Message-ID sera rapportée uniquement comme compteur 0/1. L'OWNER a ensuite choisi de différer cette preuve OAuth et de poursuivre POST-06; POST-05 devient `DIFFÉRÉ-OWNER`, sans requalification de I-09/I-11/I-12.
+
+## 45. POST-06 — Revalidation exhaustive avec gates ouvertes — 9 août 2026
+
+État : `EXÉCUTÉ-NON-CLOS`. L'audit technique est terminé, mais sa condition de clôture 59/59 active n'est pas atteinte : le verdict reste 53/59 actives et 53/61 globales `VALIDÉ-PROD`.
+
+- Sources : les trois DOCX ont été réextraits intégralement. Empreintes SHA-256 inchangées; 1 609 paragraphes non vides contrôlés (1 035 e-mails, 451 audit, 123 juridique) et 1 698 paragraphes XML au total en incluant les paragraphes vides historiques. L'inventaire reste 61 identifiants : 25 E, 12 I, 4 P0, 4 P1, UI-WA-01, REF-01, VAL-01, 6 P2 et 7 LEG.
+- Toolchain : Prisma format/validate/generate, TypeScript backend, frontend 92/92, ESLint, build/prerender/budgets et audit traceurs conformes; backend complet 19 fichiers et 156/156.
+- E2E local initial : 132/134, avec deux arrêts WebKit LEG-05/P1-03; relance ciblée 2/2. Les résultats initiaux sont conservés comme flakes et non remplacés.
+- E2E production initial : 117/118, avec crash du processus WebKit sur P2-05 lot 2; ce lot passe lors de la relance. La relance de la ligne commune a ensuite reproduit un crash sur le lot 1 alors que le lot 2 passait; lot 1 isolé final 1/1. Axe production 2/2.
+- Production en lecture seule : service `active/running`, PID 1224482, `NRestarts=67`; santé, accueil et administration HTTPS 200; 28 migrations, schéma à jour. Compteurs inchangés : 13 réservations/snapshots/paiements, 22 formules et 22 versions `PUBLISHED`, 54 notifications (40 `SENT`, 14 `FAILED`), 8 leads, 11 synchronisations calendrier, zéro tâche financière, report, retrait, demande de droits, incident, livraison ou rapport e-mail.
+- Gates inchangées : 0/22 version publiée avec `deliveryLabel`; E-17/E-18/E-19 = 0; I-09/I-12 = 0; I-11 = 7 acceptés SMTP sans preuve de réception fournisseur. Aucun e-mail, lead, réservation QA ou livrable n'a été créé.
+- Configuration expurgée : livraison e-mail activée et SMTP configuré; WhatsApp et identifiants OAuth Zoho absents; aucun secret trouvé dans le diff.
+
+Les huit exigences non requalifiées sont P1-01/I-08 (`DIFFÉRÉ-META`), E-17/E-18/E-19 (`BLOQUÉ-GATES-OWNER`) et I-09/I-11/I-12 (`DIFFÉRÉ-OWNER`). POST-03 reste une dette transverse `DIFFÉRÉ-OWNER` sur le contenu catalogue. POST-06 ne fabrique donc ni preuve fournisseur ni « 100 % ».

@@ -1590,3 +1590,24 @@ La voie A est implémentée et testée, sans appel Zoho réel faute d'identifian
 | Production | Aucune variable, donnée ou notification modifiée |
 
 Le probe est prêt. La preuve d'accès attend `ZOHO_MAIL_ORG_ID` et un token OAuth `ZohoMail.partner.organization.READ` fournis hors Git; un statut HTTP/fournisseur 200 confirmera l'accès sans exposer le journal.
+
+# POST-06 — Revalidation exhaustive — 9 août 2026
+
+## Verdict
+
+`EXÉCUTÉ-NON-CLOS` : 53/59 exigences actives et 53/61 globales sont `VALIDÉ-PROD`. Les preuves externes et décisions OWNER manquantes n'ont pas été simulées.
+
+| Contrôle | Résultat initial | Reprise/constat |
+|---|---|---|
+| DOCX | 3/3 réextraits, empreintes stables; 1 609 paragraphes non vides | 61 identifiants recalculés |
+| Prisma | format, validate et generate conformes | 28 migrations à jour |
+| Backend | 19 fichiers, 156/156 | build TypeScript conforme |
+| Frontend | 92/92; ESLint conforme | build, prerender, budgets et traceurs conformes |
+| Playwright local | 132/134; LEG-05 et P1-03 arrêtés sous WebKit | ciblé 2/2 |
+| Playwright production | 117/118; crash WebKit P2-05 lot 2 | lot 2 vert; une relance commune a crashé lot 1, puis lot 1 isolé 1/1 |
+| Axe production | 2/2 | aucune violation bloquante |
+| Production | service actif; HTTPS 200; schéma à jour | compteurs métier inchangés |
+
+Les échecs E2E initiaux sont conservés : tous correspondent à la fermeture/crash du moteur WebKit, et chaque scénario a réussi isolément. Cette qualification n'efface pas les campagnes initiales.
+
+Postflight : 13 réservations, 13 snapshots, 13 paiements, 22 formules, 22 versions publiées, 54 notifications, 8 leads, 11 synchronisations calendrier, 18 médias; zéro livraison, rapport e-mail, tâche financière, report, retrait, demande de droits ou incident. Aucun e-mail ni écriture métier réelle pendant POST-06.

@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — POST-06 revalidation exhaustive, non close
+
+### Vérifié
+
+- Trois DOCX réextraits intégralement, empreintes stables et inventaire de 61 identifiants recalculé.
+- Prisma, TypeScript, backend 156/156, frontend 92/92, lint, build/prerender/budgets et audit traceurs conformes.
+- E2E local initial 132/134 puis ciblé 2/2; production initiale 117/118 puis scénarios WebKit isolés verts; axe production 2/2. Les résultats initiaux sont conservés comme flakes de crash WebKit.
+- Service actif, 28 migrations à jour, HTTPS 200 et compteurs production inchangés; aucun e-mail ni aucune donnée QA créés.
+
+### Différé sans faux succès
+
+- OAuth SMTP Logs POST-05 différé à la demande de l'OWNER; Zoho Mail ordinaire reste inchangé.
+- Verdict : 53/59 actives et 53/61 globales `VALIDÉ-PROD`. P1-01/I-08 restent `DIFFÉRÉ-META`; E-17/E-18/E-19 restent bloquées par leurs gates; I-09/I-11/I-12 restent différées faute de preuves externes.
+- POST-03 reste `DIFFÉRÉ-OWNER` pour le contenu catalogue; aucune valeur n'a été inventée.
+
 ## 9 août 2026 — Voie A Zoho Mail et probe OAuth SMTP Logs
 
 ### Ajouté

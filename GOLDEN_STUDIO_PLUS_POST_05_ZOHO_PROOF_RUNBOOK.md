@@ -1,6 +1,6 @@
 # Runbook supervisé POST-05 — Zoho et preuves I-09/I-11/I-12
 
-État : `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION` au 9 août 2026
+État : `DIFFÉRÉ-OWNER` au 9 août 2026. L'OWNER conserve Zoho Mail mais diffère la preuve OAuth SMTP Logs; l'envoi/réception ordinaire reste opérationnel.
 
 Ce document n'autorise aucun envoi. Il sépare la preuve immédiate des messages internes et le choix d'intégration nécessaire pour les rapports de livraison.
 
