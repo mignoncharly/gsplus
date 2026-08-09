@@ -7,6 +7,8 @@ Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VA
 
 > **Clôture POST-02 du 9 août 2026** — Le critère transverse d'anti-saturation administrative est `VALIDÉ-PROD` : suppression nominative de l'auto-notification uniquement, boîte partagée/autres admins/workers/clients/alertes terminales préservés, 152/152 tests backend et postflight production non mutatif. Le registre atomique reste à 53/61.
 
+> **Préparation POST-03 du 9 août 2026** — Le préflight OWNER confirme en lecture seule 22/22 résumés, délais, listes d'inclusions et mentions juridiques tarifaires manquants, ainsi que des contenus/conditions réduits au nom par le backfill. Les 88 champs absents et 22 confirmations sont consignés dans `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md`; aucune donnée de production n'a été modifiée. POST-03 reste `EN-ATTENTE-CONTENU-OWNER` et le registre reste à 53/61.
+
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|
 | Audit §3 P0-01; prompt §5 | P0-01 | Snapshot 1:1, profil courant séparé, lectures notification/calendrier/admin sur snapshot | Oui, appliquée en production; backfill/protection vérifiés | Six identités même téléphone; profil modifié; concurrence | Six lignes/destinataires/consentements indépendants | VALIDÉ-PROD |

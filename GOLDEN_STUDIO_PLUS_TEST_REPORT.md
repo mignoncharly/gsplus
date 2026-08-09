@@ -1498,3 +1498,26 @@ POST-02 est `VALIDÉ-PROD`. Une politique durable distingue désormais acteur, a
 | Notifications | 40 `SENT`, 14 `FAILED`; dernier `sentAt` inchangé au 8/8/2026 à 17:00:12 UTC, donc aucun envoi de déploiement |
 
 La progression passe à 2/6 phases actives. Le registre atomique reste honnêtement à 53/61 `VALIDÉ-PROD`, POST-02 étant un critère transverse. POST-03 attend le contenu OWNER; POST-04 attend une autorisation d'envoi réel.
+
+# POST-03 — Préparation de la complétude OWNER — 9 août 2026
+
+## Résultat
+
+POST-03 demeure `EN-ATTENTE-CONTENU-OWNER`. La partie autonome et non mutative est achevée : inventaire exhaustif produit, absence de source approuvée confirmée et baseline d'intégrité enregistrée. Aucune mention métier n'a été inventée.
+
+| Contrôle | Résultat |
+|---|---|
+| Extraction production | 22 formules actives/non archivées, 22 versions `PUBLISHED` |
+| États intermédiaires | 0 `DRAFT`, 0 `VALIDATED` |
+| Résumés publics | 0/22 renseigné; 22 `null` |
+| Délais de livraison | 0/22 renseigné; 22 `null` |
+| Listes d'inclusions | 0/22 non vide; 22 listes vides |
+| Mentions juridiques tarifaires | 0/22 renseignée; 22 `null` |
+| Contenus/conditions | 22/22 techniquement présents mais réduits au nom par le backfill; confirmation OWNER requise |
+| Réservations/snapshots | 13/13, aucune mutation |
+| Empreinte tarifaire figée | SHA-256 `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1` |
+| Recherche de contenu approuvé | Aucune source OWNER formule par formule dans le dépôt; fallback frontend et « 48 h » générique exclus comme preuves d'approbation |
+| Livrable | `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md`, deux tableaux de 22 lignes, 88 champs absents et 22 confirmations métier |
+| Écriture production | Aucune |
+
+La suite exigera une approbation OWNER explicite des 88 champs obligatoires absents et la confirmation ou le remplacement des contenus/conditions hérités. Elle créera alors des versions 2 via le service/API, suivies de l'aperçu, de la validation et de la publication OWNER; elle ne modifiera ni les versions historiques ni les snapshots. La progression reste à 2/6 et 53/61 `VALIDÉ-PROD`.

@@ -786,6 +786,7 @@ Procédure :
 
 - Exporter un inventaire OWNER avec identifiant, nom, catégorie, version publiée, résumé manquant et délai manquant.
 - Faire fournir ou approuver un résumé public et un délai réel pour chaque formule; aucune génération automatique ne vaut approbation métier.
+- Le préflight du 9 août a aussi confirmé 22 listes d'inclusions vides et 22 mentions juridiques tarifaires manquantes, toutes bloquantes pour une nouvelle validation. Les faire fournir/approuver; faire confirmer ou remplacer `content` et `conditions`, actuellement réduits au nom par le backfill historique.
 - Créer une nouvelle version DRAFT par formule via le service/API normal, prévisualiser, valider avec les mentions approuvées puis publier par commande OWNER idempotente.
 - Archiver la version publiée précédente par le workflow existant; préserver les snapshots des 13 réservations et les prix/conditions historiques.
 - Vérifier le rendu public, l’administration, les accents, FCFA, mobile et accessibilité; aucune formule ne doit disparaître pendant la bascule.
@@ -866,3 +867,16 @@ POST-01 est terminé et `VALIDÉ-PROD`. Progression de clôture : 1/6 phases act
 - Postflight non mutatif : 13 réservations, 13 paiements, 54 notifications (40 `SENT`, 14 `FAILED`), zéro tâche financière, zéro demande de report et zéro suppression historique. Aucun envoi fournisseur; dernier `sentAt` inchangé au 8 août 2026 à 17:00:12 UTC.
 
 POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/61 exigences atomiques `VALIDÉ-PROD`; le compteur ne change pas car l'anti-saturation est un critère transverse. POST-03 reste en attente du contenu OWNER des 22 formules; en l'absence de ce contenu, la prochaine phase techniquement exécutable est POST-04, soumise à l'autorisation explicite d'envoi réel.
+
+## 40. Préparation POST-03 « Complétude métier des 22 formules » — 9 août 2026
+
+État : `EN-ATTENTE-CONTENU-OWNER`; l'inventaire factuel est terminé, mais aucune version n'a été créée et aucune donnée de production n'a été modifiée.
+
+- Extraction directe en lecture seule : 22 formules actives/non archivées, 22 versions 1 `PUBLISHED`, zéro `DRAFT`, zéro `VALIDATED`.
+- Dette confirmée : 22/22 `description`, 22/22 `deliveryLabel`, 22/22 listes `inclusions` et 22/22 `legalText` sont absents. Les valeurs `content`/`conditions` issues du backfill reprennent seulement le nom : elles passent la garde technique mais exigent confirmation ou remplacement OWNER.
+- Recherche documentaire : aucune source OWNER approuvée formule par formule n'a été trouvée dans le dépôt. La mention marketing générique « 48 h » et le fallback calculé depuis la durée de séance ne constituent pas un délai de livraison approuvé.
+- Livrable : `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` recense les 22 identifiants, noms, catégories, prix, durées et versions, les 88 champs obligatoires absents et les 22 confirmations `content`/`conditions`.
+- Invariants : 13 réservations et 13 snapshots; empreinte SHA-256 des liaisons et données tarifaires figées `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
+- Gate : aucune création DRAFT, validation ou publication avant réception des 88 champs absents, confirmation ou remplacement des contenus/conditions hérités, et approbation OWNER explicite. Le workflow service/API versionné est prêt et bloque déjà les champs requis absents.
+
+POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; POST-06 ne peut donc pas commencer.

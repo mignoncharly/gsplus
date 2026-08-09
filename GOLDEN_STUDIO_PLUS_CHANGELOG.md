@@ -1,5 +1,21 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — POST-03 inventaire OWNER préparé
+
+### Constaté
+
+- Extraction production en lecture seule : 22 formules actives, 22 versions publiées, aucune DRAFT/VALIDATED; les 22 résumés publics, 22 délais de livraison, 22 listes d'inclusions et 22 mentions juridiques tarifaires sont absents. `content`/`conditions` reprennent uniquement le nom et attendent confirmation OWNER.
+- Aucune mention OWNER approuvée formule par formule n'est présente dans le dépôt. Le fallback frontend et le texte marketing générique « 48 h » ne sont pas assimilés à une approbation métier.
+
+### Ajouté
+
+- `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` : inventaire éditable des 22 formules, des 88 champs obligatoires absents et des 22 confirmations métier, avec gate d'approbation et procédure de publication versionnée.
+- Baseline non personnelle des 13 snapshots/liaisons tarifaires, empreinte SHA-256 `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
+
+### En attente
+
+- Aucune version DRAFT créée et aucune donnée de production modifiée. POST-03 reste `EN-ATTENTE-CONTENU-OWNER`; progression inchangée à 2/6 et 53/61 `VALIDÉ-PROD`.
+
 ## 9 août 2026 — POST-02 anti-saturation administrative
 
 ### Ajouté
