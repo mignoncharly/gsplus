@@ -713,3 +713,124 @@ LEG-06 est terminé et `VALIDÉ-PROD`. LEG-07 « Respect effectif du droit à l�
 - Production : sauvegarde `.phase0-backups/20260808T230000Z-pre-leg-07/database-pre-leg-07.dump`, 155 163 octets, mode 0600, SHA-256 `ced864afc6b81c7b105615b4f776ff4970c36409718f52ea454dd99f7cfc7321`; migration `20260808233000_leg_07_media_rights` appliquée, base 28/28. Backend actif PID 570395, `NRestarts=64`; santé/admin HTTPS 200. Les 13 réservations, 13 paiements, 9 accords et 4 refus sont inchangés.
 
 LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 phases terminées (100 %), aucune phase restante.
+
+## 37. Plan de clôture post-audit des trois DOCX — 9 août 2026
+
+État initial : `PLANIFIÉ`. Ce registre remplace la lecture trompeuse « 25/25 » pour la clôture exhaustive des 61 identifiants atomiques extraits des trois DOCX. Le commit d’audit `8c27a59` constitue la baseline : 49/61 `VALIDÉ-PROD`, 6/61 `DÉPLOYÉ NON PROUVÉ`, 4/61 `TESTÉ LOCALEMENT` et 2/61 `BLOQUÉ-PREUVE-EXTERNE`.
+
+### 37.1 Périmètre et règle de clôture
+
+- Périmètre actif : 59 identifiants. P1-01/I-08 WhatsApp sont explicitement différés jusqu’à la fourniture des identifiants Meta Business; ils ne bloquent pas la clôture du périmètre e-mail, mais restent visibles et ne seront jamais requalifiés artificiellement.
+- Cible active : 59/59 `VALIDÉ-PROD`, soit 59/61 au registre global. Le verdict final devra écrire « 100 % du périmètre actif, WhatsApp/Meta différé », jamais « 100 % global ».
+- Une preuve mockée valide le code, pas un fournisseur. Une preuve externe exige un message réellement reçu ou un rapport réellement émis par Zoho, avec éléments personnels expurgés du dépôt.
+- Aucun e-mail réel, aucune création de réservation QA et aucune publication de livrable ne seront effectués sans autorisation explicite préalable du propriétaire et désignation d’une boîte de test contrôlée.
+- Les 22 contenus tarifaires manquants ne seront pas inventés. Ils doivent être fournis ou approuvés par l’OWNER puis publiés par le workflow versionné existant, sans UPDATE SQL direct des versions historiques.
+
+### 37.2 Registre ordonné
+
+| Ordre | Phase | Couverture | État initial | Condition de sortie |
+|---|---|---|---|---|
+| 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
+| 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `PLANIFIÉ` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
+| 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `PLANIFIÉ` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-CONTENU-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `EN-ATTENTE-AUTORISATION-ENVOI` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
+| 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `EN-ATTENTE-AUTORISATION-ENVOI` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
+| 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
+| D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
+
+Progression de clôture : 0/6 phases actives terminées; AUD-00 constitue la baseline validée et META-01 reste différée hors dénominateur actif.
+
+Ordre d’exécution : POST-01 → POST-02. POST-03 peut avancer en parallèle dès que le contenu OWNER est disponible. POST-04 précède POST-05 afin que la même fenêtre de preuve supervisée couvre réception et retours fournisseur. POST-06 ne commence qu’après POST-01 à POST-05, ou documente précisément toute gate externe encore ouverte.
+
+### 37.3 POST-01 — Cycles et déduplication I-03 à I-06
+
+Objectif : transformer les quatre statuts `TESTÉ LOCALEMENT` en preuves comportementales dédiées, en particulier le deuxième cycle paiement→attente que l’idempotency key actuelle peut confondre avec le premier.
+
+Implémentation et tests :
+
+- Écrire d’abord des scénarios rouges ciblés dans les tests d’intégration notification/finance/report.
+- I-03 : prouver une alerte au premier cycle, zéro doublon au rejeu du même cycle, puis exactement une nouvelle alerte pour un nouveau paiement ou cycle de décision légitime; couvrir deux workers concurrents.
+- I-04 : distinguer le rejeu idempotent d’une même demande de report d’une nouvelle demande métier autorisée; une seule alerte par demande réelle.
+- I-05 : couvrir annulation client et Studio, seuils financiers, rejeu de commande et concurrence; une alerte par décision effective.
+- I-06 : couvrir création, engagement et finalisation de tâche financière, rejeu de commande et version périmée; aucune alerte avant la tâche requise ni duplication après finalisation.
+- Si le test I-03 révèle que la clé stable par réservation supprime un cycle légitime, inclure l’identité du paiement/cycle dans la clé tout en conservant la déduplication du rejeu. Ne jamais réécrire les événements historiques.
+
+Validation et sortie : tests ciblés verts, backend complet vert, TypeScript/Prisma conformes, déploiement sans envoi fournisseur, smoke production non mutatif et matrice I-03/I-04/I-05/I-06 passée à `VALIDÉ-PROD`.
+
+### 37.4 POST-02 — Anti-saturation administrative
+
+Objectif : rendre explicite et testable le critère « l’auteur d’une action n’est pas alerté inutilement de sa propre action » sans perdre les alertes opérationnelles destinées à la boîte partagée.
+
+Politique à implémenter :
+
+- Modéliser ou transmettre l’acteur de la commande, l’audience et la destination de l’alerte interne.
+- Supprimer uniquement une notification redondante lorsque le destinataire nominatif correspond réellement à l’admin acteur.
+- Conserver l’alerte lorsque la destination est la boîte opérationnelle partagée, lorsque l’action vient du système/worker ou lorsque le destinataire est un autre admin.
+- Ne jamais appliquer ce filtre aux messages client E-xx, aux alertes terminales de sécurité/intégrité ni aux destinataires externes.
+- Auditer la suppression avec une raison minimale, sans adresse complète ni secret.
+
+Tests obligatoires : OWNER vers sa boîte nominative, OWNER vers boîte partagée, STAFF vers OWNER, worker sans acteur, destinataire client, rejeu et concurrence. Une migration ne sera ajoutée que si l’identité acteur/destinataire ne peut pas être portée durablement par les structures existantes.
+
+Sortie : politique documentée, tests rouges puis verts, backend complet vert, production déployée et preuve qu’aucune alerte historique n’a été supprimée.
+
+### 37.5 POST-03 — Complétude métier des formules
+
+Objectif : résorber la dette de données révélée par P1-04 : les 22 versions/formules publiques existantes ont `description` et `deliveryLabel` à `null`, même si le code bloque désormais toute nouvelle publication incomplète.
+
+Procédure :
+
+- Exporter un inventaire OWNER avec identifiant, nom, catégorie, version publiée, résumé manquant et délai manquant.
+- Faire fournir ou approuver un résumé public et un délai réel pour chaque formule; aucune génération automatique ne vaut approbation métier.
+- Créer une nouvelle version DRAFT par formule via le service/API normal, prévisualiser, valider avec les mentions approuvées puis publier par commande OWNER idempotente.
+- Archiver la version publiée précédente par le workflow existant; préserver les snapshots des 13 réservations et les prix/conditions historiques.
+- Vérifier le rendu public, l’administration, les accents, FCFA, mobile et accessibilité; aucune formule ne doit disparaître pendant la bascule.
+
+Sortie : zéro formule publique courante sans `description` ou `deliveryLabel`, historique/snapshots inchangés, compteurs/versionnements expliqués, tests P1-04 et production ciblée verts.
+
+### 37.6 POST-04 — Preuve réelle E-17/E-18/E-19
+
+Gate d’entrée : autorisation explicite d’envoi réel, adresse de test contrôlée, réservation QA autorisée ou dossier existant expressément désigné, et livrable HTTPS non sensible prévu pour la preuve.
+
+Parcours supervisé :
+
+- Capturer les compteurs et sauvegarder la base avant toute écriture de production.
+- Utiliser exclusivement les commandes métier normales; aucun INSERT/UPDATE SQL direct pour fabriquer les événements.
+- Prouver E-17 à la fin prévue, E-18 après passage effectif à `COMPLETED` avec délai/version, puis E-19 seulement après publication OWNER d’un `ReservationDelivery` dont l’URL HTTPS répond réellement en 2xx.
+- Vérifier dans la boîte de test les sujets, références, Message-ID et horaires UTC/Douala; ouvrir le lien depuis le message et confirmer le téléchargement attendu.
+- Vérifier qu’un master privé ou chemin interne n’est jamais exposé et qu’un lien absent/invalide/inaccessible bloque E-19.
+- Consigner des preuves expurgées ou empreintes; ne jamais committer adresse complète, token, URL privée ou contenu client.
+
+Sortie : E-17/E-18/E-19 requalifiés `VALIDÉ-PROD`, delta QA attendu documenté, files stabilisées et absence de mutation des 13 dossiers réels non concernés.
+
+### 37.7 POST-05 — Preuves Zoho I-09/I-11/I-12
+
+Gate d’entrée : autorisation d’envoi réel et confirmation du mécanisme que le compte Zoho utilisé fournit effectivement pour les rapports (webhook, DSN, API ou boîte de rebonds). Un webhook simulé ne suffit pas comme preuve fournisseur.
+
+Travail prévu :
+
+- Identifier et documenter le producteur Zoho réel. S’il n’émet pas le format signé attendu, implémenter un adaptateur entrant vérifiable, idempotent et minimisé; conserver la validation HMAC/rejeu aux frontières qui la supportent.
+- Réception normale : rattacher le rapport réel au `NotificationEvent` exact et conserver identifiant fournisseur, statut et date sans dupliquer le contenu du message.
+- I-09 : employer uniquement un simulateur officiel ou une adresse de test contrôlée pour obtenir un échec permanent; ne jamais envoyer volontairement vers une adresse tierce. Prouver zéro I-09 sur succès/échec temporaire et une seule I-09 sur échec permanent malgré rejeu.
+- I-11 : prouver le digest une fois à 18 h Douala lorsqu’un travail utile existe, puis zéro envoi lorsqu’il est vide; vérifier la clé par date Douala.
+- I-12 : soumettre un lead CONTACT/B2B QA autorisé, prouver l’accusé client correspondant et une seule alerte interne I-12 réellement reçue.
+- Capturer les preuves expurgées, vérifier les files et documenter tout écart de capacité Zoho comme gate externe factuelle plutôt que comme succès.
+
+Sortie : I-09/I-11/I-12 `VALIDÉ-PROD`, rapports fournisseur et réceptions réelles consignés, secrets absents du dépôt et aucun impact sur les destinataires réels hors QA.
+
+### 37.8 POST-06 — Revalidation et clôture
+
+- Réextraire intégralement les trois DOCX et recalculer l’inventaire des 61 identifiants; ne pas recopier les statuts antérieurs sans preuve.
+- Vérifier code, schéma, migrations, workers, configuration et production pour chaque exigence.
+- Exécuter Prisma format/validate/generate, TypeScript, backend complet, frontend complet, ESLint, audit traceurs, build/prerender/budgets, Playwright Chromium/WebKit local complet, production ciblée et axe.
+- Distinguer dans le rapport le run complet initial et les éventuelles reprises de flakes; aucune reprise ne doit effacer le résultat initial.
+- Comparer les compteurs production avant/après, vérifier santé, service, migrations et absence de secret dans le diff.
+- Mettre à jour matrice, plan, changelog et rapport; créer un commit isolé sur `main`, pousser seulement si un remote existe, puis remettre l’arbre propre.
+
+Condition de clôture active : 59/59 identifiants non-Meta `VALIDÉ-PROD`, toutes les gates e-mail levées, dette tarifaire résorbée et aucun écart transverse ouvert. Le rapport global restera 59/61 avec P1-01/I-08 `DIFFÉRÉ-META` jusqu’à META-01.
+
+### 37.9 META-01 — Phase différée WhatsApp/Meta
+
+Cette phase n’est pas autorisée ni planifiée dans le chemin actif. Aucun secret ne doit être inventé, committé ou demandé dans un canal non sécurisé. Elle pourra démarrer uniquement après fourniture d’un numéro WhatsApp Business vérifié, des identifiants/token/secrets Meta, des modèles approuvés et d’un destinataire de test consentant.
+
+À sa reprise : configurer les secrets hors Git, valider le webhook Meta, laisser le canal désactivé jusqu’au préflight complet, réaliser un envoi entreprise et un envoi client consenti, prouver `sent/delivered/read`, cadence 0/2/10, échec terminal et I-08 unique, puis exécuter la non-régression et mettre à jour le registre à 61/61. Tant que ces conditions ne sont pas réunies, l’état reste `DIFFÉRÉ-META` et non `VALIDÉ-PROD`.
