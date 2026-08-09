@@ -285,7 +285,7 @@ router.post(
       admin,
     });
     if (!outcome.replayed) {
-      await queueCancellationNotifications(reservationId, { commandId: outcome.commandId });
+      await queueCancellationNotifications(reservationId, { commandId: outcome.commandId, actor: admin });
     }
     const calendarSync = !outcome.replayed
       ? await syncReservationToCalendar(reservationId)
@@ -532,7 +532,7 @@ router.patch(
         reservation.status === ReservationStatus.COMPLETED ||
         reservation.status === ReservationStatus.NO_SHOW)
     ) {
-      await queueReservationStatusNotification(reservation.id, reservation.status, { commandId });
+      await queueReservationStatusNotification(reservation.id, reservation.status, { commandId, actor: admin });
     }
     if (
       !replayed &&
@@ -591,7 +591,10 @@ router.post(
 
     let calendarSync = null;
     if (!outcome.replayed) {
-      await queueReservationStatusNotification(reservationId, ReservationStatus.CONFIRMED, { commandId: outcome.commandId });
+      await queueReservationStatusNotification(reservationId, ReservationStatus.CONFIRMED, {
+        commandId: outcome.commandId,
+        actor: admin,
+      });
       calendarSync = await syncReservationToCalendar(reservationId);
     }
     res.json({
@@ -623,7 +626,10 @@ router.post(
       admin,
     });
     if (!outcome.replayed) {
-      await queueRescheduleRequestNotifications(outcome.value.request.id, { commandId: outcome.commandId });
+      await queueRescheduleRequestNotifications(outcome.value.request.id, {
+        commandId: outcome.commandId,
+        actor: admin,
+      });
     }
     res.status(201).json({
       data: {
@@ -1038,6 +1044,7 @@ router.patch(
     if (!outcome.replayed) {
       await queuePaymentStatusNotifications(outcome.value.payment.reservationId, outcome.value.payment.status, {
         commandId: outcome.commandId,
+        actor: admin,
       });
     }
 
@@ -1107,7 +1114,10 @@ router.post(
       admin,
     });
     if (!outcome.replayed) {
-      await queuePaymentAddedNotifications(outcome.value.payment.id, { commandId: outcome.commandId });
+      await queuePaymentAddedNotifications(outcome.value.payment.id, {
+        commandId: outcome.commandId,
+        actor: admin,
+      });
     }
     res.status(outcome.replayed ? 200 : 201).json({
       data: {

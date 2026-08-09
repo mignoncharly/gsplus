@@ -1454,3 +1454,47 @@ POST-01 est `VALIDÉ-PROD`. I-03 distingue désormais les cycles réels par l'id
 | Fournisseur | Aucun envoi déclenché : 40 événements `SENT`, 14 `FAILED`, 11 tentatives; dernier `sentAt` le 8/8/2026 à 17:00:12 UTC, donc antérieur au déploiement |
 
 La progression exhaustive passe à 53/61 `VALIDÉ-PROD`, soit 1/6 phases actives post-audit terminée. POST-02 est la prochaine phase; P1-01/I-08 restent `DIFFÉRÉ-META`.
+
+# POST-02 — Anti-saturation administrative — 9 août 2026
+
+## Résultat
+
+POST-02 est `VALIDÉ-PROD`. Une politique durable distingue désormais acteur, audience et destination; elle neutralise uniquement l'alerte nominative adressée à son propre auteur et conserve toutes les alertes opérationnelles ou externes utiles.
+
+## Preuve TDD et comportementale
+
+| Contrôle | Résultat |
+|---|---|
+| Run rouge POST-02 | Suite non chargeable : module `internal-notification-policy` absent avant implémentation, 0 test exécuté |
+| OWNER → sa boîte nominative | Événement unique `CANCELLED`, zéro tentative, raison `SELF_NOMINATIVE_REDUNDANT`; aucune adresse dans les métadonnées d'audit |
+| OWNER → boîte partagée | `PENDING` conservé même lorsque l'adresse opérationnelle correspond à l'adresse de l'OWNER |
+| STAFF → OWNER | `PENDING` conservé; identifiants acteur et destinataire distincts consignés |
+| Worker sans acteur | `PENDING`, `actorType=SYSTEM` |
+| Client/externe | Filtre administratif non appliqué; les chemins E-xx restent indépendants |
+| Sécurité/intégrité | I-07 à I-10 non supprimables |
+| Rejeu et concurrence | Deux producteurs concurrents puis rejeu donnent un seul événement supprimé, `attemptCount=0` |
+| Run final POST-02 | 6/6 |
+| Suites liées | 43/43 sur 7 fichiers |
+| Backend complet | 18 fichiers, 152/152 |
+| Prisma / TypeScript | format/validate/generate et `tsc` réussis; 28 migrations, aucun changement de schéma |
+| Intégrité | `git diff --check` réussi |
+
+## Implémentation
+
+- `backend/src/emails/internal-notification-policy.ts` centralise la décision et l'enregistrement idempotent.
+- Les métadonnées minimales sont `audience`, `destinationType`, `actorType`, `actorAdminUserId` et, si nécessaire, `destinationAdminUserId`; l'adresse complète n'est jamais dupliquée dans l'audit.
+- Une suppression est traçable dans le registre existant avec `resolution=SUPPRESSED`; aucun événement historique n'est modifié ou supprimé.
+- Toutes les alertes I-01 à I-12 déclarent leur destination partagée actuelle; les routes administratives transmettent l'acteur aux chemins I-02 à I-06.
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Build backend validé puis reprise systemd par SIGTERM du processus supervisé; aucune migration |
+| Service | Actif, PID 1224482, `NRestarts=67`, démarré le 9/8/2026 à 07:20:38 UTC |
+| Santé | `https://gsplus.vip/api/health` = 200; `https://gsplus.vip/admin` = 200 |
+| Base | 28/28 migrations, schéma à jour |
+| Invariants avant/après | 13 réservations, 13 paiements, 54 notifications, 0 tâche financière, 0 demande de report, 0 suppression historique |
+| Notifications | 40 `SENT`, 14 `FAILED`; dernier `sentAt` inchangé au 8/8/2026 à 17:00:12 UTC, donc aucun envoi de déploiement |
+
+La progression passe à 2/6 phases actives. Le registre atomique reste honnêtement à 53/61 `VALIDÉ-PROD`, POST-02 étant un critère transverse. POST-03 attend le contenu OWNER; POST-04 attend une autorisation d'envoi réel.

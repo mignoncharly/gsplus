@@ -60,6 +60,9 @@ export const recordMissingReservationSnapshot = async (reservationId: string, co
         renderedContent: rendered as unknown as Prisma.InputJsonValue,
         metadata: {
           templateCode: 'I-10',
+          audience: 'ADMIN',
+          destinationType: 'SHARED_OPERATIONAL',
+          actorType: 'SYSTEM',
           incidentId: incident.id,
           reservationId,
           incidentCode: code,

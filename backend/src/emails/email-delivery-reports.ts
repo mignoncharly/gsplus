@@ -140,6 +140,9 @@ export const handleEmailDeliveryReport = async (input: EmailDeliveryReportInput)
           renderedContent: rendered as unknown as Prisma.InputJsonValue,
           metadata: {
             templateCode: 'I-09',
+            audience: 'ADMIN',
+            destinationType: 'SHARED_OPERATIONAL',
+            actorType: 'SYSTEM',
             failedNotificationId: event.id,
             emailDeliveryReportId: report.id,
             errorCode: failureCode,

@@ -1,5 +1,26 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — POST-02 anti-saturation administrative
+
+### Ajouté
+
+- Politique centrale acteur/audience/destination pour les alertes internes, sans migration : destinations `SHARED_OPERATIONAL` ou `NOMINATIVE`, sources `ADMIN`, `SYSTEM`, `CUSTOMER` ou `EXTERNAL`.
+- Une alerte nominative réellement adressée à son auteur est enregistrée `CANCELLED`/`SUPPRESSED` avec la raison minimale `SELF_NOMINATIVE_REDUNDANT`; aucune tentative fournisseur n'est créée.
+- Les métadonnées d'audit contiennent uniquement des types et identifiants internes, jamais une copie de l'adresse complète.
+
+### Préservé
+
+- Les alertes vers la boîte opérationnelle partagée, vers un autre admin, depuis un worker, vers un client et les messages E-xx restent inchangées.
+- I-07/I-08/I-09/I-10 restent non supprimables pour préserver les alertes terminales fournisseur, sécurité et intégrité.
+- Les 54 événements historiques restent intacts; aucune suppression rétroactive.
+
+### Validé et déployé
+
+- Test rouge : module absent, suite non chargeable; final POST-02 6/6, suites liées 43/43, backend complet 152/152 sur 18 fichiers.
+- Prisma format/validate/generate, TypeScript et `git diff --check` conformes; aucune migration.
+- Production : service actif PID 1224482, `NRestarts=67`, schéma 28/28, santé/admin 200. Compteurs inchangés et aucun envoi fournisseur.
+- Progression : 2/6 phases actives; 53/61 exigences atomiques `VALIDÉ-PROD` (POST-02 clôt un critère transverse).
+
 ## 9 août 2026 — POST-01 cycles et déduplication I-03 à I-06
 
 ### Corrigé

@@ -9,6 +9,11 @@ import { Prisma } from '../generated/prisma/client.js';
 import { LeadType, NotificationStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { normalizeE164Phone } from '../utils/phone.js';
 import {
+  enqueueInternalEmailNotification,
+  type InternalNotificationDestination,
+  type NotificationActor,
+} from './internal-notification-policy.js';
+import {
   EMAIL_TEMPLATE_VERSION,
   renderEmailTemplate,
   type EmailTemplateCode,
@@ -696,6 +701,38 @@ const enqueueReservationEmail = (
   });
 };
 
+const enqueueReservationInternalEmail = (
+  reservation: ReservationEmailSource,
+  input: {
+    code: EmailTemplateCode;
+    type: string;
+    recipient: string;
+    idempotencyKey: string;
+    nextAttemptAt?: Date;
+    metadata?: Prisma.InputJsonObject;
+    variables?: EmailTemplateVariables;
+    actor?: NotificationActor | null;
+    actorType?: 'SYSTEM' | 'CUSTOMER' | 'EXTERNAL';
+    destination?: InternalNotificationDestination;
+  },
+) => {
+  const rendered = renderReservationEmail(reservation, input.code, input.variables);
+  return enqueueInternalEmailNotification({
+    reservationId: reservation.id,
+    type: input.type,
+    recipient: input.recipient,
+    idempotencyKey: input.idempotencyKey,
+    nextAttemptAt: input.nextAttemptAt,
+    templateCode: input.code,
+    templateVersion: EMAIL_TEMPLATE_VERSION,
+    renderedContent: rendered as unknown as Prisma.InputJsonValue,
+    metadata: input.metadata,
+    actor: input.actor,
+    actorType: input.actorType,
+    destination: input.destination ?? { type: 'SHARED_OPERATIONAL' },
+  });
+};
+
 const whatsAppTemplateCode = (type: string, audience: WhatsAppAudience) => {
   if (audience === 'business') return 'WA-BUSINESS-BOOKING-CREATED';
   return {
@@ -778,7 +815,7 @@ export const enqueueWhatsAppFailureAlert = async (input: {
   const recipient = failed.recipient.length > 6
     ? `${failed.recipient.slice(0, 3)}••••${failed.recipient.slice(-3)}`
     : 'Masqué';
-  return enqueueReservationEmail(reservation, {
+  return enqueueReservationInternalEmail(reservation, {
     code: 'I-08',
     type: 'whatsapp_delivery_failed_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
@@ -804,7 +841,7 @@ export const enqueueCalendarSyncFailureAlert = async (input: {
     include: { customer: true, snapshot: true, payments: { orderBy: { createdAt: 'desc' } } },
   });
   if (!reservation?.snapshot) return;
-  return enqueueReservationEmail(reservation, {
+  return enqueueReservationInternalEmail(reservation, {
     code: 'I-07',
     type: 'calendar_sync_failed_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
@@ -831,11 +868,12 @@ export const queueReservationCreatedNotifications = async (reservationId: string
   }
   const contact = reservationContact(reservation);
   const jobs: Array<Promise<unknown>> = [
-    enqueueReservationEmail(reservation, {
+    enqueueReservationInternalEmail(reservation, {
       code: 'I-01',
       type: 'booking_received_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
       idempotencyKey: `reservation:${reservationId}:created:email:admin`,
+      actorType: 'CUSTOMER',
     }),
     enqueueReservationWhatsApp(reservation, {
       audience: 'business',
@@ -960,12 +998,13 @@ export const queueReservationStatusNotification = async (
     }));
   }
   if (code === 'E-07' && financialTask) {
-    jobs.push(enqueueReservationEmail(reservation, {
+    jobs.push(enqueueReservationInternalEmail(reservation, {
       code: 'I-06',
       type: 'refund_action_required_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
       idempotencyKey: `financial-task:${financialTask.id}:I-06:email`,
       metadata: { ...metadata, templateCode: 'I-06', financialTaskId: financialTask.id },
+      actor: context.actor,
       variables: {
         montant_remboursement_fcfa: formatAmount(financialTask.amount),
         canal_remboursement: financialTask.channel ?? 'À définir',
@@ -1084,12 +1123,13 @@ export const queueCancellationNotifications = async (
     }));
   }
   if (task) {
-    jobs.push(enqueueReservationEmail(reservation, {
+    jobs.push(enqueueReservationInternalEmail(reservation, {
       code: 'I-05',
       type: 'cancellation_financial_action_required_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
       idempotencyKey: `financial-task:${task.id}:I-05:email`,
       metadata: { ...metadata, templateCode: 'I-05' },
+      actor: context.actor,
       variables: {
         creneau: `${formatDate(contact.startAt)}, ${formatTime(contact.startAt)}–${formatTime(contact.endAt)}`,
         date_annulation: formatDateTime(new Date(policy.requestedAt)),
@@ -1280,12 +1320,13 @@ export const queueRescheduleRequestNotifications = async (
       variables,
     }));
   }
-  jobs.push(enqueueReservationEmail(reservation, {
+  jobs.push(enqueueReservationInternalEmail(reservation, {
     code: 'I-04',
     type: 'reschedule_request_review_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
     idempotencyKey: `reschedule-request:${request.id}:I-04:email`,
     metadata: { ...metadata, templateCode: 'I-04' },
+    actor: context.actor,
     variables,
   }));
   await Promise.all(jobs);
@@ -1459,8 +1500,7 @@ export const scheduleDailyOperationsDigest = async (now = new Date()) => {
     resume_actions_prioritaires: priorities || 'Séances du lendemain à préparer',
     lien_admin_tableau_bord: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin`,
   });
-  return enqueue({
-    channel: 'email',
+  return enqueueInternalEmailNotification({
     type: 'daily_operations_digest_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
     idempotencyKey: `digest:${dateKey}:I-11:email`,
@@ -1468,6 +1508,7 @@ export const scheduleDailyOperationsDigest = async (now = new Date()) => {
     templateVersion: EMAIL_TEMPLATE_VERSION,
     renderedContent: rendered as unknown as Prisma.InputJsonValue,
     metadata: { templateCode: 'I-11', dateDouala: dateKey },
+    destination: { type: 'SHARED_OPERATIONAL' },
   });
 };
 
@@ -1477,6 +1518,7 @@ const PAYMENT_DECISION_OVERDUE_DELAY_MS = env.PAYMENT_DECISION_OVERDUE_DELAY_MS;
 type NotificationQueueContext = {
   now?: Date;
   commandId?: string;
+  actor?: NotificationActor | null;
 };
 
 export const queuePaymentVerifiedNotification = async (
@@ -1528,7 +1570,7 @@ export const queuePaymentVerifiedNotification = async (
       }),
     );
   }
-  jobs.push(enqueueReservationEmail(reservation, {
+  jobs.push(enqueueReservationInternalEmail(reservation, {
     code: 'I-03',
     type: 'reservation_decision_overdue_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
@@ -1540,6 +1582,7 @@ export const queuePaymentVerifiedNotification = async (
       expectedPaymentStatus: payment.status,
       expectedPaymentVersion: payment.version,
     },
+    actor: context.actor,
     variables: {
       duree_attente: '30 minutes',
       statut_reservation: reservation.status,
@@ -1583,12 +1626,13 @@ export const queuePaymentAddedNotifications = async (
     ...(context.commandId ? { commandId: context.commandId } : {}),
   };
   const jobs: Array<Promise<unknown>> = [
-    enqueueReservationEmail(reservation, {
+    enqueueReservationInternalEmail(reservation, {
       code: 'I-02',
       type: 'payment_added_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
       idempotencyKey: `payment:${payment.id}:I-02:email`,
       metadata: { ...metadata, templateCode: 'I-02' },
+      actor: context.actor,
       variables,
     }),
   ];
@@ -1675,7 +1719,7 @@ export const queuePaymentStatusNotifications = async (
     }),
   ];
   if (status !== PaymentStatus.REJECTED) {
-    jobs.push(enqueueReservationEmail(reservation, {
+    jobs.push(enqueueReservationInternalEmail(reservation, {
       code: 'I-03',
       type: 'reservation_decision_overdue_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
@@ -1687,6 +1731,7 @@ export const queuePaymentStatusNotifications = async (
         expectedPaymentStatus: status,
         expectedPaymentVersion: payment.version,
       },
+      actor: context.actor,
       variables: {
         duree_attente: '30 minutes',
         statut_reservation: reservation.status,
@@ -1748,15 +1793,17 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
     resume_message: lead.message,
     lien_admin_demande: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?lead=${lead.id}`,
   });
-  jobs.push(enqueue({
+  jobs.push(enqueueInternalEmailNotification({
     leadId,
-    channel: 'email',
     type: 'lead_created_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
     idempotencyKey: `lead:${leadId}:created:email:admin`,
     templateCode: 'I-12',
     templateVersion: EMAIL_TEMPLATE_VERSION,
     renderedContent: adminRendered as unknown as Prisma.InputJsonValue,
+    actorType: 'EXTERNAL',
+    metadata: { templateCode: 'I-12' },
+    destination: { type: 'SHARED_OPERATIONAL' },
   }));
   await Promise.all(jobs);
 };

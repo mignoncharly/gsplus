@@ -732,14 +732,14 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 |---|---|---|---|---|
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
-| 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `PLANIFIÉ` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
+| 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
 | 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-CONTENU-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `EN-ATTENTE-AUTORISATION-ENVOI` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `EN-ATTENTE-AUTORISATION-ENVOI` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
 
-Progression de clôture : 1/6 phases actives terminées; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif.
+Progression de clôture : 2/6 phases actives terminées; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif. POST-02 clôt un critère transverse sans ajouter artificiellement un identifiant au registre atomique.
 
 Ordre d’exécution : POST-01 → POST-02. POST-03 peut avancer en parallèle dès que le contenu OWNER est disponible. POST-04 précède POST-05 afin que la même fenêtre de preuve supervisée couvre réception et retours fournisseur. POST-06 ne commence qu’après POST-01 à POST-05, ou documente précisément toute gate externe encore ouverte.
 
@@ -761,6 +761,8 @@ Implémentation et tests :
 Validation et sortie : tests ciblés verts, backend complet vert, TypeScript/Prisma conformes, déploiement sans envoi fournisseur, smoke production non mutatif et matrice I-03/I-04/I-05/I-06 passée à `VALIDÉ-PROD`.
 
 ### 37.4 POST-02 — Anti-saturation administrative
+
+État : `VALIDÉ-PROD` le 9 août 2026. Les preuves d'exécution et de production sont consignées dans la section 39.
 
 Objectif : rendre explicite et testable le critère « l’auteur d’une action n’est pas alerté inutilement de sa propre action » sans perdre les alertes opérationnelles destinées à la boîte partagée.
 
@@ -850,3 +852,17 @@ Cette phase n’est pas autorisée ni planifiée dans le chemin actif. Aucun sec
 - Postflight non mutatif : 13 réservations, 13 paiements, 54 notifications, zéro tâche financière et zéro demande de report, inchangés par rapport à la baseline; aucun envoi fournisseur déclenché (dernier `sentAt` antérieur au déploiement, le 8 août 2026 à 17:00:12 UTC).
 
 POST-01 est terminé et `VALIDÉ-PROD`. Progression de clôture : 1/6 phases actives; 53/61 exigences globales sont `VALIDÉ-PROD`. POST-02 « Anti-saturation administrative » devient la prochaine phase ordonnée; META-01 reste `DIFFÉRÉ-META` hors chemin critique.
+
+## 39. Exécution POST-02 « Anti-saturation administrative » — 9 août 2026
+
+État : `VALIDÉ-PROD`; la politique acteur/audience/destination est centralisée et raccordée à toutes les alertes internes I-01 à I-12 sans supprimer les alertes de la boîte opérationnelle partagée.
+
+- Modèle sans migration : `NotificationEvent.metadata` porte `audience`, `destinationType`, `actorType`, l'identifiant admin acteur et, pour une destination nominative, l'identifiant admin destinataire. Les adresses ne sont pas recopiées dans la métadonnée d'audit.
+- Suppression ciblée : uniquement une alerte `ADMIN` vers une destination `NOMINATIVE` correspondant à l'acteur. Elle est conservée comme événement `CANCELLED`, `resolution=SUPPRESSED` et `resolutionNote=SELF_NOMINATIVE_REDUNDANT`, sans tentative fournisseur.
+- Préservation : `SHARED_OPERATIONAL`, autre admin, worker/système, source client/externe et messages E-xx restent envoyables. I-07/I-08/I-09/I-10 sont explicitement non supprimables même si une future destination devient nominative.
+- Raccordement : les routes admin transmettent l'acteur aux alertes I-02 à I-06; I-01 est attribuée au client, I-11 au système et I-12 à une source externe. I-09/I-10 transactionnelles portent explicitement la destination partagée et l'acteur système.
+- Preuve TDD : rouge 0 test chargé (module absent), puis POST-02 6/6; suites notification/finance/report/intégrité 43/43; backend complet 18 fichiers et 152/152; Prisma format/validate/generate, TypeScript et `git diff --check` conformes. Aucune migration.
+- Production : backend repris par systemd, PID `1224482`, `NRestarts=67`, actif; schéma 28/28; santé et administration HTTPS 200.
+- Postflight non mutatif : 13 réservations, 13 paiements, 54 notifications (40 `SENT`, 14 `FAILED`), zéro tâche financière, zéro demande de report et zéro suppression historique. Aucun envoi fournisseur; dernier `sentAt` inchangé au 8 août 2026 à 17:00:12 UTC.
+
+POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/61 exigences atomiques `VALIDÉ-PROD`; le compteur ne change pas car l'anti-saturation est un critère transverse. POST-03 reste en attente du contenu OWNER des 22 formules; en l'absence de ce contenu, la prochaine phase techniquement exécutable est POST-04, soumise à l'autorisation explicite d'envoi réel.
