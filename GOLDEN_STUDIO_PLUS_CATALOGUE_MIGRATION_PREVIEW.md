@@ -1,11 +1,11 @@
 # Aperçu de migration du catalogue officiel — 4 août 2026
 
-État : `ARBITRAGES-OWNER-INTÉGRÉS — IMPLÉMENTATION-LOCALE — NON-PUBLIÉ`
+État : `PUBLIÉ-PROD — VALIDÉ-OWNER`
 
 Source : `docs/Golden_Studio_Plus_Catalogue.docx`
 SHA-256 : `002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696`
 
-L'OWNER a confirmé le 9 août 2026 que ce DOCX remplace officiellement le catalogue historique des 22 formules. Cet aperçu ne crée aucune version, ne publie rien et ne modifie aucune réservation.
+L'OWNER a confirmé le 9 août 2026 que ce DOCX remplace officiellement le catalogue historique des 22 formules. Les 35 offres françaises ont été publiées le même jour par le workflow versionné, sans modification des réservations historiques.
 
 ## Structure cible
 
@@ -90,8 +90,8 @@ Les prix des 22 enregistrements correspondent au DOCX. Quinze durées actuelles 
 5. La version anglaise est différée et n'est pas reprise dans la source applicative française.
 6. Happy Hours reçoit des règles automatiques de calendrier, quota et paiement; Avantage étudiant et Parrainage Golden sont explicitement traités avec l'équipe.
 
-## Préparation sûre
+## Résultat de publication
 
-La source canonique contient 35 enregistrements français dans `backend/src/catalogue/golden-studio-plus-2026-08-04.ts`. Le script `npm run catalogue:official` vérifie la source et produit un aperçu en lecture seule. L'option explicite `-- --apply` préparera les versions DRAFT après migration de la base, sans aucune publication.
+La source canonique contient 35 enregistrements français dans `backend/src/catalogue/golden-studio-plus-2026-08-04.ts`. La production contient 35 versions `PUBLISHED`, 22 versions historiques `ARCHIVED`, zéro DRAFT/VALIDATED, 31 offres directes et quatre offres contact.
 
-Aucun DRAFT n'a encore été créé en production et aucune offre n'a été publiée par cette implémentation.
+Les 13 réservations, snapshots et paiements historiques sont inchangés. La commande de préparation est idempotente et reconnaît les 35 offres déjà courantes sans recréer de brouillon.

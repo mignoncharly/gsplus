@@ -1631,3 +1631,25 @@ Postflight : 13 réservations, 13 snapshots, 13 paiements, 22 formules, 22 versi
 | Service | PID `1870902`, `NRestarts=68`, santé local/public 200, admin 401 |
 
 Les actions OWNER de validation des mentions et de publication restent volontairement en attente.
+
+# POST-03 — Publication production des 35 offres — 9 août 2026
+
+## Verdict
+
+`VALIDÉ-PROD` : les 35 offres françaises ont été validées puis publiées sur ordre OWNER explicite.
+
+| Contrôle | Résultat |
+|---|---|
+| Sauvegarde pré-publication | 174 281 octets, mode 0600, SHA-256 `1d34dd1bb1d6e7ac95fb3a6ba9d3627751b8350175b8d373f7b6ac59d531442f`; catalogue 302 entrées |
+| Workflow | 35 DRAFT → 35 VALIDATED → 35 PUBLISHED |
+| Versions finales | 35 PUBLISHED, 22 ARCHIVED, 0 DRAFT, 0 VALIDATED |
+| Complétude | 35/35 descriptions, inclusions, conditions, délais, mentions, dates et auteurs |
+| API publique | 35 offres : 31 DIRECT, 4 CONTACT; 29 délais WhatsApp et 6 délais photo explicites |
+| Garde contact | HTTP 409, `PACKAGE_CONTACT_ONLY` |
+| Happy Hours | lundi/mardi fermés; mercredi 10 h–14 h; huit propositions, quota métier six |
+| E2E production | Chromium/WebKit 2/2 |
+| Invariants | 13 réservations, 13 snapshots, 13 paiements, 54 notifications |
+| Santé | local/public 200, Services/Réservation 200, admin 401 |
+| Idempotence | 35 déjà courantes, 0 mise à jour, 0 nouveau brouillon |
+
+POST-03 est clôturé. Le score atomique reste 53/61 : les preuves externes POST-04/POST-05 et les exigences Meta différées restent distinctes.

@@ -733,13 +733,13 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
-| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DRAFTS-PROD — VALIDATION-OWNER-REQUISE` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `VALIDÉ-PROD` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `DIFFÉRÉ-OWNER` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `EXÉCUTÉ-NON-CLOS` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
 
-Progression de clôture : 2/6 phases actives clôturées; POST-06 est exécuté mais non clos; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif. POST-02 clôt un critère transverse sans ajouter artificiellement un identifiant au registre atomique.
+Progression de clôture : 3/6 phases actives clôturées; POST-06 est exécuté mais non clos; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif. POST-02 et POST-03 clôturent des dettes transverses sans ajouter artificiellement un identifiant au registre atomique.
 
 Ordre d’exécution : POST-01 → POST-02. POST-03 peut avancer en parallèle dès que le contenu OWNER est disponible. POST-04 précède POST-05 afin que la même fenêtre de preuve supervisée couvre réception et retours fournisseur. POST-06 ne commence qu’après POST-01 à POST-05, ou documente précisément toute gate externe encore ouverte.
 
@@ -981,3 +981,19 @@ POST-03 peut maintenant passer de la recherche de source à l'implémentation st
 - Invariants : 13 réservations, 13 snapshots, 13 paiements et 54 notifications inchangés; aucune notification ou preuve fournisseur créée.
 
 POST-03 reste ouvert. La prochaine sous-étape est la revue/validation OWNER des 35 DRAFT puis leur publication contrôlée; ces deux commandes restent distinctes et ne seront pas automatisées sans ordre explicite.
+
+## 48. POST-03 — Validation OWNER et publication des 35 offres — 9 août 2026
+
+État : `VALIDÉ-PROD`. Sur ordre explicite de l'OWNER, les 35 brouillons conformes ont d'abord été validés intégralement, puis les 35 versions ont été publiées.
+
+- Sauvegarde pré-publication : `.phase0-backups/20260809T150000Z-pre-post-03-publication/database-pre-post-03-publication.dump`, 174 281 octets, mode 0600, SHA-256 `1d34dd1bb1d6e7ac95fb3a6ba9d3627751b8350175b8d373f7b6ac59d531442f`; catalogue `pg_restore` de 302 entrées.
+- Workflow : gate initiale 35/35 `DRAFT`; validation des 35 mentions avec l'identité OWNER active; gate intermédiaire 35/35 `VALIDATED`; publication des 35 versions par le service versionné normal.
+- État final : 35 formules publiques, 35 versions `PUBLISHED`, 22 anciennes versions `ARCHIVED`, zéro `DRAFT` et zéro `VALIDATED`; 35/35 versions publiées complètes.
+- Modes publics : 31 offres `DIRECT` avec durée et quatre offres `CONTACT` sans durée — Identité Standard et trois abonnements. L'API de disponibilité refuse une offre contact avec `PACKAGE_CONTACT_ONLY`.
+- Livraisons : 29 libellés WhatsApp et six délais explicites 10/15/20 jours ouvrés. Toutes les descriptions publiées sont françaises.
+- Happy Hours : lundi et mardi fermés; mercredi ouvert 10 h–14 h avec huit propositions avant application du quota de six dossiers actifs; contrôle serveur du paiement intégral.
+- Recette production : Services et Réservation HTTP 200; catalogue API 35; Chromium/WebKit 2/2. Services expose les offres contact avec « Nous contacter » et Réservation contient exactement les 31 offres directes.
+- Invariants : 13 réservations, 13 snapshots, 13 paiements et 54 notifications inchangés; santé locale/publique 200, admin 401, service PID `1870902`, `NRestarts=68`.
+- Idempotence : la préparation reconnaît désormais 35 offres déjà courantes, zéro mise à jour et zéro nouveau brouillon; un rejeu ordinaire ne recrée aucune version.
+
+POST-03 est terminé et `VALIDÉ-PROD`. Progression : 3/6 phases actives; le registre atomique reste 53/61 car cette dette catalogue transverse ne remplace aucune preuve externe E-17/E-18/E-19 ou I-09/I-11/I-12. La prochaine phase ordonnée est POST-04, toujours soumise à ses autorisations d'envoi et de données QA.

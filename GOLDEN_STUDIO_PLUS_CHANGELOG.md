@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Catalogue officiel français publié
+
+### Publié
+
+- Validation OWNER puis publication des 35 offres françaises : 31 réservables directement et quatre accessibles par prise de contact.
+- 29 délais renvoient à l'échange WhatsApp; les six délais Fiançailles/Pré-mariage reprennent exactement le DOCX.
+- Les 22 anciennes versions sont archivées; aucune version ne reste en DRAFT ou VALIDATED.
+
+### Vérifié
+
+- API publique à 35 offres; 35/35 versions complètes; Services/Réservation 200.
+- Chromium et WebKit 2/2 : les offres contact sont visibles sur Services mais absentes des 31 options de réservation.
+- Identité Standard refuse la disponibilité directe; Happy Hours respecte mercredi/jeudi 10 h–14 h.
+- Sauvegarde pré-publication restaurable vérifiée; 13 réservations/snapshots/paiements et 54 notifications inchangés.
+
 ## 9 août 2026 — Catalogue français préparé en production
 
 ### Déployé
