@@ -733,7 +733,7 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
-| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-CONTENU-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-SOURCE-CATALOGUE-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `EN-ATTENTE-AUTORISATION-ENVOI` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `EN-ATTENTE-AUTORISATION-ENVOI` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
@@ -786,7 +786,7 @@ Procédure :
 
 - Exporter un inventaire OWNER avec identifiant, nom, catégorie, version publiée, résumé manquant et délai manquant.
 - Faire fournir ou approuver un résumé public et un délai réel pour chaque formule; aucune génération automatique ne vaut approbation métier.
-- Le préflight du 9 août a aussi confirmé 22 listes d'inclusions vides et 22 mentions juridiques tarifaires manquantes, toutes bloquantes pour une nouvelle validation. Les faire fournir/approuver; faire confirmer ou remplacer `content` et `conditions`, actuellement réduits au nom par le backfill historique.
+- Le préflight base confirme aussi 22 listes d'inclusions vides et 22 `legalText` absents. La relecture intégrale des trois DOCX récupère toutefois les CGV communes, une grille de délais déjà affichée et trois listes d'inclusions; seules les données formule par formule introuvables et les exceptions doivent être demandées à l'OWNER.
 - Créer une nouvelle version DRAFT par formule via le service/API normal, prévisualiser, valider avec les mentions approuvées puis publier par commande OWNER idempotente.
 - Archiver la version publiée précédente par le workflow existant; préserver les snapshots des 13 réservations et les prix/conditions historiques.
 - Vérifier le rendu public, l’administration, les accents, FCFA, mobile et accessibilité; aucune formule ne doit disparaître pendant la bascule.
@@ -870,13 +870,27 @@ POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/6
 
 ## 40. Préparation POST-03 « Complétude métier des 22 formules » — 9 août 2026
 
-État : `EN-ATTENTE-CONTENU-OWNER`; l'inventaire factuel est terminé, mais aucune version n'a été créée et aucune donnée de production n'a été modifiée.
+État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`; aucune version n'a été créée et aucune donnée de production n'a été modifiée.
 
 - Extraction directe en lecture seule : 22 formules actives/non archivées, 22 versions 1 `PUBLISHED`, zéro `DRAFT`, zéro `VALIDATED`.
 - Dette confirmée : 22/22 `description`, 22/22 `deliveryLabel`, 22/22 listes `inclusions` et 22/22 `legalText` sont absents. Les valeurs `content`/`conditions` issues du backfill reprennent seulement le nom : elles passent la garde technique mais exigent confirmation ou remplacement OWNER.
-- Recherche documentaire : aucune source OWNER approuvée formule par formule n'a été trouvée dans le dépôt. La mention marketing générique « 48 h » et le fallback calculé depuis la durée de séance ne constituent pas un délai de livraison approuvé.
-- Livrable : `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` recense les 22 identifiants, noms, catégories, prix, durées et versions, les 88 champs obligatoires absents et les 22 confirmations `content`/`conditions`.
+- Relecture exhaustive corrigée : les 1 064 lignes de la bibliothèque d'e-mails, 509 lignes du rapport d'audit et 125 lignes juridiques ont été lues. Les CGV communes du 31 juillet, la grille frontend 24 h/48 h/72 h/5 j/7 j et trois listes d'inclusions sont récupérables; le DOCX e-mail précise néanmoins que le délai réel doit être défini selon la prestation, et l'audit constate explicitement l'absence de description/mentions sur Flash Social.
+- Livrable corrigé : `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` distingue contenus récupérés, sources normatives, grille existante et seuls écarts réels; l'hypothèse « 88 nouveaux textes » est abandonnée.
 - Invariants : 13 réservations et 13 snapshots; empreinte SHA-256 des liaisons et données tarifaires figées `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
-- Gate : aucune création DRAFT, validation ou publication avant réception des 88 champs absents, confirmation ou remplacement des contenus/conditions hérités, et approbation OWNER explicite. Le workflow service/API versionné est prêt et bloque déjà les champs requis absents.
+- Gate : aucune création DRAFT, validation ou publication avant identification de la source catalogue détaillée, approbation ou correction de la grille de livraison, confirmation de l'application des CGV communes et inventaire des éventuelles conditions particulières.
 
 POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; POST-06 ne peut donc pas commencer.
+
+## 41. Relecture exhaustive et correction de préparation POST-03 — 9 août 2026
+
+État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`; préparation technique et documentaire corrigée, production métier inchangée.
+
+- Sources intégrales : bibliothèque e-mails 1 064/1 064 lignes, rapport d'audit 509/509 et textes juridiques 125/125 relus; historique Git complet et sources publiques du dépôt rapprochés.
+- Récupération : CGV communes déjà approuvées et publiées, délais frontend existants pour 22/22 formules, inclusions commerciales existantes pour `classic-propre`, `pack-signature` et `duo-couple`.
+- Écarts réels : aucun catalogue détaillé formule par formule dans les trois DOCX, la base ou l'historique Git; 19 listes d'inclusions restent sans source locale. La bibliothèque d'e-mails demande explicitement de définir le délai réel selon la prestation.
+- Correctif frontend : `packageView` donne désormais priorité au `deliveryLabel` versionné fourni par l'API et ne conserve le calcul historique que comme fallback. Le test rouge recevait `24 h` au lieu de la valeur OWNER; le test final est vert.
+- Validation : test ciblé 5/5, frontend complet 92/92, ESLint, build/prerender/budgets et audit traceurs conformes; P1-04 local Chromium/WebKit 4/4 et production interceptée non mutative 4/4.
+- Production frontend : chunk `packages-DXmI3P88.js` servi avec priorité `e.deliveryLabel?.trim()`, santé/admin 200. Base inchangée : 22 `PUBLISHED`, zéro DRAFT/VALIDATED, 13 réservations/snapshots et empreinte tarifaire identique.
+- Documentation : l'inventaire initial réclamant 88 nouveaux textes est remplacé par une matrice de récupération. Une réponse OWNER globale peut approuver les délais et CGV; seuls les descriptions/contenus et inclusions réellement absents doivent être sourcés.
+
+POST-03 reste ouvert : aucune version 2, validation ou publication ne sera créée avant récupération du catalogue détaillé et aperçu OWNER. Progression inchangée : 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`.

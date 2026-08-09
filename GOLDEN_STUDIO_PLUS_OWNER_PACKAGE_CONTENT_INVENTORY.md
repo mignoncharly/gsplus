@@ -1,89 +1,87 @@
-# Inventaire OWNER — complétude des 22 formules
+# Matrice de récupération des contenus tarifaires — POST-03
 
-État : `EN-ATTENTE-CONTENU-OWNER`
+État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`
 
-Extraction en lecture seule de la production le 9 août 2026 pour POST-03. Ce document est le support d'approbation métier; il ne constitue pas une approbation par lui-même.
+Ce document remplace l'hypothèse initiale selon laquelle 88 nouveaux contenus devaient être rédigés. La base comporte bien 88 champs obligatoires absents, mais plusieurs informations existent déjà hors des versions tarifaires et doivent être récupérées, reliées ou approuvées — pas réinventées.
 
-## Constat vérifié
+## Sources relues intégralement le 9 août 2026
 
-- 22 formules actives et non archivées, chacune avec une version 1 `PUBLISHED`.
-- 22/22 résumés publics (`description`) manquants.
-- 22/22 délais de livraison (`deliveryLabel`) manquants.
-- 22/22 listes d'inclusions (`inclusions`) vides.
-- 22/22 mentions juridiques tarifaires (`legalText`) manquantes.
-- Zéro version `DRAFT` et zéro version `VALIDATED` avant intervention.
-- 13 réservations et 13 snapshots historiques; empreinte SHA-256 des seules liaisons et données tarifaires figées : `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
+- `docs/Bibliotheque_emails_Golden_Studio_Plus_2026-07-30_v2.docx` : 1 064 paragraphes/lignes extraits et relus.
+- `docs/Rapport_unifie_audit_Golden_Studio_Plus_2026-07-29.docx` : 509 paragraphes/lignes extraits et relus.
+- `docs/Textes_juridiques_Golden_Studio_Plus_2026-07-31.docx` : 125 paragraphes/lignes extraits et relus.
+- Dépôt courant, historique Git complet, seed, frontend et production : contrôlés en complément.
 
-Les noms, catégories, prix et durées ci-dessous sont recopiés tels qu'ils existent en production. La durée de séance n'est pas un délai de livraison. La mention générique « 48 h » présente dans certains contenus marketing et le fallback d'affichage calculé par le frontend ne valent pas approbation OWNER formule par formule.
+Constats normatifs :
 
-## Contenu à fournir et approuver
+- Le rapport d'audit, P1-04, constate explicitement que l'aperçu Flash Social affichait « Aucune description » et aucun bloc de mentions ou conditions applicables. Il exige description, inclusions, livraison et « Mentions et conditions applicables » versionnées.
+- La bibliothèque d'e-mails, section 10, définit E-18/E-19 mais précise que « le délai réel de production ou de livraison des photographies doit néanmoins être défini selon les prestations proposées ».
+- Le DOCX juridique fournit déjà les CGV communes datées du 31 juillet 2026. Elles n'ont pas à être réécrites 22 fois : elles complètent le récapitulatif propre à chaque formule.
+- Le frontend contient déjà une grille de délais calculés et trois listes commerciales d'inclusions, mais ces valeurs ne sont pas stockées dans `PackageVersion` et ne portent pas à elles seules une approbation OWNER versionnée.
 
-Pour chaque ligne du premier tableau, remplacer les deux cellules `À FOURNIR PAR L'OWNER`. Le résumé doit être publiable tel quel et ne doit promettre que le contenu réellement vendu. Le délai doit être une mention client exacte, par exemple dans l'unité réellement appliquée par le Studio; aucun délai ne sera déduit automatiquement.
+## Contenus existants récupérables
 
-| # | Identifiant | Nom production | Catégorie production | Prix | Durée séance | Version publiée | Résumé public approuvé | Délai de livraison approuvé | OWNER / date |
-|---:|---|---|---|---:|---:|---:|---|---|---|
-| 1 | `flash-social` | Flash Social | Portraits & Individuels | 5 000 FCFA | 30 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 2 | `happy-hours` | Happy Hours | Portraits & Individuels | 4 000 FCFA | 30 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 3 | `pack-decouverte` | Pack Decouverte | Portraits & Individuels | 10 000 FCFA | 45 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 4 | `classic-propre` | Classic Propre | Portraits & Individuels | 18 000 FCFA | 60 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 5 | `pack-signature` | Pack Signature | Portraits & Individuels | 32 000 FCFA | 90 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 6 | `corporate-linkedin` | Corporate LinkedIn | Portraits & Individuels | 25 000 FCFA | 45 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 7 | `duo-couple` | Duo / Couple | Duo, Famille & Enfants | 22 000 FCFA | 60 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 8 | `famille` | Famille (<=5) | Duo, Famille & Enfants | 28 000 FCFA | 60 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 9 | `groupe-fun` | Groupe Fun | Duo, Famille & Enfants | 35 000 FCFA | 90 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 10 | `enfant` | Enfant | Duo, Famille & Enfants | 8 000 FCFA | 45 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 11 | `anniversaire` | Anniversaire | Duo, Famille & Enfants | 8 000 FCFA | 60 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 12 | `maternite` | Maternite | Maternite & Naissance | 10 000 FCFA | 90 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 13 | `bebe-naissance` | Bebe / Naissance | Maternite & Naissance | 12 000 FCFA | 60 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 14 | `fiancailles-decouverte` | Fiancailles Decouverte | Fiancailles & Pre-mariage | 25 000 FCFA | 90 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 15 | `fiancailles-classic` | Fiancailles Classic | Fiancailles & Pre-mariage | 35 000 FCFA | 120 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 16 | `fiancailles-premium` | Fiancailles Premium | Fiancailles & Pre-mariage | 50 000 FCFA | 180 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 17 | `pre-mariage-decouverte` | Pre-mariage Decouverte | Fiancailles & Pre-mariage | 40 000 FCFA | 120 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 18 | `pre-mariage-classic` | Pre-mariage Classic | Fiancailles & Pre-mariage | 60 000 FCFA | 180 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 19 | `pre-mariage-premium` | Pre-mariage Premium | Fiancailles & Pre-mariage | 100 000 FCFA | 480 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 20 | `event-lite` | Event Lite | Evenementiel | 80 000 FCFA | 240 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 21 | `event-standard` | Event Standard | Evenementiel | 140 000 FCFA | 360 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
-| 22 | `event-premium` | Event Premium | Evenementiel | 220 000 FCFA | 480 min | 1 | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À RENSEIGNER |
+### Grille de livraison actuellement affichée
 
-## Autres champs obligatoires découverts par le préflight
+Source : `frontend/src/lib/packages.js`. Cette grille reste le fallback des versions historiques; le frontend a été corrigé pour qu'un futur `deliveryLabel` OWNER publié prenne désormais priorité.
 
-La garde `assertPublishable` exige également une liste d'inclusions non vide et une mention juridique tarifaire non vide. Les deux sont absentes sur les 22 versions publiées. De plus, `content` et `conditions` contiennent seulement le nom de la formule à la suite du backfill historique : ils passent techniquement la garde, mais doivent être confirmés ou remplacés par l'OWNER avant publication d'une version 2.
+| # | Formule | Délai actuellement affiché | Inclusions commerciales retrouvées dans le frontend |
+|---:|---|---|---|
+| 1 | `flash-social` | 24 h | Aucune source formule trouvée |
+| 2 | `happy-hours` | 24 h | Aucune source formule trouvée |
+| 3 | `pack-decouverte` | 48 h | Aucune source formule trouvée |
+| 4 | `classic-propre` | 48 h | Portrait individuel; Retouche incluse; Idéal pour un profil professionnel |
+| 5 | `pack-signature` | 72 h | Direction éditoriale; Rendu premium; Plus de variations |
+| 6 | `corporate-linkedin` | 48 h | Aucune source formule trouvée |
+| 7 | `duo-couple` | 48 h | Séance à deux; Guidage des poses; Ambiance naturelle |
+| 8 | `famille` | 48 h | Aucune source formule trouvée |
+| 9 | `groupe-fun` | 72 h | Aucune source formule trouvée |
+| 10 | `enfant` | 48 h | Aucune source formule trouvée |
+| 11 | `anniversaire` | 48 h | Aucune source formule trouvée |
+| 12 | `maternite` | 72 h | Aucune source formule trouvée |
+| 13 | `bebe-naissance` | 48 h | Aucune source formule trouvée |
+| 14 | `fiancailles-decouverte` | 72 h | Aucune source formule trouvée |
+| 15 | `fiancailles-classic` | 72 h | Aucune source formule trouvée |
+| 16 | `fiancailles-premium` | 5 jours | Aucune source formule trouvée |
+| 17 | `pre-mariage-decouverte` | 72 h | Aucune source formule trouvée |
+| 18 | `pre-mariage-classic` | 5 jours | Aucune source formule trouvée |
+| 19 | `pre-mariage-premium` | 7 jours | Aucune source formule trouvée |
+| 20 | `event-lite` | 5 jours | Aucune source formule trouvée |
+| 21 | `event-standard` | 7 jours | Aucune source formule trouvée |
+| 22 | `event-premium` | 7 jours | Aucune source formule trouvée |
 
-| # | Identifiant | Inclusions approuvées | Mention juridique tarifaire approuvée | `content` / `conditions` actuels acceptés ou remplacements | OWNER / date |
-|---:|---|---|---|---|---|
-| 1 | `flash-social` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 2 | `happy-hours` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 3 | `pack-decouverte` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 4 | `classic-propre` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 5 | `pack-signature` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 6 | `corporate-linkedin` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 7 | `duo-couple` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 8 | `famille` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 9 | `groupe-fun` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 10 | `enfant` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 11 | `anniversaire` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 12 | `maternite` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 13 | `bebe-naissance` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 14 | `fiancailles-decouverte` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 15 | `fiancailles-classic` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 16 | `fiancailles-premium` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 17 | `pre-mariage-decouverte` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 18 | `pre-mariage-classic` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 19 | `pre-mariage-premium` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 20 | `event-lite` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 21 | `event-standard` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
-| 22 | `event-premium` | À FOURNIR PAR L'OWNER | À FOURNIR PAR L'OWNER | À CONFIRMER / REMPLACER | À RENSEIGNER |
+### Conditions et mentions déjà disponibles
 
-Une même mention juridique peut être proposée pour plusieurs formules, mais son application doit être explicitement approuvée par l'OWNER. Le dépôt ne contient pas de texte tarifaire par formule permettant de la déduire.
+- CGV communes : version publiée du 31 juillet 2026, sections Réservation/prix/paiement, Retards/annulations/report, Droit à l'image, Traitement numérique, Exécution/livraison/responsabilité et Réclamations/litiges.
+- Règle d'articulation déjà approuvée dans le DOCX : « Le récapitulatif de la formule et le tarif affichés avant l'envoi de la demande complètent ces conditions. »
+- Flash Social : l'audit confirme que l'autorisation d'image constitue une condition obligatoire de cette offre promotionnelle. Aucune généralisation aux autres formules ne sera faite sans source.
 
-## Gate avant écriture en production
+La version tarifaire doit conserver uniquement les mentions particulières de la formule et la référence/version des CGV communes; elle ne doit pas recopier arbitrairement tout le document juridique dans chaque formule.
 
-La reprise de POST-03 exige au minimum les 88 champs obligatoires actuellement absents — 22 résumés, 22 délais, 22 listes d'inclusions et 22 mentions juridiques — ainsi que la confirmation ou le remplacement des `content`/`conditions` hérités, puis une approbation OWNER explicite. Après cette approbation seulement :
+## Écarts réels après récupération
 
-1. une version 2 `DRAFT` sera créée par le service/API normal pour chacune des 22 formules;
-2. les noms, catégories, prix et durées existants seront conservés; inclusions, mentions juridiques, contenus et conditions suivront exactement les valeurs approuvées, sans correction silencieuse;
-3. un aperçu OWNER sera contrôlé avant validation;
-4. chaque version sera validée puis publiée par le workflow versionné; la version 1 deviendra `ARCHIVED`;
-5. les 13 snapshots et leurs liaisons tarifaires seront recomptés et leur empreinte comparée à la baseline ci-dessus.
+| Élément | Situation réelle | Attente OWNER minimale |
+|---|---|---|
+| Résumé public / contenu | Aucun texte formule par formule dans les trois DOCX, la base ou l'historique Git | Indiquer la source catalogue existante. Si un seul texte par formule suffit, approuver son emploi à la fois comme résumé et contenu plutôt que rédiger deux doublons. |
+| Inclusions | Trois formules récupérées; dix-neuf sans source dans le dépôt ou les DOCX | Indiquer la source des dix-neuf listes ou fournir les listes manquantes; confirmer les trois listes récupérées. |
+| Livraison | Les 22 délais sont déjà affichés via une grille technique, mais la bibliothèque d'e-mails demande une définition réelle par prestation | Approuver la grille existante en une décision globale, ou fournir les exceptions par formule. |
+| Conditions communes | Déjà publiées dans les CGV du 31 juillet 2026 | Aucune nouvelle rédaction; confirmer que les CGV communes s'appliquent aux 22 formules. |
+| Conditions particulières | Flash Social documenté; aucune autre condition particulière trouvée | Déclarer les éventuelles exceptions. « Aucune autre condition particulière » est une décision globale acceptable. |
+| Mentions juridiques | Document juridique déjà publié et versionné séparément | Référencer la version juridique publiée; ne rédiger que les mentions particulières absentes, s'il en existe. |
 
-Aucun UPDATE SQL direct, contenu généré supposé approuvé, envoi fournisseur ou réservation QA n'est autorisé par ce document.
+## Réponse OWNER attendue
+
+Une réponse courte peut suffire, par exemple :
+
+1. source du catalogue détaillé des 22 formules : fichier, URL officielle ou document à joindre;
+2. « grille de livraison actuelle approuvée » ou liste des exceptions;
+3. « CGV du 31 juillet 2026 applicables aux 22 formules »;
+4. « aucune condition particulière supplémentaire » ou liste des exceptions;
+5. confirmation ou correction des trois listes récupérées.
+
+Après cette réponse, l'inventaire définitif sera généré depuis les sources, soumis en aperçu, puis seulement transformé en versions 2 `DRAFT`. Aucune version ne sera validée ou publiée sans contrôle OWNER du rendu final.
+
+## Baseline d'intégrité
+
+Production avant toute écriture : 22 versions 1 `PUBLISHED`, zéro `DRAFT`, zéro `VALIDATED`, 13 réservations et 13 snapshots. Empreinte SHA-256 des liaisons et données tarifaires figées : `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
+
+Aucun UPDATE SQL direct, envoi fournisseur, réservation QA ou contenu commercial inventé n'est autorisé par ce document.

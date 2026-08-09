@@ -1499,25 +1499,39 @@ POST-02 est `VALIDÉ-PROD`. Une politique durable distingue désormais acteur, a
 
 La progression passe à 2/6 phases actives. Le registre atomique reste honnêtement à 53/61 `VALIDÉ-PROD`, POST-02 étant un critère transverse. POST-03 attend le contenu OWNER; POST-04 attend une autorisation d'envoi réel.
 
-# POST-03 — Préparation de la complétude OWNER — 9 août 2026
+
+# POST-03 — Relecture exhaustive et récupération des sources — 9 août 2026
 
 ## Résultat
 
-POST-03 demeure `EN-ATTENTE-CONTENU-OWNER`. La partie autonome et non mutative est achevée : inventaire exhaustif produit, absence de source approuvée confirmée et baseline d'intégrité enregistrée. Aucune mention métier n'a été inventée.
+POST-03 demeure `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`. L'inventaire initial « 88 nouveaux textes » était une interprétation excessive des champs vides en base; il est remplacé par une matrice séparant contenus existants, données à relier et véritables absences.
 
 | Contrôle | Résultat |
 |---|---|
-| Extraction production | 22 formules actives/non archivées, 22 versions `PUBLISHED` |
-| États intermédiaires | 0 `DRAFT`, 0 `VALIDATED` |
-| Résumés publics | 0/22 renseigné; 22 `null` |
-| Délais de livraison | 0/22 renseigné; 22 `null` |
-| Listes d'inclusions | 0/22 non vide; 22 listes vides |
-| Mentions juridiques tarifaires | 0/22 renseignée; 22 `null` |
-| Contenus/conditions | 22/22 techniquement présents mais réduits au nom par le backfill; confirmation OWNER requise |
-| Réservations/snapshots | 13/13, aucune mutation |
-| Empreinte tarifaire figée | SHA-256 `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1` |
-| Recherche de contenu approuvé | Aucune source OWNER formule par formule dans le dépôt; fallback frontend et « 48 h » générique exclus comme preuves d'approbation |
-| Livrable | `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md`, deux tableaux de 22 lignes, 88 champs absents et 22 confirmations métier |
-| Écriture production | Aucune |
+| DOCX e-mails | 1 064/1 064 lignes relues; le délai réel reste à définir selon les prestations |
+| DOCX audit | 509/509 lignes relues; P1-04 constate « Aucune description » et aucune mention/condition sur Flash Social |
+| DOCX juridique | 125/125 lignes relues; CGV communes du 31 juillet 2026 récupérées |
+| Historique/source | Historique Git complet, seed, frontend et base production contrôlés |
+| Extraction production | 22 versions 1 `PUBLISHED`, 0 `DRAFT`, 0 `VALIDATED` |
+| Données récupérées | Délais calculés pour 22/22; trois listes d'inclusions; CGV communes et condition promotionnelle Flash Social |
+| Écarts source | Catalogue détaillé absent des DOCX/dépôt/historique; 19 listes d'inclusions sans source locale |
+| Réservations/snapshots | 13/13, aucune mutation; empreinte `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1` |
+| Écriture tarifaire | Aucune version, validation ou publication |
 
-La suite exigera une approbation OWNER explicite des 88 champs obligatoires absents et la confirmation ou le remplacement des contenus/conditions hérités. Elle créera alors des versions 2 via le service/API, suivies de l'aperçu, de la validation et de la publication OWNER; elle ne modifiera ni les versions historiques ni les snapshots. La progression reste à 2/6 et 53/61 `VALIDÉ-PROD`.
+## Correctif d'autorité du délai
+
+Le frontend écrasait systématiquement le futur `deliveryLabel` publié par l'OWNER avec son calcul historique. Un test rouge a reçu `24 h` au lieu de « Délai approuvé par l’OWNER ». `packageView` utilise maintenant la valeur API non vide, avec le calcul seulement comme fallback des 22 versions historiques.
+
+| Validation | Résultat |
+|---|---|
+| Test ciblé rouge | 4/5, échec attendu sur l'autorité du délai OWNER |
+| Test ciblé final | 5/5 |
+| Frontend complet | 92/92 |
+| ESLint | Conforme |
+| Build/prerender/budgets/audit traceurs | Conforme; 11 routes publiques, 3 privées, budgets verts, 0 traceur facultatif |
+| P1-04 local | Chromium/WebKit 4/4 |
+| P1-04 production | Chromium/WebKit 4/4, APIs administratives interceptées, aucune écriture réelle |
+| Frontend réellement servi | `packages-DXmI3P88.js` contient la priorité du délai API; santé/admin 200 |
+| Postflight base | 22 `PUBLISHED`, 0 DRAFT/VALIDATED, 13 réservations/snapshots, empreinte inchangée |
+
+Le livrable `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` demande désormais une source catalogue, une décision globale sur la grille de livraison, l'application des CGV communes et les seules exceptions. POST-03 reste ouvert et la progression demeure à 2/6 et 53/61 `VALIDÉ-PROD`.

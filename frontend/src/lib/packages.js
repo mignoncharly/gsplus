@@ -68,7 +68,7 @@ export const packageView = (pack) => ({
   categoryLabel: PACKAGE_CATEGORY_LABELS[categoryKey(pack.category)] || pack.category,
   priceLabel: formatPrice(pack),
   durationLabel: formatDuration(pack.durationMin),
-  deliveryLabel: deliveryLabel(pack.durationMin),
+  deliveryLabel: pack.deliveryLabel?.trim() || deliveryLabel(pack.durationMin),
 });
 
 export const selectPackageFromQuery = (packages, queryValue) => {

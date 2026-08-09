@@ -114,3 +114,23 @@ test('package display normalizes approved accents without mutating source data',
   assert.equal(displayed.durationLabel, 'Journée');
   assert.equal(original.name, 'Pre-mariage Decouverte');
 });
+
+test('package display prefers the OWNER-approved delivery label and keeps a legacy fallback', () => {
+  const approved = packageView({
+    name: 'Formule approuvée',
+    category: 'Portraits',
+    price: 5000,
+    durationMin: 30,
+    deliveryLabel: 'Délai approuvé par l’OWNER',
+  });
+  const legacy = packageView({
+    name: 'Formule historique',
+    category: 'Portraits',
+    price: 5000,
+    durationMin: 30,
+    deliveryLabel: null,
+  });
+
+  assert.equal(approved.deliveryLabel, 'Délai approuvé par l’OWNER');
+  assert.equal(legacy.deliveryLabel, '24 h');
+});

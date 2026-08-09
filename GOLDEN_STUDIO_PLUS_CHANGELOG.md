@@ -1,6 +1,23 @@
 # Changelog — Golden Studio Plus
 
-## 9 août 2026 — POST-03 inventaire OWNER préparé
+## 9 août 2026 — POST-03 relecture exhaustive et inventaire corrigé
+
+### Corrigé
+
+- Les trois DOCX ont été relus intégralement : 1 064 lignes e-mails, 509 lignes audit et 125 lignes juridiques. L'inventaire initial assimilait à tort 88 champs vides en base à 88 nouveaux textes à rédiger.
+- `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` est remplacé par une matrice de récupération : CGV communes, grille de délais existante et trois listes d'inclusions récupérées; descriptions/contenus et 19 listes restent sans source locale.
+- Le frontend respecte désormais le futur `deliveryLabel` versionné OWNER au lieu de l'écraser systématiquement par le fallback calculé; les versions historiques conservent leur affichage actuel.
+
+### Prouvé
+
+- Test rouge 4/5 sur la priorité du délai, puis ciblé 5/5 et frontend complet 92/92.
+- ESLint, build, prerender, budgets et audit traceurs conformes; P1-04 local Chromium/WebKit 4/4 et production interceptée non mutative 4/4.
+- Production : chunk frontend corrigé effectivement servi, santé/admin 200; 22 versions `PUBLISHED`, 13 réservations/snapshots et empreinte historique inchangés.
+- Aucune version tarifaire, réservation, notification ou donnée de production modifiée. POST-03 reste `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`.
+
+## 9 août 2026 — POST-03 inventaire initial, corrigé par la relecture exhaustive
+
+Cette entrée conserve la trace du premier préflight; ses conclusions « 88 textes » et son état ont été remplacés par l'entrée corrective ci-dessus.
 
 ### Constaté
 
@@ -9,12 +26,12 @@
 
 ### Ajouté
 
-- `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` : inventaire éditable des 22 formules, des 88 champs obligatoires absents et des 22 confirmations métier, avec gate d'approbation et procédure de publication versionnée.
+- Version initiale de `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md`, remplacée le même jour par la matrice de récupération après lecture intégrale des DOCX.
 - Baseline non personnelle des 13 snapshots/liaisons tarifaires, empreinte SHA-256 `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
 
 ### En attente
 
-- Aucune version DRAFT créée et aucune donnée de production modifiée. POST-03 reste `EN-ATTENTE-CONTENU-OWNER`; progression inchangée à 2/6 et 53/61 `VALIDÉ-PROD`.
+- Aucune version DRAFT créée et aucune donnée de production modifiée; cet état initial a ensuite été affiné en `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`.
 
 ## 9 août 2026 — POST-02 anti-saturation administrative
 
