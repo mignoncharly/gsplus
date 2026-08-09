@@ -74,6 +74,9 @@ export const executeCreateRescheduleRequest = async (
       if (pending) {
         throw new HttpError(409, 'RESCHEDULE_REQUEST_PENDING', 'Une demande de report est déjà en attente.');
       }
+      if (reservation.packageVersion.durationMin === null) {
+        throw new HttpError(409, 'PACKAGE_DURATION_MISSING', 'La durée historique de cette formule est absente.');
+      }
       const requestedEndAt = addMinutes(input.requestedStartAt, reservation.packageVersion.durationMin);
       const acceptedCount = await tx.reservationRescheduleRequest.count({
         where: { reservationId: reservation.id, status: 'ACCEPTED' },

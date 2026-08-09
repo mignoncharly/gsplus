@@ -1,9 +1,9 @@
 import { HttpError } from '../errors/http-error.js';
 import { queueReservationCreatedNotifications } from '../emails/notifications.js';
-import { PaymentStatus, Prisma, ReservationStatus } from '../generated/prisma/client.js';
+import { PackageBookingMode, PaymentStatus, Prisma, ReservationStatus } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
 import { ensurePublishedPackageVersion } from './packages.js';
-import { assertBookableSlot, lockBookingWindow } from './booking-slots.js';
+import { assertBookableSlot, lockBookingWindow, packageBookingRules } from './booking-slots.js';
 import { resolvePublishedLegalVersions } from './legal-consents.js';
 import {
   normalizePaymentReference,
@@ -105,16 +105,22 @@ export const createReservation = async (input: ReservationCreateInput) => {
             excludeIntentId: intent.id,
           });
 
-          const referenceIssue =
-            input.paymentChoice === 'base'
-              ? paymentReferenceValidationMessage(input.paymentMethod, input.transactionRef)
-              : null;
+          const packageVersion = intent.packageVersion ?? await ensurePublishedPackageVersion(tx, intent.package);
+          if (packageVersion.bookingMode !== PackageBookingMode.DIRECT || packageVersion.durationMin === null) {
+            throw new HttpError(409, 'PACKAGE_CONTACT_ONLY', 'Cette formule est disponible uniquement sur demande.');
+          }
+          if (packageBookingRules(intent.package)?.requiresFullPayment && input.paymentChoice !== 'base') {
+            throw new HttpError(409, 'PACKAGE_FULL_PAYMENT_REQUIRED', 'Cette formule exige un paiement intégral.');
+          }
+
+          const referenceIssue = input.paymentChoice === 'base'
+            ? paymentReferenceValidationMessage(input.paymentMethod, input.transactionRef)
+            : null;
           if (referenceIssue) {
             throw new HttpError(400, 'INVALID_PAYMENT_REFERENCE', referenceIssue);
           }
 
           const customer = await findOrCreateCustomer(tx, input.customer);
-          const packageVersion = intent.packageVersion ?? await ensurePublishedPackageVersion(tx, intent.package);
           const transactionRef = input.paymentChoice === 'base' ? input.transactionRef?.trim() : undefined;
           const transactionRefNormalized = normalizePaymentReference(transactionRef);
           const capturedAt = new Date();

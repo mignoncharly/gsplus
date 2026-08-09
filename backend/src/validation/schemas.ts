@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { PUBLIC_MEDIA_CATEGORIES } from '../constants/media.js';
 
-import { LeadStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
+import { LeadStatus, PackageBookingMode, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { paymentReferenceValidationMessage } from '../utils/payment-reference.js';
 import {
   isValidCameroonPhone,
@@ -214,7 +214,8 @@ const packageFieldsSchema = z.object({
   conditions: z.string().trim().min(10).nullable(),
   price: z.coerce.number().int().min(0),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
-  durationMin: z.coerce.number().int().min(15).max(1440),
+  durationMin: z.coerce.number().int().min(15).max(1440).nullable(),
+  bookingMode: z.enum(PackageBookingMode),
   deliveryLabel: z.string().trim().nullable(),
   options: z.json().nullable(),
   legalText: z.string().trim().min(10).nullable(),
@@ -231,6 +232,8 @@ export const packageCreateSchema = packageFieldsSchema.extend({
   inclusions: packageFieldsSchema.shape.inclusions.optional().default(null),
   conditions: packageFieldsSchema.shape.conditions.optional().default(null),
   currency: packageFieldsSchema.shape.currency.optional().default('XAF'),
+  durationMin: packageFieldsSchema.shape.durationMin.optional().default(null),
+  bookingMode: packageFieldsSchema.shape.bookingMode.optional().default(PackageBookingMode.DIRECT),
   deliveryLabel: packageFieldsSchema.shape.deliveryLabel.optional().default(null),
   options: packageFieldsSchema.shape.options.optional().default(null),
   legalText: packageFieldsSchema.shape.legalText.optional().default(null),
@@ -240,6 +243,9 @@ export const packageCreateSchema = packageFieldsSchema.extend({
   isRange: packageFieldsSchema.shape.isRange.optional().default(false),
   sortOrder: packageFieldsSchema.shape.sortOrder.optional().default(0),
 }).superRefine((value, context) => {
+  if (value.bookingMode === PackageBookingMode.DIRECT && value.durationMin === null) {
+    context.addIssue({ code: 'custom', path: ['durationMin'], message: 'La durée est obligatoire pour une réservation directe.' });
+  }
   if (value.legalApprovedAt && !value.legalText) {
     context.addIssue({ code: 'custom', path: ['legalApprovedAt'], message: 'Les mentions sont obligatoires avant approbation.' });
   }

@@ -1,5 +1,5 @@
 import { HttpError } from '../errors/http-error.js';
-import { Prisma } from '../generated/prisma/client.js';
+import { PackageBookingMode, Prisma } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
 import { BUSINESS_TIME_ZONE } from '../utils/business-time.js';
 import { allocatePublicReservationReference } from '../utils/reservation-reference.js';
@@ -54,6 +54,9 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
           }
 
           const packageVersion = await ensurePublishedPackageVersion(tx, pack);
+          if (packageVersion.bookingMode !== PackageBookingMode.DIRECT || packageVersion.durationMin === null) {
+            throw new HttpError(409, 'PACKAGE_CONTACT_ONLY', 'Cette formule est disponible uniquement sur demande.');
+          }
           const startAt = input.startAt;
           const endAt = addMinutes(startAt, packageVersion.durationMin);
           await lockBookingWindow(tx, startAt, endAt);

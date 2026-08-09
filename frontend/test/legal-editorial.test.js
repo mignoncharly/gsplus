@@ -111,11 +111,11 @@ test('package display normalizes approved accents without mutating source data',
   assert.equal(displayed.name, 'Pré-mariage Découverte');
   assert.equal(displayed.categoryLabel, 'Fiançailles & Pré-mariage');
   assert.equal(displayed.priceLabel, 'À partir de 40 000 FCFA');
-  assert.equal(displayed.durationLabel, 'Journée');
+  assert.equal(displayed.durationLabel, '8h');
   assert.equal(original.name, 'Pre-mariage Decouverte');
 });
 
-test('package display prefers the OWNER-approved delivery label and keeps a legacy fallback', () => {
+test('package display prefers the OWNER-approved delivery label and uses the WhatsApp fallback when no approved delay exists', () => {
   const approved = packageView({
     name: 'Formule approuvée',
     category: 'Portraits',
@@ -132,5 +132,5 @@ test('package display prefers the OWNER-approved delivery label and keeps a lega
   });
 
   assert.equal(approved.deliveryLabel, 'Délai approuvé par l’OWNER');
-  assert.equal(legacy.deliveryLabel, '24 h');
+  assert.equal(legacy.deliveryLabel, 'Délai communiqué lors de l’échange WhatsApp');
 });

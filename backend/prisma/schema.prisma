@@ -67,6 +67,11 @@ enum PackageVersionStatus {
   ARCHIVED
 }
 
+enum PackageBookingMode {
+  DIRECT
+  CONTACT
+}
+
 model AdminUser {
   id                          String                         @id @default(cuid())
   email                       String                         @unique
@@ -123,7 +128,8 @@ model Package {
   description        String?
   price              Int
   currency           String              @default("XAF")
-  durationMin        Int
+  durationMin        Int?
+  bookingMode        PackageBookingMode  @default(DIRECT)
   deliveryLabel      String?
   options            Json?
   legalText          String?
@@ -157,7 +163,8 @@ model PackageVersion {
   conditions         String?
   price              Int
   currency           String               @default("XAF")
-  durationMin        Int
+  durationMin        Int?
+  bookingMode        PackageBookingMode   @default(DIRECT)
   deliveryLabel      String?
   options            Json?
   legalText          String?

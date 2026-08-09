@@ -7,6 +7,7 @@ import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/le
 import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
 import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
 import { packageView, shootingCategories as packageCategories } from '../lib/packages';
+import { cataloguePromotions } from '../content/catalogue-promotions';
 import ServiceGallery from '../components/ServiceGallery';
 import './Services.css';
 
@@ -319,6 +320,7 @@ const Services = () => {
                         
                         <h3>{pack.name}</h3>
                         <p className="price">{pack.priceLabel}</p>
+                        {pack.description && <p>{pack.description}</p>}
                         
                         <ul>
                           <li>
@@ -338,13 +340,41 @@ const Services = () => {
                         </ul>
                         
                         <div style={{ marginTop: 'auto' }}>
-                          <Link to={`/reservation?pack=${pack.id}`} className="btn btn-primary pack-cta">
-                            Réserver ce pack
-                          </Link>
+                          {pack.isDirectBooking ? (
+                            <Link to={`/reservation?pack=${pack.id}`} className="btn btn-primary pack-cta">
+                              Réserver ce pack
+                            </Link>
+                          ) : (
+                            <Link to="/contact" className="btn btn-primary pack-cta">
+                              Nous contacter
+                            </Link>
+                          )}
                         </div>
                       </Motion.div>
                     ))}
                   </Motion.div>
+
+                  <section aria-labelledby="catalogue-promotions-title" style={{ margin: '4rem 0' }}>
+                    <h2 id="catalogue-promotions-title" className="text-center">Autres privilèges Golden</h2>
+                    <p className="text-center" style={{ color: 'var(--c-text-muted)', marginBottom: '2rem' }}>
+                      Ces avantages sont vérifiés et appliqués avec l’équipe lors de votre échange.
+                    </p>
+                    <div className="pack-grid">
+                      {cataloguePromotions.map((promotion) => (
+                        <article key={promotion.code} className="pack-card-premium">
+                          <div className="promo-badge">PROMO</div>
+                          <span className="category-label">Privilèges Golden</span>
+                          <h3>{promotion.name}</h3>
+                          <p className="price">{promotion.advantage}</p>
+                          <p>{promotion.conditions}</p>
+                          <p><strong>{promotion.applicationLabel}</strong></p>
+                          <div style={{ marginTop: 'auto' }}>
+                            <Link to="/contact" className="btn btn-primary pack-cta">Nous contacter</Link>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
 
                   <div className="devis-section">
                     <div className="devis-section__bg" />

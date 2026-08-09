@@ -104,7 +104,7 @@ const Reservation = () => {
     getPackages()
       .then((items) => {
         if (!isMounted) return;
-        const normalized = items.map(packageView);
+        const normalized = items.map(packageView).filter((pack) => pack.isDirectBooking);
         const selected = selectPackageFromQuery(normalized, initialPackId);
 
         setPacks(normalized);

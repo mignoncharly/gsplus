@@ -1,6 +1,7 @@
 import { HttpError } from '../errors/http-error.js';
 import {
   PackageVersionStatus,
+  PackageBookingMode,
   Prisma,
   type Package,
   type PackageVersion,
@@ -40,6 +41,7 @@ const legacyVersionData = (pack: Package, createdById?: string) => ({
   price: pack.price,
   currency: pack.currency,
   durationMin: pack.durationMin,
+  bookingMode: pack.bookingMode,
   deliveryLabel: pack.deliveryLabel,
   options: jsonValue(pack.options),
   legalText: pack.legalText,
@@ -94,6 +96,7 @@ const versionProjection = (version: VersionWithActors | PackageVersion) => ({
   price: version.price,
   currency: version.currency,
   durationMin: version.durationMin,
+  bookingMode: version.bookingMode,
   deliveryLabel: version.deliveryLabel,
   options: version.options,
   legalText: version.legalText,
@@ -164,7 +167,8 @@ export type PackageUpdate = {
   conditions?: string | null;
   price?: number;
   currency?: string;
-  durationMin?: number;
+  durationMin?: number | null;
+  bookingMode?: PackageBookingMode;
   deliveryLabel?: string | null;
   options?: Prisma.InputJsonValue | null;
   legalText?: string | null;
@@ -174,8 +178,14 @@ export type PackageUpdate = {
   sortOrder?: number;
 };
 
-export type PackageCreate = Required<Pick<PackageUpdate, 'slug' | 'name' | 'category' | 'price' | 'durationMin'>> &
+export type PackageCreate = Required<Pick<PackageUpdate, 'slug' | 'name' | 'category' | 'price'>> &
   PackageUpdate;
+
+const assertBookingConfiguration = (bookingMode: PackageBookingMode, durationMin: number | null) => {
+  if (bookingMode === PackageBookingMode.DIRECT && durationMin === null) {
+    throw new HttpError(400, 'PACKAGE_DURATION_REQUIRED', 'La durée est obligatoire pour une réservation directe.');
+  }
+};
 
 const draftData = (input: PackageCreate, packageId: string, version: number, createdById?: string) => ({
   packageId,
@@ -188,7 +198,8 @@ const draftData = (input: PackageCreate, packageId: string, version: number, cre
   conditions: input.conditions ?? null,
   price: input.price,
   currency: input.currency ?? 'XAF',
-  durationMin: input.durationMin,
+  durationMin: input.durationMin ?? null,
+  bookingMode: input.bookingMode ?? PackageBookingMode.DIRECT,
   deliveryLabel: input.deliveryLabel ?? null,
   options: jsonValue(input.options),
   legalText: input.legalText ?? null,
@@ -199,6 +210,7 @@ const draftData = (input: PackageCreate, packageId: string, version: number, cre
 });
 
 export const createPackageWithVersion = async (input: PackageCreate, adminUserId?: string) => {
+  assertBookingConfiguration(input.bookingMode ?? PackageBookingMode.DIRECT, input.durationMin ?? null);
   const packageId = await prisma.$transaction(async (tx) => {
     if (await tx.package.findUnique({ where: { slug: input.slug } })) {
       throw new HttpError(409, 'PACKAGE_SLUG_EXISTS', 'Une formule utilise déjà cet identifiant.');
@@ -211,7 +223,8 @@ export const createPackageWithVersion = async (input: PackageCreate, adminUserId
         description: input.description ?? null,
         price: input.price,
         currency: input.currency ?? 'XAF',
-        durationMin: input.durationMin,
+        durationMin: input.durationMin ?? null,
+        bookingMode: input.bookingMode ?? PackageBookingMode.DIRECT,
         deliveryLabel: input.deliveryLabel ?? null,
         options: jsonValue(input.options),
         legalText: input.legalText ?? null,
@@ -264,6 +277,7 @@ export const duplicatePackageWithVersion = async (
         price: version.price,
         currency: version.currency,
         durationMin: version.durationMin,
+        bookingMode: version.bookingMode,
         deliveryLabel: version.deliveryLabel,
         options: jsonValue(version.options),
         legalText: version.legalText,
@@ -289,6 +303,7 @@ export const duplicatePackageWithVersion = async (
         price: version.price,
         currency: version.currency,
         durationMin: version.durationMin,
+        bookingMode: version.bookingMode,
         deliveryLabel: version.deliveryLabel,
         options: jsonValue(version.options),
         legalText: version.legalText,
@@ -312,7 +327,8 @@ const mergedDraft = (version: PackageVersion, input: PackageUpdate) => ({
   conditions: input.conditions === undefined ? version.conditions : input.conditions,
   price: input.price ?? version.price,
   currency: input.currency ?? version.currency,
-  durationMin: input.durationMin ?? version.durationMin,
+  durationMin: input.durationMin === undefined ? version.durationMin : input.durationMin,
+  bookingMode: input.bookingMode ?? version.bookingMode,
   deliveryLabel: input.deliveryLabel === undefined ? version.deliveryLabel : input.deliveryLabel,
   options: input.options === undefined ? jsonValue(version.options) : jsonValue(input.options),
   legalText: input.legalText === undefined ? version.legalText : input.legalText,
@@ -341,7 +357,7 @@ export const updatePackageWithVersion = async (
 
     const versionFields: (keyof PackageUpdate)[] = [
       'name', 'category', 'description', 'content', 'inclusions', 'conditions', 'price',
-      'currency', 'durationMin', 'deliveryLabel', 'options', 'legalText', 'effectiveAt',
+      'currency', 'durationMin', 'bookingMode', 'deliveryLabel', 'options', 'legalText', 'effectiveAt',
     ];
     if (!versionFields.some((field) => input[field] !== undefined)) {
       await tx.package.update({
@@ -362,6 +378,7 @@ export const updatePackageWithVersion = async (
       pack = { ...pack, publishedVersion: current.version, versions: [current] };
     }
     const values = mergedDraft(current, input);
+    assertBookingConfiguration(values.bookingMode, values.durationMin);
     let nextVersion = current.version;
 
     if (current.status === PackageVersionStatus.DRAFT || current.status === PackageVersionStatus.VALIDATED) {
@@ -389,6 +406,7 @@ export const updatePackageWithVersion = async (
           price: values.price,
           currency: values.currency,
           durationMin: values.durationMin,
+          bookingMode: values.bookingMode,
           deliveryLabel: values.deliveryLabel,
           options: values.options,
           legalText: values.legalText,
@@ -422,7 +440,7 @@ const assertPublishable = (version: PackageVersion) => {
   if (!version.name.trim()) missing.push('name');
   if (version.price < 0) missing.push('price');
   if (!/^[A-Z]{3}$/.test(version.currency)) missing.push('currency');
-  if (version.durationMin < 15) missing.push('durationMin');
+  if (version.bookingMode === PackageBookingMode.DIRECT && (version.durationMin === null || version.durationMin < 15)) missing.push('durationMin');
   if (!version.description?.trim()) missing.push('description');
   if (!version.content?.trim()) missing.push('content');
   if (!Array.isArray(version.inclusions) || version.inclusions.length === 0) missing.push('inclusions');
@@ -500,6 +518,7 @@ export const publishPackageVersion = async (
         price: current.price,
         currency: current.currency,
         durationMin: current.durationMin,
+        bookingMode: current.bookingMode,
         deliveryLabel: current.deliveryLabel,
         options: jsonValue(current.options),
         legalText: current.legalText,

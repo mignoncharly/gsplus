@@ -54,7 +54,8 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     { name: 'category', label: 'Catégorie', required: true, defaultValue: pack.category || '' },
     { name: 'price', label: 'Montant', type: 'number', required: true, defaultValue: String(pack.price ?? 0), min: '0', validate: (value) => Number(value) >= 0 ? '' : 'Le montant doit être positif ou nul.' },
     { name: 'currency', label: 'Devise', type: 'select', required: true, defaultValue: pack.currency || 'XAF', options: [{ value: 'XAF', label: 'XAF — franc CFA' }] },
-    { name: 'durationMin', label: 'Durée en minutes', type: 'number', required: true, defaultValue: String(pack.durationMin ?? 60), min: '15', validate: (value) => Number(value) >= 15 ? '' : 'La durée minimale est de 15 minutes.' },
+    { name: 'bookingMode', label: 'Mode de réservation', type: 'select', required: true, defaultValue: pack.bookingMode || 'DIRECT', options: [{ value: 'DIRECT', label: 'Réservation directe' }, { value: 'CONTACT', label: 'Prise de contact' }] },
+    { name: 'durationMin', label: 'Durée en minutes — vide si prise de contact', type: 'number', defaultValue: pack.durationMin === null ? '' : String(pack.durationMin ?? 60), min: '15', validate: (value) => value === '' || Number(value) >= 15 ? '' : 'La durée minimale est de 15 minutes.' },
     { name: 'description', label: 'Résumé public', type: 'textarea', required: true, defaultValue: pack.description || '' },
     { name: 'content', label: 'Contenu de la formule', type: 'textarea', required: true, defaultValue: pack.content || '' },
     { name: 'inclusions', label: 'Inclusions — une par ligne', type: 'textarea', required: true, defaultValue: inclusionsText(pack), validate: (value) => String(value).split('\n').some((line) => line.trim()) ? '' : 'Renseignez au moins une inclusion.' },
@@ -68,13 +69,17 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     let effectiveAt;
     try { effectiveAt = doualaLocalDateTimeToIso(values.effectiveAt); }
     catch { throw new Error('La date d’effet est invalide.'); }
+    if (values.bookingMode === 'DIRECT' && values.durationMin === '') {
+      throw new Error('La durée est obligatoire pour une réservation directe.');
+    }
     return {
       name: values.name.trim(),
       slug: values.slug.trim(),
       category: values.category.trim(),
       price: Number(values.price),
       currency: values.currency,
-      durationMin: Number(values.durationMin),
+      durationMin: values.durationMin === '' ? null : Number(values.durationMin),
+      bookingMode: values.bookingMode,
       description: values.description.trim() || null,
       content: values.content.trim(),
       inclusions: values.inclusions.split('\n').map((line) => line.trim()).filter(Boolean),
@@ -158,7 +163,7 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
             <div>
               <strong style={{ color: '#fff', fontSize: '1.05rem' }}>{pack.name}</strong>
               <small style={{ color: 'rgba(255,255,255,0.4)', display: 'block', marginTop: '0.25rem' }}>{pack.category}</small>
-              <small style={{ color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: '0.35rem' }}>{formatFcfa(pack.price)} · {pack.durationMin} min · version {pack.version} · ordre {pack.sortOrder}</small>
+              <small style={{ color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: '0.35rem' }}>{formatFcfa(pack.price)} · {pack.bookingMode === 'CONTACT' ? 'sur échange' : `${pack.durationMin} min`} · version {pack.version} · ordre {pack.sortOrder}</small>
               <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>{pill(pack.publicationStatus || (pack.isArchived ? 'ARCHIVED' : 'DRAFT'))} {pill(`${packageReferenceCount(pack)} référence(s)`)}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -184,7 +189,8 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
               <h2 id="package-preview-title">Aperçu avant publication — <span>{previewPack.name}</span></h2>
               <p>{previewPack.description || 'Aucun résumé public.'}</p>
               <div className="admin-modal-info-row"><span>Montant :</span><strong>{formatFcfa(previewPack.price)}</strong></div>
-              <div className="admin-modal-info-row"><span>Durée :</span><strong>{previewPack.durationMin} minutes</strong></div>
+              <div className="admin-modal-info-row"><span>Réservation :</span><strong>{previewPack.bookingMode === 'CONTACT' ? 'Prise de contact' : 'Directe'}</strong></div>
+              <div className="admin-modal-info-row"><span>Durée :</span><strong>{previewPack.durationMin === null ? 'Définie lors de l’échange' : `${previewPack.durationMin} minutes`}</strong></div>
               <div className="admin-modal-info-row"><span>Date d’effet :</span><strong>{previewPack.effectiveAt ? formatBusinessDateTime(previewPack.effectiveAt) : 'Non renseignée'}</strong></div>
               <div className="admin-modal-info-row"><span>Statut :</span><strong>{pill(previewPack.publicationStatus || 'DRAFT')}</strong></div>
               <div className="admin-modal-block"><strong>Contenu de la formule</strong><p>{previewPack.content || 'Non renseigné'}</p></div>

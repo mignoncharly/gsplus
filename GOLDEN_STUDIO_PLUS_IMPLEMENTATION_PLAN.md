@@ -733,7 +733,7 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
-| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DIFFÉRÉ-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `IMPLÉMENTÉ-LOCAL — À DÉPLOYER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `DIFFÉRÉ-OWNER` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `EXÉCUTÉ-NON-CLOS` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
@@ -962,3 +962,17 @@ Les huit exigences non requalifiées sont P1-01/I-08 (`DIFFÉRÉ-META`), E-17/E-
 - Livrable : `GOLDEN_STUDIO_PLUS_CATALOGUE_MIGRATION_PREVIEW.md`; aucune DRAFT, réservation ou donnée production créée.
 
 POST-03 peut maintenant passer de la recherche de source à l'implémentation structurée. Les données encore indispensables sont les 29 champs de livraison, la durée/mode d'Identité Standard, le mode des abonnements et la stratégie bilingue.
+
+## 47. POST-03 — Arbitrages OWNER intégrés et catalogue français implémenté — 9 août 2026
+
+État : `IMPLÉMENTÉ-LOCAL — À DÉPLOYER`; aucune version DRAFT n'a encore été créée en production et aucune publication n'a été exécutée.
+
+- Décisions OWNER : délai non spécifié communiqué lors de l'échange WhatsApp; six délais Fiançailles/Pré-mariage du DOCX faisant foi; Identité Standard et trois abonnements en prise de contact; version anglaise ignorée pour cette livraison; promotions étudiant/parrainage traitées manuellement avec l'équipe.
+- Source canonique : 35 offres françaises contrôlées par le SHA-256 du DOCX, soit 34 packs et Happy Hours. Le contrôle en lecture seule confirme 22 mises à jour et 13 créations, avec zéro publication.
+- Schéma : nouveau mode versionné `DIRECT`/`CONTACT`; durée nullable uniquement pour les offres contact; contraintes SQL et gardes API/service empêchant une réservation directe sans durée ou le contournement d'une offre contact.
+- Happy Hours : mercredi/jeudi 10 h–14 h, créneaux de 15 minutes, quota de six dossiers actifs par jour et paiement intégral contrôlés côté serveur; disponibilité publique alignée.
+- Frontend : durées exactes, suppression du faux fallback 24 h/48 h/72 h, CTA « Nous contacter » pour les quatre offres contact, prix mensuels et conditions françaises des promotions manuelles.
+- Préparation sûre : `npm run catalogue:official` est en lecture seule; seule l'option explicite `-- --apply`, après migration et sauvegarde, peut préparer les 35 versions DRAFT. Le script ne valide et ne publie aucune version.
+- Validation locale : Prisma format/validate/generate et TypeScript verts; backend 20 fichiers et 161/161 tests; frontend 95/95, ESLint, build/prerender/budgets et audit traceurs verts; différentiel catalogue 22 mises à jour, 13 créations, zéro publication.
+
+La prochaine sous-étape est une sauvegarde production restaurable, l'application de la migration additive, le déploiement du code puis la création des 35 DRAFT. La validation des mentions et la publication restent des actions OWNER distinctes et ne seront pas automatisées.

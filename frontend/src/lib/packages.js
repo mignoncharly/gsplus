@@ -20,26 +20,23 @@ export const shootingCategories = [
 
 export const formatPrice = (pack) => {
   const price = formatFcfa(pack.price);
-  return pack.isRange ? `À partir de ${price}` : price;
+  const base = pack.isRange ? `À partir de ${price}` : price;
+  const suffix = pack.options && typeof pack.options === 'object' && !Array.isArray(pack.options)
+    ? pack.options.priceSuffix
+    : null;
+  return typeof suffix === 'string' && suffix.trim() ? `${base} ${suffix.trim()}` : base;
 };
 
 export const formatDuration = (durationMin) => {
-  if (durationMin <= 30) return '20-30 min';
+  if (!Number.isFinite(durationMin)) return 'Organisation sur échange';
   if (durationMin < 60) return `${durationMin} min`;
-  if (durationMin === 480) return 'Journée';
 
   const hours = Math.floor(durationMin / 60);
   const minutes = durationMin % 60;
   return minutes ? `${hours}h${minutes}` : `${hours}h`;
 };
 
-export const deliveryLabel = (durationMin) => {
-  if (durationMin <= 30) return '24 h';
-  if (durationMin <= 60) return '48 h';
-  if (durationMin <= 120) return '72 h';
-  if (durationMin <= 240) return '5 jours';
-  return '7 jours';
-};
+export const deliveryLabel = () => 'Délai communiqué lors de l’échange WhatsApp';
 
 export const categoryKey = (category = '') => {
   const normalized = category
@@ -47,13 +44,13 @@ export const categoryKey = (category = '') => {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
-  if (normalized.includes('duo') || normalized.includes('famille') || normalized.includes('enfant')) return 'famille';
-  if (normalized.includes('maternite') || normalized.includes('naissance')) return 'maternite';
+  if (normalized.includes('maternite') || normalized.includes('bebe')) return 'maternite';
+  if (normalized.includes('duo') || normalized.includes('famille') || normalized.includes('groupe') || normalized.includes('enfant') || normalized.includes('anniversaire')) return 'famille';
   if (normalized.includes('fiancailles') || normalized.includes('mariage')) return 'fiancailles';
   if (normalized.includes('event') || normalized.includes('evenement')) return 'event';
   return 'portrait';
-};
 
+};
 export const normalizeFrenchPackageName = (name = '') => name
   .replace(/\bMaternite\b/g, 'Maternité')
   .replace(/\bBebe\b/g, 'Bébé')
@@ -69,6 +66,8 @@ export const packageView = (pack) => ({
   priceLabel: formatPrice(pack),
   durationLabel: formatDuration(pack.durationMin),
   deliveryLabel: pack.deliveryLabel?.trim() || deliveryLabel(pack.durationMin),
+  bookingMode: pack.bookingMode || 'DIRECT',
+  isDirectBooking: (pack.bookingMode || 'DIRECT') === 'DIRECT' && Number.isFinite(pack.durationMin),
 });
 
 export const selectPackageFromQuery = (packages, queryValue) => {
