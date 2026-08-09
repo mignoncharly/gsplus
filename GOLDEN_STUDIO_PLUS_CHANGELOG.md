@@ -1,5 +1,14 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Source officielle du nouveau catalogue
+
+### Confirmé et préparé
+
+- `docs/Golden_Studio_Plus_Catalogue.docx` devient la source OWNER officielle : 34 packs et trois promotions.
+- Aperçu non mutatif de la cible 35 offres, correspondance des 22 formules, treize créations, durées, livraisons et capacités techniques.
+- Ancienne grille de livraison écartée comme source de publication car les six délais documentés la contredisent.
+- Production inchangée; aucune version DRAFT ou publication créée.
+
 ## 9 août 2026 — POST-06 revalidation exhaustive, non close
 
 ### Vérifié

@@ -1,11 +1,20 @@
 # Matrice de récupération des contenus tarifaires — POST-03
 
-État : `DIFFÉRÉ-OWNER` — réponses catalogue attendues; phase ouverte, aucune validation implicite
+État : `SOURCE-OFFICIELLE-CONFIRMÉE — PRÉPARATION-NON-MUTATIVE`; phase ouverte, aucune validation ou publication implicite
+
+## Source catalogue officielle reçue le 9 août 2026
+
+L'OWNER confirme que `docs/Golden_Studio_Plus_Catalogue.docx`, version consolidée du 4 août 2026, remplace le catalogue historique des 22 formules. Son SHA-256 est `002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696`.
+
+Le document a été extrait et lu intégralement : 190 paragraphes non vides et 45 lignes de tableaux. Il contient 34 packs avec prix et descriptions FR/EN ainsi que Happy Hours, l'avantage étudiant et le parrainage. La correspondance et les écarts techniques sont consignés dans `GOLDEN_STUDIO_PLUS_CATALOGUE_MIGRATION_PREVIEW.md`.
+
+Cette source résout les descriptions, les inclusions principales, les prix et la plupart des durées. Elle invalide toutefois la reprise automatique de l'ancienne grille de livraison : les six délais explicitement documentés sont de 10, 15 ou 20 jours ouvrés, alors que le fallback affichait 72 h, 5 jours ou 7 jours. Les 28 autres packs et Happy Hours restent sans délai; la cible comporte donc 29 champs à compléter.
 
 Ce document remplace l'hypothèse initiale selon laquelle 88 nouveaux contenus devaient être rédigés. La base comporte bien 88 champs obligatoires absents, mais plusieurs informations existent déjà hors des versions tarifaires et doivent être récupérées, reliées ou approuvées — pas réinventées.
 
 ## Sources relues intégralement le 9 août 2026
 
+- `docs/Golden_Studio_Plus_Catalogue.docx` : 190 paragraphes non vides et 45 lignes de tableaux; source officielle confirmée par l'OWNER.
 - `docs/Bibliotheque_emails_Golden_Studio_Plus_2026-07-30_v2.docx` : 1 064 paragraphes/lignes extraits et relus.
 - `docs/Rapport_unifie_audit_Golden_Studio_Plus_2026-07-29.docx` : 509 paragraphes/lignes extraits et relus.
 - `docs/Textes_juridiques_Golden_Studio_Plus_2026-07-31.docx` : 125 paragraphes/lignes extraits et relus.
@@ -59,26 +68,26 @@ La version tarifaire doit conserver uniquement les mentions particulières de la
 
 ## Écarts réels après récupération
 
-| Élément | Situation réelle | Attente OWNER minimale |
+| Élément | Situation après réception du catalogue | Suite |
 |---|---|---|
-| Résumé public / contenu | Aucun texte formule par formule dans les trois DOCX, la base ou l'historique Git | Indiquer la source catalogue existante. Si un seul texte par formule suffit, approuver son emploi à la fois comme résumé et contenu plutôt que rédiger deux doublons. |
-| Inclusions | Trois formules récupérées; dix-neuf sans source dans le dépôt ou les DOCX | Indiquer la source des dix-neuf listes ou fournir les listes manquantes; confirmer les trois listes récupérées. |
-| Livraison | Les 22 délais sont déjà affichés via une grille technique, mais la bibliothèque d'e-mails demande une définition réelle par prestation | Approuver la grille existante en une décision globale, ou fournir les exceptions par formule. |
-| Conditions communes | Déjà publiées dans les CGV du 31 juillet 2026 | Aucune nouvelle rédaction; confirmer que les CGV communes s'appliquent aux 22 formules. |
-| Conditions particulières | Flash Social documenté; aucune autre condition particulière trouvée | Déclarer les éventuelles exceptions. « Aucune autre condition particulière » est une décision globale acceptable. |
-| Mentions juridiques | Document juridique déjà publié et versionné séparément | Référencer la version juridique publiée; ne rédiger que les mentions particulières absentes, s'il en existe. |
+| Résumé public / contenu | Descriptions FR/EN fournies pour 34 packs | Reprendre le FR sans amplification; conserver l'EN jusqu'à décision de localisation |
+| Inclusions | Les éléments principaux sont présents dans chaque description | Les séparer en liste structurée sans modifier le sens |
+| Livraison | Six délais explicites de 10/15/20 jours ouvrés; 28 packs et Happy Hours sans valeur | Compléter 29 enregistrements, ou confirmer que Happy Hours reprend Flash Social; ne pas employer le fallback historique |
+| Durée | 33/34 packs renseignés; Identité Standard sans durée | Fournir une durée ou déclarer l'offre non réservable en ligne |
+| Conditions communes | CGV publiées du 31 juillet 2026 | Référencer cette version dans chaque fiche |
+| Conditions particulières | Happy Hours, étudiant, parrainage et engagements d'abonnement documentés | Implémenter les règles applicables et leur audit |
+| Structure | 34 packs et trois promotions au lieu de 22 formules agrégées | Cible 35 offres + deux règles promotionnelles séparées |
 
 ## Réponse OWNER attendue
 
-Une réponse courte peut suffire, par exemple :
+La question de source est résolue. Restent uniquement :
 
-1. source du catalogue détaillé des 22 formules : fichier, URL officielle ou document à joindre;
-2. « grille de livraison actuelle approuvée » ou liste des exceptions;
-3. « CGV du 31 juillet 2026 applicables aux 22 formules »;
-4. « aucune condition particulière supplémentaire » ou liste des exceptions;
-5. confirmation ou correction des trois listes récupérées.
+1. les délais de livraison de 28 packs et de Happy Hours;
+2. la durée ou le caractère non réservable d'Identité Standard;
+3. le mode de souscription des trois abonnements;
+4. le choix de publier maintenant le français seul ou d'ajouter le bilingue.
 
-Après cette réponse, l'inventaire définitif sera généré depuis les sources, soumis en aperçu, puis seulement transformé en versions 2 `DRAFT`. Aucune version ne sera validée ou publiée sans contrôle OWNER du rendu final.
+Après ces réponses, l'aperçu définitif sera transformé en versions `DRAFT`. Aucune version ne sera validée ou publiée sans contrôle OWNER du rendu final.
 
 ## Baseline d'intégrité
 

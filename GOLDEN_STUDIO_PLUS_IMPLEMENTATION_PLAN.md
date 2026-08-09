@@ -948,3 +948,17 @@ Aucune variable production, donnée, notification ou livraison n'a été modifi�
 - Configuration expurgée : livraison e-mail activée et SMTP configuré; WhatsApp et identifiants OAuth Zoho absents; aucun secret trouvé dans le diff.
 
 Les huit exigences non requalifiées sont P1-01/I-08 (`DIFFÉRÉ-META`), E-17/E-18/E-19 (`BLOQUÉ-GATES-OWNER`) et I-09/I-11/I-12 (`DIFFÉRÉ-OWNER`). POST-03 reste une dette transverse `DIFFÉRÉ-OWNER` sur le contenu catalogue. POST-06 ne fabrique donc ni preuve fournisseur ni « 100 % ».
+
+## 46. POST-03 — Source catalogue officielle reçue — 9 août 2026
+
+État : `SOURCE-OFFICIELLE-CONFIRMÉE — PRÉPARATION-NON-MUTATIVE`.
+
+- L'OWNER confirme que `docs/Golden_Studio_Plus_Catalogue.docx`, version du 4 août 2026, remplace le catalogue historique.
+- Extraction complète : 34 packs, trois promotions, 190 paragraphes non vides et 45 lignes de tableaux; SHA-256 `002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696`.
+- Cible : 35 enregistrements commerciaux, soit les 34 packs et Happy Hours conservé comme offre promotionnelle réservable. Avantage étudiant et parrainage deviennent des règles séparées.
+- Correspondance : 17 formules directes, quatre agrégats actuels éclatés en douze packs et cinq packs entièrement nouveaux. Les prix actuels correspondent, mais 15/22 durées doivent changer.
+- Blocage livraison : six offres Fiançailles/Pré-mariage fournissent 10/15/20 jours ouvrés et contredisent le fallback actuel; 28 packs et Happy Hours restent sans délai, soit 29 enregistrements cibles.
+- Capacités nouvelles : règles Happy Hours, remise étudiante, ledger de parrainage, mode abonnement/contact et éventuelle localisation EN.
+- Livrable : `GOLDEN_STUDIO_PLUS_CATALOGUE_MIGRATION_PREVIEW.md`; aucune DRAFT, réservation ou donnée production créée.
+
+POST-03 peut maintenant passer de la recherche de source à l'implémentation structurée. Les données encore indispensables sont les 29 champs de livraison, la durée/mode d'Identité Standard, le mode des abonnements et la stratégie bilingue.
