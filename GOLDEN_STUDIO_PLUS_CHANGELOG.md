@@ -1,5 +1,21 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Catalogue français préparé en production
+
+### Déployé
+
+- Mode versionné `DIRECT`/`CONTACT`, durées nullables uniquement sur contact et gardes serveur anti-contournement.
+- Source canonique de 35 offres françaises, délais exacts Fiançailles/Pré-mariage et fallback WhatsApp pour les 29 autres offres.
+- Règles Happy Hours côté serveur; affichage manuel explicite de l'avantage étudiant et du parrainage.
+- Migration 29/29, backend redémarré et frontend français construit.
+
+### Préparé sans publication
+
+- 35/35 DRAFT conformes : 22 nouvelles versions et 13 nouvelles offres inactives.
+- Les 22 versions historiques restent publiées; zéro version validée et zéro publication déclenchée.
+- Sauvegarde restaurable vérifiée avant migration; 13 réservations/snapshots/paiements et 54 notifications inchangés.
+- POST-03 attend désormais la validation et l'ordre de publication OWNER.
+
 ## 9 août 2026 — Source officielle du nouveau catalogue
 
 ### Confirmé et préparé

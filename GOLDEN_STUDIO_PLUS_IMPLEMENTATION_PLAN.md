@@ -733,7 +733,7 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
-| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `IMPLÉMENTÉ-LOCAL — À DÉPLOYER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DRAFTS-PROD — VALIDATION-OWNER-REQUISE` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `DIFFÉRÉ-OWNER` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `EXÉCUTÉ-NON-CLOS` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
@@ -965,7 +965,7 @@ POST-03 peut maintenant passer de la recherche de source à l'implémentation st
 
 ## 47. POST-03 — Arbitrages OWNER intégrés et catalogue français implémenté — 9 août 2026
 
-État : `IMPLÉMENTÉ-LOCAL — À DÉPLOYER`; aucune version DRAFT n'a encore été créée en production et aucune publication n'a été exécutée.
+État : `DRAFTS-PROD — VALIDATION-OWNER-REQUISE`; les 35 brouillons sont préparés en production, mais aucune validation ni publication n'a été exécutée.
 
 - Décisions OWNER : délai non spécifié communiqué lors de l'échange WhatsApp; six délais Fiançailles/Pré-mariage du DOCX faisant foi; Identité Standard et trois abonnements en prise de contact; version anglaise ignorée pour cette livraison; promotions étudiant/parrainage traitées manuellement avec l'équipe.
 - Source canonique : 35 offres françaises contrôlées par le SHA-256 du DOCX, soit 34 packs et Happy Hours. Le contrôle en lecture seule confirme 22 mises à jour et 13 créations, avec zéro publication.
@@ -975,4 +975,9 @@ POST-03 peut maintenant passer de la recherche de source à l'implémentation st
 - Préparation sûre : `npm run catalogue:official` est en lecture seule; seule l'option explicite `-- --apply`, après migration et sauvegarde, peut préparer les 35 versions DRAFT. Le script ne valide et ne publie aucune version.
 - Validation locale : Prisma format/validate/generate et TypeScript verts; backend 20 fichiers et 161/161 tests; frontend 95/95, ESLint, build/prerender/budgets et audit traceurs verts; différentiel catalogue 22 mises à jour, 13 créations, zéro publication.
 
-La prochaine sous-étape est une sauvegarde production restaurable, l'application de la migration additive, le déploiement du code puis la création des 35 DRAFT. La validation des mentions et la publication restent des actions OWNER distinctes et ne seront pas automatisées.
+- Sauvegarde : `.phase0-backups/20260809T144500Z-pre-post-03-catalogue/database-pre-post-03.dump`, 169 111 octets, mode 0600, SHA-256 `bfb13932102fb04a2a20f4719cf178e8dd8defb5acb15274c791aa85210c3750`; catalogue `pg_restore` de 301 entrées.
+- Production : migration additive appliquée, schéma 29/29; backend PID `1870902`, `NRestarts=68`, santé locale/publique 200 et garde admin 401.
+- Brouillons : 35/35 complets et exactement conformes à la source canonique, dont 22 versions 2 et 13 nouvelles offres inactives; zéro `VALIDATED`, 22 versions historiques toujours `PUBLISHED` et 22 offres publiques.
+- Invariants : 13 réservations, 13 snapshots, 13 paiements et 54 notifications inchangés; aucune notification ou preuve fournisseur créée.
+
+POST-03 reste ouvert. La prochaine sous-étape est la revue/validation OWNER des 35 DRAFT puis leur publication contrôlée; ces deux commandes restent distinctes et ne seront pas automatisées sans ordre explicite.

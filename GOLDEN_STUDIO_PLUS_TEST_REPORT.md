@@ -1611,3 +1611,23 @@ Le probe est prêt. La preuve d'accès attend `ZOHO_MAIL_ORG_ID` et un token OAu
 Les échecs E2E initiaux sont conservés : tous correspondent à la fermeture/crash du moteur WebKit, et chaque scénario a réussi isolément. Cette qualification n'efface pas les campagnes initiales.
 
 Postflight : 13 réservations, 13 snapshots, 13 paiements, 22 formules, 22 versions publiées, 54 notifications, 8 leads, 11 synchronisations calendrier, 18 médias; zéro livraison, rapport e-mail, tâche financière, report, retrait, demande de droits ou incident. Aucun e-mail ni écriture métier réelle pendant POST-06.
+
+# POST-03 — Catalogue français en DRAFT production — 9 août 2026
+
+## Résultat
+
+`DRAFTS-PROD — VALIDATION-OWNER-REQUISE` : le schéma et le code sont déployés, et les 35 brouillons correspondent à la source officielle. Aucune version n'a été validée ou publiée.
+
+| Contrôle | Résultat |
+|---|---|
+| Source DOCX | SHA-256 `002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696`; français uniquement |
+| Backend | Build conforme; 20 fichiers, 161/161 tests |
+| Frontend | 95/95, ESLint, build/prerender/budgets et audit traceurs conformes |
+| Prisma | Format/validate/generate conformes; migration production 29/29 |
+| Sauvegarde | 169 111 octets, mode 0600, SHA-256 `bfb13932102fb04a2a20f4719cf178e8dd8defb5acb15274c791aa85210c3750`; catalogue 301 entrées |
+| DRAFT | 35/35 complets, 35/35 conformes, 4 offres contact, zéro écart |
+| Publication | 22 offres et 22 versions historiques toujours publiques; 0 VALIDATED, 0 publication nouvelle |
+| Invariants | 13 réservations, 13 snapshots, 13 paiements, 54 notifications |
+| Service | PID `1870902`, `NRestarts=68`, santé local/public 200, admin 401 |
+
+Les actions OWNER de validation des mentions et de publication restent volontairement en attente.
