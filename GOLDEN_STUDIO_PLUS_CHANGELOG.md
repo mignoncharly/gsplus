@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — POST-03 différé et préflight POST-04
+
+### Documenté
+
+- POST-03 devient `DIFFÉRÉ-OWNER` pendant l'attente des réponses catalogue, sans être déclaré terminé et sans modification tarifaire.
+- POST-04 exige deux dossiers QA distincts : un `NO_SHOW` pour E-17 et un `COMPLETED` pour E-18/E-19.
+- Un runbook supervisé fixe les gates : autorisation d'envoi, boîte QA contrôlée, deux réservations QA, délai versionné approuvé et livrable HTTPS non sensible.
+
+### Prouvé
+
+- Tests e-mail/livraison ciblés : 2 fichiers, 18/18 tests verts.
+- Production en lecture seule : 13 réservations, zéro E-17/E-18/E-19, zéro tentative associée, zéro livraison et 0/22 version publiée avec un délai.
+- SMTP sortant et worker configurés; secret de rapport fournisseur absent et maintenu dans le périmètre POST-05.
+- Aucune écriture production et aucun e-mail réel. POST-04 reste `BLOQUÉ-GATES-OWNER`.
+
 ## 9 août 2026 — POST-03 relecture exhaustive et inventaire corrigé
 
 ### Corrigé
@@ -13,7 +28,7 @@
 - Test rouge 4/5 sur la priorité du délai, puis ciblé 5/5 et frontend complet 92/92.
 - ESLint, build, prerender, budgets et audit traceurs conformes; P1-04 local Chromium/WebKit 4/4 et production interceptée non mutative 4/4.
 - Production : chunk frontend corrigé effectivement servi, santé/admin 200; 22 versions `PUBLISHED`, 13 réservations/snapshots et empreinte historique inchangés.
-- Aucune version tarifaire, réservation, notification ou donnée de production modifiée. POST-03 reste `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`.
+- Aucune version tarifaire, réservation, notification ou donnée de production modifiée. POST-03 a ensuite été placé en `DIFFÉRÉ-OWNER` pendant l'attente des réponses.
 
 ## 9 août 2026 — POST-03 inventaire initial, corrigé par la relecture exhaustive
 

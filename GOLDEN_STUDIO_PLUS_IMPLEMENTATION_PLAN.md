@@ -733,8 +733,8 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
 | 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
-| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-SOURCE-CATALOGUE-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
-| 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `EN-ATTENTE-AUTORISATION-ENVOI` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
+| 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DIFFÉRÉ-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
+| 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
 | 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `EN-ATTENTE-AUTORISATION-ENVOI` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
@@ -870,7 +870,7 @@ POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/6
 
 ## 40. Préparation POST-03 « Complétude métier des 22 formules » — 9 août 2026
 
-État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`; aucune version n'a été créée et aucune donnée de production n'a été modifiée.
+État courant : `DIFFÉRÉ-OWNER`; aucune version n'a été créée et aucune donnée de production n'a été modifiée.
 
 - Extraction directe en lecture seule : 22 formules actives/non archivées, 22 versions 1 `PUBLISHED`, zéro `DRAFT`, zéro `VALIDATED`.
 - Dette confirmée : 22/22 `description`, 22/22 `deliveryLabel`, 22/22 listes `inclusions` et 22/22 `legalText` sont absents. Les valeurs `content`/`conditions` issues du backfill reprennent seulement le nom : elles passent la garde technique mais exigent confirmation ou remplacement OWNER.
@@ -879,11 +879,11 @@ POST-02 est terminé et `VALIDÉ-PROD`. Progression : 2/6 phases actives et 53/6
 - Invariants : 13 réservations et 13 snapshots; empreinte SHA-256 des liaisons et données tarifaires figées `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
 - Gate : aucune création DRAFT, validation ou publication avant identification de la source catalogue détaillée, approbation ou correction de la grille de livraison, confirmation de l'application des CGV communes et inventaire des éventuelles conditions particulières.
 
-POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; POST-06 ne peut donc pas commencer.
+POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`. Le 9 août 2026, l'OWNER a demandé de différer cette phase pendant l'attente des réponses catalogue : son état devient `DIFFÉRÉ-OWNER`, sans requalification en succès. POST-04 et POST-05 restent également fermées faute d'autorisation d'envoi réel et de boîte de test contrôlée; POST-06 ne peut donc pas commencer.
 
 ## 41. Relecture exhaustive et correction de préparation POST-03 — 9 août 2026
 
-État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`; préparation technique et documentaire corrigée, production métier inchangée.
+État courant : `DIFFÉRÉ-OWNER`; préparation technique et documentaire corrigée, production métier inchangée.
 
 - Sources intégrales : bibliothèque e-mails 1 064/1 064 lignes, rapport d'audit 509/509 et textes juridiques 125/125 relus; historique Git complet et sources publiques du dépôt rapprochés.
 - Récupération : CGV communes déjà approuvées et publiées, délais frontend existants pour 22/22 formules, inclusions commerciales existantes pour `classic-propre`, `pack-signature` et `duo-couple`.
@@ -893,4 +893,17 @@ POST-03 n'est pas terminé et la progression reste à 2/6 phases actives et 53/6
 - Production frontend : chunk `packages-DXmI3P88.js` servi avec priorité `e.deliveryLabel?.trim()`, santé/admin 200. Base inchangée : 22 `PUBLISHED`, zéro DRAFT/VALIDATED, 13 réservations/snapshots et empreinte tarifaire identique.
 - Documentation : l'inventaire initial réclamant 88 nouveaux textes est remplacé par une matrice de récupération. Une réponse OWNER globale peut approuver les délais et CGV; seuls les descriptions/contenus et inclusions réellement absents doivent être sourcés.
 
-POST-03 reste ouvert : aucune version 2, validation ou publication ne sera créée avant récupération du catalogue détaillé et aperçu OWNER. Progression inchangée : 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`.
+POST-03 reste ouvert mais différé par décision OWNER : aucune version 2, validation ou publication ne sera créée avant récupération du catalogue détaillé et aperçu OWNER. Progression inchangée : 2/6 phases actives et 53/61 exigences `VALIDÉ-PROD`.
+
+## 42. Préflight POST-04 « Preuve réelle E-17/E-18/E-19 » — 9 août 2026
+
+État : `BLOQUÉ-GATES-OWNER`; code prêt et tests ciblés verts, aucune réservation, livraison ou notification créée en production et aucun e-mail réel envoyé.
+
+- Deux dossiers QA indépendants sont obligatoires : E-17 termine un dossier en `NO_SHOW`, tandis que E-18/E-19 exigent un autre dossier en `COMPLETED`. Ces états sont terminaux et ne peuvent pas être enchaînés sur une même réservation.
+- Préflight production en lecture seule : 13 réservations (6 `PENDING_CONFIRMATION`, 4 `CONFIRMED`, 1 `COMPLETED`, 2 `CANCELLED`), zéro `ReservationDelivery`, zéro E-17/E-18/E-19 et zéro tentative associée.
+- SMTP sortant prêt : livraison e-mail, worker, hôte, expéditeur et authentification configurés. Le secret de webhook de rapports fournisseur est absent; ce point relève de POST-05 et n'empêche pas la preuve de réception POST-04.
+- Blocage E-18 : 0/22 versions `PUBLISHED` ont un `deliveryLabel`, et 0/13 réservations référencent une version qui en possède un. Le code refuse donc correctement de créer E-18 dans l'état actuel.
+- Gates restantes : autorisation explicite des envois réels; adresse QA contrôlée; autorisation de créer deux réservations QA; au moins une version publiée avec un délai OWNER approuvé pour le dossier `COMPLETED`; livrable HTTPS public, non sensible et téléchargeable approuvé.
+- Validation locale ciblée : `email-notifications.test.ts` + `delivery-notifications.test.ts`, 2 fichiers et 18/18 tests verts. Le runbook supervisé est `GOLDEN_STUDIO_PLUS_POST_04_EMAIL_PROOF_RUNBOOK.md`.
+
+POST-04 ne sera pas déclaré terminé par des mocks. Les 13 dossiers existants sont exclus par défaut et ne pourront être utilisés que si l'OWNER en désigne expressément un; la voie recommandée reste deux dossiers QA neufs et identifiables.

@@ -1504,7 +1504,7 @@ La progression passe à 2/6 phases actives. Le registre atomique reste honnêtem
 
 ## Résultat
 
-POST-03 demeure `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`. L'inventaire initial « 88 nouveaux textes » était une interprétation excessive des champs vides en base; il est remplacé par une matrice séparant contenus existants, données à relier et véritables absences.
+POST-03 est `DIFFÉRÉ-OWNER` pendant l'attente des réponses catalogue. L'inventaire initial « 88 nouveaux textes » était une interprétation excessive des champs vides en base; il est remplacé par une matrice séparant contenus existants, données à relier et véritables absences.
 
 | Contrôle | Résultat |
 |---|---|
@@ -1534,4 +1534,22 @@ Le frontend écrasait systématiquement le futur `deliveryLabel` publié par l'O
 | Frontend réellement servi | `packages-DXmI3P88.js` contient la priorité du délai API; santé/admin 200 |
 | Postflight base | 22 `PUBLISHED`, 0 DRAFT/VALIDATED, 13 réservations/snapshots, empreinte inchangée |
 
-Le livrable `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` demande désormais une source catalogue, une décision globale sur la grille de livraison, l'application des CGV communes et les seules exceptions. POST-03 reste ouvert et la progression demeure à 2/6 et 53/61 `VALIDÉ-PROD`.
+Le livrable `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` demande désormais une source catalogue, une décision globale sur la grille de livraison, l'application des CGV communes et les seules exceptions. POST-03 reste ouvert mais différé et la progression demeure à 2/6 et 53/61 `VALIDÉ-PROD`.
+
+# POST-04 — Préflight de preuve réelle E-17/E-18/E-19 — 9 août 2026
+
+## Résultat
+
+POST-04 est `BLOQUÉ-GATES-OWNER`, sans écriture production ni e-mail réel. Deux dossiers QA sont nécessaires : un `NO_SHOW` pour E-17 et un `COMPLETED` pour E-18/E-19.
+
+| Contrôle | Résultat |
+|---|---|
+| Tests ciblés | 2 fichiers, 18/18 tests verts |
+| Réservations production | 13 : 6 `PENDING_CONFIRMATION`, 4 `CONFIRMED`, 1 `COMPLETED`, 2 `CANCELLED` |
+| Preuves existantes | 0 E-17, 0 E-18, 0 E-19, 0 tentative associée, 0 livraison |
+| Prérequis E-18 | 0/22 versions publiées avec `deliveryLabel`; 0/13 réservation éligible |
+| Canal sortant | E-mail, worker, SMTP, expéditeur et authentification configurés |
+| Rapport fournisseur | Secret webhook absent; suivi sous POST-05 |
+| Mutations/envois | Aucun |
+
+La preuve ne peut pas être fabriquée avec un mock ni obtenue sur un seul dossier. L'exécution attend une autorisation explicite, une boîte QA contrôlée, deux réservations QA autorisées, un délai versionné OWNER et un livrable HTTPS public non sensible.

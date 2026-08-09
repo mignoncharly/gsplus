@@ -1,5 +1,5 @@
 # Matrice de traçabilité — Golden Studio Plus
-Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour POST-03 au 9 août 2026.
+Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VALIDÉ-PROD` et `BLOQUÉ-ENV`. Mise à jour POST-04 au 9 août 2026.
 
 > **Audit indépendant du 9 août 2026** — Un audit exhaustif, reparti des trois DOCX sources (bibliothèque d'e-mails, rapport d'audit unifié, textes juridiques) sans se fier à ce registre, a été conduit le 9 août 2026. Il a établi que **le registre ci-dessous était erroné pour la ligne NOTIF-01** : la quasi-totalité des modèles E-01 à E-23 et I-01 à I-12 classés `PLANIFIÉ` étaient en réalité déjà implémentés, testés et déployés en production. Les lignes NOTIF-01 ont été corrigées ci-dessous. Deux écarts réels ont été trouvés et corrigés (P1-04, fenêtre E-03 non configurable) et un écart réel reste bloqué par une preuve externe (P1-01/WhatsApp). Le détail complet, avec statuts au vocabulaire étendu (`NON IMPLÉMENTÉ`, `PARTIEL`, `IMPLÉMENTÉ NON TESTÉ`, `TESTÉ LOCALEMENT`, `DÉPLOYÉ NON PROUVÉ`, `VALIDÉ-PROD`, `BLOQUÉ-PREUVE-EXTERNE`), figure dans la section [« Audit indépendant du 9 août 2026 »](#audit-indépendant-du-9-août-2026) en fin de document.
 
@@ -7,7 +7,9 @@ Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VA
 
 > **Clôture POST-02 du 9 août 2026** — Le critère transverse d'anti-saturation administrative est `VALIDÉ-PROD` : suppression nominative de l'auto-notification uniquement, boîte partagée/autres admins/workers/clients/alertes terminales préservés, 152/152 tests backend et postflight production non mutatif. Le registre atomique reste à 53/61.
 
-> **Préparation POST-03 corrigée le 9 août 2026** — Les trois DOCX ont été relus intégralement (1 064 + 509 + 125 lignes). Les 88 champs vides en base ne correspondent pas à 88 nouveaux textes : les CGV communes, la grille de délais existante et trois listes d'inclusions sont récupérées. Le frontend respecte désormais un futur délai OWNER versionné, tests 92/92 et P1-04 local/production 4/4. Le catalogue détaillé et 19 listes restent sans source locale; aucune version tarifaire n'a été créée. POST-03 reste `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`, registre 53/61.
+> **Préparation POST-03 corrigée le 9 août 2026** — Les trois DOCX ont été relus intégralement (1 064 + 509 + 125 lignes). Les 88 champs vides en base ne correspondent pas à 88 nouveaux textes : les CGV communes, la grille de délais existante et trois listes d'inclusions sont récupérées. Le frontend respecte désormais un futur délai OWNER versionné, tests 92/92 et P1-04 local/production 4/4. Le catalogue détaillé et 19 listes restent sans source locale; aucune version tarifaire n'a été créée. POST-03 est `DIFFÉRÉ-OWNER`, registre 53/61.
+
+> **Préflight POST-04 du 9 août 2026** — E-17 et E-18/E-19 nécessitent deux dossiers QA distincts. La production contient zéro événement pour ces trois modèles, zéro livraison et 0/22 version publiée avec un délai, donc E-18 ne peut pas encore être produit honnêtement. Tests ciblés 18/18; aucune écriture ou émission réelle. État `BLOQUÉ-GATES-OWNER` jusqu'à autorisation d'envoi, boîte QA, deux dossiers QA, délai versionné approuvé et livrable HTTPS non sensible.
 
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|

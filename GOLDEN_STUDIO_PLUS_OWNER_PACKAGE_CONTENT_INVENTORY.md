@@ -1,6 +1,6 @@
 # Matrice de récupération des contenus tarifaires — POST-03
 
-État : `EN-ATTENTE-SOURCE-CATALOGUE-OWNER`
+État : `DIFFÉRÉ-OWNER` — réponses catalogue attendues; phase ouverte, aucune validation implicite
 
 Ce document remplace l'hypothèse initiale selon laquelle 88 nouveaux contenus devaient être rédigés. La base comporte bien 88 champs obligatoires absents, mais plusieurs informations existent déjà hors des versions tarifaires et doivent être récupérées, reliées ou approuvées — pas réinventées.
 
