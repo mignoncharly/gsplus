@@ -11,7 +11,9 @@ Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VA
 
 > **Préflight POST-04 du 9 août 2026** — E-17 et E-18/E-19 nécessitent deux dossiers QA distincts. La production contient zéro événement pour ces trois modèles, zéro livraison et 0/22 version publiée avec un délai, donc E-18 ne peut pas encore être produit honnêtement. Tests ciblés 18/18; aucune écriture ou émission réelle. État `BLOQUÉ-GATES-OWNER` jusqu'à autorisation d'envoi, boîte QA, deux dossiers QA, délai versionné approuvé et livrable HTTPS non sensible.
 
-> **Préflight POST-05 du 9 août 2026** — La production utilise Zoho Mail SMTP, pas ZeptoMail. I-11 compte sept envois acceptés à 18 h Douala mais aucune preuve `deliveredAt`; I-09/I-12 et les rapports fournisseur sont absents. Le webhook interne n'est pas le format natif documenté par Zoho. Tests ciblés 21/21, aucune mutation ni émission supplémentaire. État `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`.
+> **Préflight POST-05 du 9 août 2026** — La production utilise Zoho Mail SMTP, pas ZeptoMail. I-11 compte sept envois acceptés à 18 h Douala mais aucune preuve `deliveredAt`; I-09/I-12 et les rapports fournisseur sont absents. Le webhook interne n'est pas le format natif documenté par Zoho. Tests ciblés 21/21, aucune mutation ni émission supplémentaire. État `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`.
+
+> **Choix POST-05 du 9 août 2026** — L'OWNER retient Zoho Mail. Un probe SMTP Logs strictement en lecture seule a été ajouté : origines régionales sur liste blanche, un Message-ID, résultat expurgé, 4/4 tests dédiés, backend 156/156 et build vert. Aucun accès réel n'est encore confirmé faute d'Organization ID et de token `ZohoMail.partner.organization.READ`; état `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`.
 
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|

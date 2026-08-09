@@ -1558,7 +1558,7 @@ La preuve ne peut pas être fabriquée avec un mock ni obtenue sur un seul dossi
 
 ## Résultat
 
-POST-05 est `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`. Le code local est vert mais aucun producteur réel de rapports n'est raccordé au webhook normalisé.
+POST-05 est `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`. Le code local est vert mais aucun producteur réel de rapports n'est raccordé au webhook normalisé.
 
 | Contrôle | Résultat |
 |---|---|
@@ -1572,3 +1572,21 @@ POST-05 est `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`. Le code local est vert mais au
 | Mutations/envois | Aucun |
 
 Zoho Mail expose les statuts et journaux de livraison ainsi qu'une API SMTP Logs avec accès OAuth spécifique. ZeptoMail expose des webhooks bounce signés, mais avec un payload et une signature différents du contrat interne. L'OWNER doit choisir la voie fournisseur et autoriser les boîtes/scénarios QA avant toute intégration ou émission réelle.
+
+# POST-05 — Probe OAuth SMTP Logs Zoho Mail — 9 août 2026
+
+## Résultat
+
+La voie A est implémentée et testée, sans appel Zoho réel faute d'identifiants.
+
+| Contrôle | Résultat |
+|---|---|
+| Probe ciblé | 4/4 |
+| Backend complet | 19 fichiers, 156/156 |
+| TypeScript | Build conforme |
+| Origines API | 9 datacenters officiels en liste blanche; toute autre origine rejetée avant transmission du token |
+| Minimisation | 1 Message-ID I-11, 14 jours, limite 1, résumé sans destinataire/sujet/contenu |
+| Échec sans accès | Arrêt avant réseau sur `ZOHO_MAIL_ORG_ID` absent |
+| Production | Aucune variable, donnée ou notification modifiée |
+
+Le probe est prêt. La preuve d'accès attend `ZOHO_MAIL_ORG_ID` et un token OAuth `ZohoMail.partner.organization.READ` fournis hors Git; un statut HTTP/fournisseur 200 confirmera l'accès sans exposer le journal.

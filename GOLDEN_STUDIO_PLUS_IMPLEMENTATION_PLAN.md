@@ -735,7 +735,7 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `VALIDÉ-PROD` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
 | 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `DIFFÉRÉ-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `BLOQUÉ-GATES-OWNER` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
-| 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
+| 5 | POST-05 — Preuves Zoho et alertes internes | I-09, I-11, I-12 | `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION` | Rapports/notifications réels capturés et déduplication/rejeu prouvés; 59/61 `VALIDÉ-PROD` |
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
 
@@ -910,7 +910,7 @@ POST-04 ne sera pas déclaré terminé par des mocks. Les 13 dossiers existants 
 
 ## 43. Préflight POST-05 « Preuves Zoho et alertes internes » — 9 août 2026
 
-État : `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`; aucune donnée de production créée ou modifiée et aucun e-mail réel supplémentaire envoyé.
+État : `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`; aucune donnée de production créée ou modifiée et aucun e-mail réel supplémentaire envoyé.
 
 - Configuration active classifiée sans exposer l'hôte : Zoho Mail SMTP, pas ZeptoMail. `EMAIL_DELIVERY_WEBHOOK_SECRET` est absent; le point d'entrée de rapports reste donc fermé par défaut.
 - I-11 fonctionne déjà en production : sept événements du 2 au 8 août, chacun créé à 18 h Douala, tenté une fois, `SENT` et accepté par SMTP. Aucun n'a `deliveredAt`, faute de rapport fournisseur, et la réception en boîte reste à capturer.
@@ -921,3 +921,16 @@ POST-04 ne sera pas déclaré terminé par des mocks. Les 13 dossiers existants 
 - Validation locale ciblée : quatre fichiers, 21/21 tests verts pour bounce/I-09, signature/rejeu, digest I-11 et lead/I-12. Le protocole est `GOLDEN_STUDIO_PLUS_POST_05_ZOHO_PROOF_RUNBOOK.md`.
 
 POST-05 reste ouvert. I-11 ne sera pas requalifié sur le seul statut SMTP `accepted`; I-09 exige un vrai rapport de bounce et I-12 une réception réelle sur les boîtes QA autorisées.
+
+## 44. POST-05 — Voie A Zoho Mail sélectionnée et probe OAuth — 9 août 2026
+
+État : `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`; le choix fournisseur est levé, mais l'accès réel n'est pas encore confirmé.
+
+- Décision OWNER : conserver Zoho Mail et utiliser les SMTP Logs en lecture seule; aucune migration vers ZeptoMail.
+- Ajout d'un probe opérateur `npm run email:zoho-smtp-logs:check`, sans raccordement au worker ni exécution automatique en production.
+- Sécurité : neuf origines régionales officielles Zoho en liste blanche stricte; filtre sur un seul Message-ID I-11 connu, fenêtre de 14 jours, limite d'un résultat, délai réseau de 10 secondes et aucune donnée du journal affichée.
+- Le Message-ID est résolu en lecture seule depuis le dernier I-11 si aucun override n'est fourni. Le token n'est ni loggé, ni écrit par le probe, ni ajouté au dépôt.
+- Validation : 4/4 tests du probe, backend complet 19 fichiers et 156/156 tests, build TypeScript vert. Le lancement sans accès échoue avant le réseau avec `ZOHO_SMTP_LOGS_PROBE_ENV_MISSING:ZOHO_MAIL_ORG_ID`.
+- Gate restante : fournir hors Git `ZOHO_MAIL_ORG_ID` et un token d'une heure portant `ZohoMail.partner.organization.READ`; configurer le datacenter régional seulement s'il diffère de `https://mail.zoho.com`, puis exécuter le probe.
+
+Aucune variable production, donnée, notification ou livraison n'a été modifiée. La confirmation OAuth exigera une réponse `accessConfirmed=true`; la présence du Message-ID sera rapportée uniquement comme compteur 0/1.

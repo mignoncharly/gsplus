@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Voie A Zoho Mail et probe OAuth SMTP Logs
+
+### Ajouté
+
+- Choix OWNER enregistré : conservation de Zoho Mail; ZeptoMail n'est pas retenu.
+- Service et commande `email:zoho-smtp-logs:check` pour confirmer l'accès lecture sur un seul Message-ID I-11.
+- Liste blanche des neuf datacenters Zoho documentés, fenêtre/volume bornés et sortie sans donnée de journal.
+- Variables d'exemple sans valeur secrète pour l'Organization ID, le token OAuth, le datacenter et l'override Message-ID.
+
+### Prouvé
+
+- Tests dédiés 4/4, backend complet 156/156 et build TypeScript conformes.
+- Sans identifiants, arrêt avant réseau sur la première variable absente; aucune fuite de token dans les erreurs testées.
+- Aucune modification de configuration ou donnée production. État `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION` jusqu'au probe réel.
+
 ## 9 août 2026 — Préflight POST-05 Zoho/I-09/I-11/I-12
 
 ### Constaté
@@ -13,7 +28,7 @@
 
 - Quatre fichiers de tests ciblés, 21/21 tests verts : I-09, webhook signé, I-11 et I-12.
 - Documentation officielle rapprochée : journaux/API SMTP de Zoho Mail et webhooks bounce signés de ZeptoMail.
-- Aucun e-mail, lead, rapport ou autre donnée de production créé ou modifié. POST-05 reste `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`.
+- Aucun e-mail, lead, rapport ou autre donnée de production créé ou modifié. POST-05 reste `BLOQUÉ-ACCÈS-OAUTH-ET-AUTORISATION`.
 
 ## 9 août 2026 — POST-03 différé et préflight POST-04
 
