@@ -1,5 +1,24 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — POST-01 cycles et déduplication I-03 à I-06
+
+### Corrigé
+
+- **I-03** : remplacement de la clé unique par réservation, qui supprimait un second cycle paiement→attente légitime, par une identité de cycle `payment:{id}:v{version}:{status}:I-03:email`.
+- La version du paiement attendue est désormais figée dans les métadonnées; une alerte différée d'un ancien cycle devient obsolète avec `PAYMENT_CYCLE_CHANGED`. Les événements historiques restent intacts.
+
+### Prouvé
+
+- Nouveau lot d'intégration `post-audit-notification-cycles.test.ts` : I-03 à I-06, premier cycle, rejeu, producteurs et workers concurrents, nouvelle demande/cycle, annulations client/Studio aux limites ±48 h, version périmée, tâche financière avant I-06, engagement et finalisation.
+- Test rouge confirmé 7/8 sur l'ancienne clé, puis POST-01 9/9, suites liées 33/33 et backend complet 146/146 sur 17 fichiers.
+- Prisma format/validate/generate, TypeScript et `git diff --check` conformes; aucune migration.
+
+### Déployé
+
+- Backend compilé et repris proprement par systemd (`PID 1172481`, `NRestarts=66`); `/api/health` et `/admin` répondent 200; production à 28/28 migrations.
+- Postflight sans écriture ni envoi fournisseur : 13 réservations, 13 paiements, 54 notifications, zéro tâche financière et zéro demande de report; dernier envoi horodaté avant le déploiement.
+- Matrice portée à 53/61 `VALIDÉ-PROD`; POST-01 terminé, POST-02 devient la prochaine phase active. WhatsApp/Meta reste explicitement différé.
+
 ## 9 août 2026 — Audit indépendant exhaustif des trois DOCX sources
 
 Le registre ordonné annoncé « 25/25 » ne couvrait qu'un sous-ensemble ordonné des exigences des trois documents sources (bibliothèque d'e-mails, rapport d'audit unifié, textes juridiques). Un audit indépendant, reparti des DOCX originaux sans se fier à la matrice existante, a été conduit pour contrôler chaque exigence atomique contre le code, la base, les tests et la production.

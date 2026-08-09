@@ -440,9 +440,13 @@ const obsoleteEmailReason = (event: NotificationEvent) => {
   ].includes(event.type)) return null;
   const paymentId = typeof metadata.paymentId === 'string' ? metadata.paymentId : null;
   const expected = typeof metadata.expectedPaymentStatus === 'string' ? metadata.expectedPaymentStatus : null;
+  const expectedVersion = typeof metadata.expectedPaymentVersion === 'number'
+    ? metadata.expectedPaymentVersion
+    : null;
   if (!paymentId || !expected) return 'NOTIFICATION_STATE_PROOF_MISSING';
   const payment = event.reservation.payments.find((item) => item.id === paymentId);
   if (!payment || payment.status !== expected) return 'PAYMENT_STATE_CHANGED';
+  if (expectedVersion !== null && payment.version !== expectedVersion) return 'PAYMENT_CYCLE_CHANGED';
   if (
     event.type === 'reservation_decision_overdue_admin' &&
     event.reservation.status !== ReservationStatus.PENDING_CONFIRMATION
@@ -1528,9 +1532,14 @@ export const queuePaymentVerifiedNotification = async (
     code: 'I-03',
     type: 'reservation_decision_overdue_admin',
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
-    idempotencyKey: `reservation:${reservation.id}:I-03:email`,
+    idempotencyKey: `payment:${payment.id}:v${payment.version}:${payment.status}:I-03:email`,
     nextAttemptAt: new Date((context.now ?? new Date()).getTime() + PAYMENT_DECISION_OVERDUE_DELAY_MS),
-    metadata: { templateCode: 'I-03', paymentId: payment.id, expectedPaymentStatus: payment.status },
+    metadata: {
+      templateCode: 'I-03',
+      paymentId: payment.id,
+      expectedPaymentStatus: payment.status,
+      expectedPaymentVersion: payment.version,
+    },
     variables: {
       duree_attente: '30 minutes',
       statut_reservation: reservation.status,
@@ -1670,9 +1679,14 @@ export const queuePaymentStatusNotifications = async (
       code: 'I-03',
       type: 'reservation_decision_overdue_admin',
       recipient: env.ADMIN_NOTIFICATION_EMAIL,
-      idempotencyKey: `reservation:${reservation.id}:I-03:email`,
+      idempotencyKey: `payment:${payment.id}:v${payment.version}:${payment.status}:I-03:email`,
       nextAttemptAt: new Date(now.getTime() + PAYMENT_DECISION_OVERDUE_DELAY_MS),
-      metadata: { templateCode: 'I-03', paymentId: payment.id, expectedPaymentStatus: status },
+      metadata: {
+        templateCode: 'I-03',
+        paymentId: payment.id,
+        expectedPaymentStatus: status,
+        expectedPaymentVersion: payment.version,
+      },
       variables: {
         duree_attente: '30 minutes',
         statut_reservation: reservation.status,

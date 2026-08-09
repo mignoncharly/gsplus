@@ -731,7 +731,7 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | Ordre | Phase | Couverture | État initial | Condition de sortie |
 |---|---|---|---|---|
 | 0 | AUD-00 — Baseline indépendante | 61 identifiants, correctifs P1-04/NOTIF-01/LEG-02 | `VALIDÉ-PROD` | Commit `8c27a59`, tests et production documentés |
-| 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `PLANIFIÉ` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
+| 1 | POST-01 — Cycles et déduplication I-03 à I-06 | I-03, I-04, I-05, I-06 | `VALIDÉ-PROD` | Scénarios dédiés de premier cycle, rejeu, concurrence et second cycle verts; 53/61 `VALIDÉ-PROD` |
 | 2 | POST-02 — Anti-saturation administrative | NOTIF-01 critère 12 | `PLANIFIÉ` | Politique acteur/destinataire explicite, testée et déployée sans supprimer les alertes de boîte partagée |
 | 3 | POST-03 — Complétude des 22 formules | Dette de contenu P1-04 | `EN-ATTENTE-CONTENU-OWNER` | Chaque formule publique courante possède résumé et délai approuvés dans une nouvelle version publiée; snapshots historiques inchangés |
 | 4 | POST-04 — Preuve destinataire des livrables | E-17, E-18, E-19 | `EN-ATTENTE-AUTORISATION-ENVOI` | Parcours réel supervisé reçu, lien HTTPS ouvert et preuve expurgée consignée; 56/61 `VALIDÉ-PROD` |
@@ -739,11 +739,13 @@ LEG-07 est terminé et `VALIDÉ-PROD`. Le registre ordonné est achevé : 25/25 
 | 6 | POST-06 — Revalidation exhaustive et clôture | 59 identifiants actifs | `PLANIFIÉ` | Relecture DOCX, matrice 59/59 active, suites complètes, postflight production, documentation et commit |
 | D | META-01 — WhatsApp Business | P1-01, I-08 | `DIFFÉRÉ-META` | Hors chemin critique; ne démarre qu’après fourniture et approbation des identifiants Meta |
 
-Progression de clôture : 0/6 phases actives terminées; AUD-00 constitue la baseline validée et META-01 reste différée hors dénominateur actif.
+Progression de clôture : 1/6 phases actives terminées; 53/61 exigences sont `VALIDÉ-PROD` et META-01 reste différée hors dénominateur actif.
 
 Ordre d’exécution : POST-01 → POST-02. POST-03 peut avancer en parallèle dès que le contenu OWNER est disponible. POST-04 précède POST-05 afin que la même fenêtre de preuve supervisée couvre réception et retours fournisseur. POST-06 ne commence qu’après POST-01 à POST-05, ou documente précisément toute gate externe encore ouverte.
 
 ### 37.3 POST-01 — Cycles et déduplication I-03 à I-06
+
+État : `VALIDÉ-PROD` le 9 août 2026. Les preuves d'exécution et de production sont consignées dans la section 38.
 
 Objectif : transformer les quatre statuts `TESTÉ LOCALEMENT` en preuves comportementales dédiées, en particulier le deuxième cycle paiement→attente que l’idempotency key actuelle peut confondre avec le premier.
 
@@ -834,3 +836,17 @@ Condition de clôture active : 59/59 identifiants non-Meta `VALIDÉ-PROD`, toute
 Cette phase n’est pas autorisée ni planifiée dans le chemin actif. Aucun secret ne doit être inventé, committé ou demandé dans un canal non sécurisé. Elle pourra démarrer uniquement après fourniture d’un numéro WhatsApp Business vérifié, des identifiants/token/secrets Meta, des modèles approuvés et d’un destinataire de test consentant.
 
 À sa reprise : configurer les secrets hors Git, valider le webhook Meta, laisser le canal désactivé jusqu’au préflight complet, réaliser un envoi entreprise et un envoi client consenti, prouver `sent/delivered/read`, cadence 0/2/10, échec terminal et I-08 unique, puis exécuter la non-régression et mettre à jour le registre à 61/61. Tant que ces conditions ne sont pas réunies, l’état reste `DIFFÉRÉ-META` et non `VALIDÉ-PROD`.
+
+## 38. Exécution POST-01 « Cycles et déduplication I-03 à I-06 » — 9 août 2026
+
+État : `VALIDÉ-PROD`; les quatre alertes internes reposent désormais sur une identité métier immuable et disposent de scénarios dédiés couvrant premier cycle, rejeu, concurrence et nouveau cycle légitime.
+
+- I-03 : le test rouge a reproduit la collision de la clé historique stable par réservation (7/8 scénarios verts, échec sur la clé attendue). La nouvelle clé `payment:{id}:v{version}:{status}:I-03:email` distingue chaque cycle réel tout en dédupliquant ses rejeux. La version attendue est figée dans les métadonnées et un cycle périmé est classé `PAYMENT_CYCLE_CHANGED`; les événements historiques ne sont ni réécrits ni supprimés.
+- I-04 : l'identité `reschedule-request:{id}` produit une seule I-04 sous rejeu et producteurs concurrents, puis une nouvelle I-04 pour une deuxième demande métier autorisée.
+- I-05 : annulations client et Studio, seuil strictement supérieur à 48 heures, limite exacte, seuil inférieur, rejeu et deux décisions concurrentes sont couverts; une seule tâche et une seule I-05 résultent de la décision effective.
+- I-06 : aucune alerte n'est créée avant la tâche financière atomique; rejeu, version périmée, double traitement concurrent, engagement et finalisation prouvée conservent une seule I-06 liée à la tâche.
+- Validation locale : scénario rouge 7/8 puis final 9/9; suites notification/report/finance 33/33; backend complet 17 fichiers et 146/146; Prisma format/validate/generate, TypeScript et `git diff --check` conformes. Aucune migration.
+- Production : backend compilé puis repris par systemd, PID `1172481`, `NRestarts=66`, actif; schéma 28/28 à jour; santé et administration HTTPS 200.
+- Postflight non mutatif : 13 réservations, 13 paiements, 54 notifications, zéro tâche financière et zéro demande de report, inchangés par rapport à la baseline; aucun envoi fournisseur déclenché (dernier `sentAt` antérieur au déploiement, le 8 août 2026 à 17:00:12 UTC).
+
+POST-01 est terminé et `VALIDÉ-PROD`. Progression de clôture : 1/6 phases actives; 53/61 exigences globales sont `VALIDÉ-PROD`. POST-02 « Anti-saturation administrative » devient la prochaine phase ordonnée; META-01 reste `DIFFÉRÉ-META` hors chemin critique.

@@ -1414,3 +1414,43 @@ Les trois DOCX ont été extraits intégralement (paragraphes, tableaux, en-têt
 | Production ciblée | Playwright 118/118, axe 2/2, aucune écriture métier réelle déclenchée |
 
 Aucun secret, mot de passe ni donnée réelle n'est inclus dans ce rapport.
+
+# POST-01 — Cycles et déduplication I-03 à I-06 — 9 août 2026
+
+## Résultat
+
+POST-01 est `VALIDÉ-PROD`. I-03 distingue désormais les cycles réels par l'identité du paiement, sa version et son statut, tandis que I-04, I-05 et I-06 ont été revalidées sur leurs identités durables existantes (demande de report ou tâche financière).
+
+## Preuve TDD et comportementale
+
+| Contrôle | Résultat |
+|---|---|
+| Run rouge POST-01 | 7/8; échec attendu dès la première assertion I-03 : clé reçue `reservation:{id}:I-03:email` au lieu de la clé de cycle paiement/version/statut |
+| I-03 | Premier cycle livré une fois malgré deux workers; rejeu sans doublon; reprise puis second blocage = exactement une nouvelle I-03; version attendue figée |
+| I-04 | Rejeu de la même commande et deux producteurs = une I-04; deuxième demande métier distincte = deuxième I-04 |
+| I-05 | Client >48 h = 50 % et une I-05; client =48 h ou <48 h = zéro remboursement/I-05; Studio = remboursement intégral et une I-05; deux décisions concurrentes = un seul succès |
+| I-06 | Zéro I-06 sans tâche; tâche atomique avant alerte; rejeu/version périmée/concurrence; engagement puis finalisation; toujours une seule I-06 |
+| Run final POST-01 | 9/9 |
+| Suites liées | 33/33 (`email-notifications`, `reschedule-notifications`, `financial-notifications`, POST-01) |
+| Backend complet | 17 fichiers, 146/146 |
+| Prisma / TypeScript | `format --check`, `validate`, `generate` et `tsc` réussis; 28 migrations, aucun changement de schéma |
+| Intégrité | `git diff --check` réussi |
+
+## Correctif
+
+- `backend/src/emails/notifications.ts` utilise `payment:{paymentId}:v{paymentVersion}:{paymentStatus}:I-03:email` dans les deux chemins I-03.
+- `expectedPaymentVersion` complète la preuve d'état; le worker classe un ancien cycle `PAYMENT_CYCLE_CHANGED` avant toute tentative.
+- La compatibilité des événements historiques est conservée : l'absence de cette métadonnée sur un événement ancien continue d'utiliser la preuve paiement/statut existante; aucune ligne historique n'est réécrite.
+
+## Déploiement et postflight production
+
+| Contrôle | Résultat |
+|---|---|
+| Déploiement | Build backend validé; reprise systemd par SIGTERM du PID supervisé, conformément au mécanisme déjà utilisé sur cet hôte (`Restart=always`, `KillMode=control-group`) |
+| Service | Actif, PID 1172481, `NRestarts=66`, démarré le 9/8/2026 à 06:45:24 UTC |
+| Santé | `https://gsplus.vip/api/health` = 200; `https://gsplus.vip/admin` = 200 |
+| Base | `prisma migrate status` : 28/28, schéma à jour; aucune migration POST-01 |
+| Invariants | 13 réservations, 13 paiements, 54 notifications, 0 tâche financière, 0 demande de report |
+| Fournisseur | Aucun envoi déclenché : 40 événements `SENT`, 14 `FAILED`, 11 tentatives; dernier `sentAt` le 8/8/2026 à 17:00:12 UTC, donc antérieur au déploiement |
+
+La progression exhaustive passe à 53/61 `VALIDÉ-PROD`, soit 1/6 phases actives post-audit terminée. POST-02 est la prochaine phase; P1-01/I-08 restent `DIFFÉRÉ-META`.
