@@ -11,6 +11,8 @@ Statuts historiques : `PLANIFIÉ`, `IMPLÉMENTÉ-ISOLÉ`, `PROD-EN-ATTENTE`, `VA
 
 > **Préflight POST-04 du 9 août 2026** — E-17 et E-18/E-19 nécessitent deux dossiers QA distincts. La production contient zéro événement pour ces trois modèles, zéro livraison et 0/22 version publiée avec un délai, donc E-18 ne peut pas encore être produit honnêtement. Tests ciblés 18/18; aucune écriture ou émission réelle. État `BLOQUÉ-GATES-OWNER` jusqu'à autorisation d'envoi, boîte QA, deux dossiers QA, délai versionné approuvé et livrable HTTPS non sensible.
 
+> **Préflight POST-05 du 9 août 2026** — La production utilise Zoho Mail SMTP, pas ZeptoMail. I-11 compte sept envois acceptés à 18 h Douala mais aucune preuve `deliveredAt`; I-09/I-12 et les rapports fournisseur sont absents. Le webhook interne n'est pas le format natif documenté par Zoho. Tests ciblés 21/21, aucune mutation ni émission supplémentaire. État `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`.
+
 | Exigence documentaire | Problème | Modification de code/données | Migration | Test | Preuve attendue | Statut |
 |---|---|---|---|---|---|---|
 | Audit §3 P0-01; prompt §5 | P0-01 | Snapshot 1:1, profil courant séparé, lectures notification/calendrier/admin sur snapshot | Oui, appliquée en production; backfill/protection vérifiés | Six identités même téléphone; profil modifié; concurrence | Six lignes/destinataires/consentements indépendants | VALIDÉ-PROD |

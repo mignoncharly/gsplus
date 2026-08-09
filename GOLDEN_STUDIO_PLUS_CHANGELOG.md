@@ -1,5 +1,20 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Préflight POST-05 Zoho/I-09/I-11/I-12
+
+### Constaté
+
+- Le SMTP actif est Zoho Mail, pas ZeptoMail; aucun secret de webhook e-mail n'est configuré et aucun `EmailDeliveryReport` n'existe.
+- I-11 fonctionne à 18 h Douala : sept événements du 2 au 8 août, tous `SENT` et acceptés par SMTP, sans preuve fournisseur `deliveredAt`.
+- I-09 et I-12 n'ont aucune preuve production. Les huit leads et quatorze échecs e-mail historiques restent inchangés.
+- Le contrat webhook interne n'est compatible directement ni avec les journaux Zoho Mail ni avec le payload/signature ZeptoMail documenté.
+
+### Prouvé
+
+- Quatre fichiers de tests ciblés, 21/21 tests verts : I-09, webhook signé, I-11 et I-12.
+- Documentation officielle rapprochée : journaux/API SMTP de Zoho Mail et webhooks bounce signés de ZeptoMail.
+- Aucun e-mail, lead, rapport ou autre donnée de production créé ou modifié. POST-05 reste `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`.
+
 ## 9 août 2026 — POST-03 différé et préflight POST-04
 
 ### Documenté

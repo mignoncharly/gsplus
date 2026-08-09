@@ -1553,3 +1553,22 @@ POST-04 est `BLOQUÉ-GATES-OWNER`, sans écriture production ni e-mail réel. De
 | Mutations/envois | Aucun |
 
 La preuve ne peut pas être fabriquée avec un mock ni obtenue sur un seul dossier. L'exécution attend une autorisation explicite, une boîte QA contrôlée, deux réservations QA autorisées, un délai versionné OWNER et un livrable HTTPS public non sensible.
+
+# POST-05 — Préflight Zoho et alertes I-09/I-11/I-12 — 9 août 2026
+
+## Résultat
+
+POST-05 est `BLOQUÉ-CHOIX-ZOHO-ET-AUTORISATION`. Le code local est vert mais aucun producteur réel de rapports n'est raccordé au webhook normalisé.
+
+| Contrôle | Résultat |
+|---|---|
+| Tests ciblés | 4 fichiers, 21/21 tests verts |
+| Fournisseur SMTP actif | Zoho Mail; pas ZeptoMail |
+| I-11 production | 7 `SENT`, 7 tentatives, tous acceptés SMTP, 0 preuve `deliveredAt` |
+| I-09 production | 0 événement; 0 rapport fournisseur |
+| I-12 production | 0 événement; 8 leads historiques laissés inchangés |
+| E-mails `FAILED` | 14 historiques; aucune requalification sans rapport |
+| Webhook | Secret absent, endpoint fermé; format interne non natif Zoho |
+| Mutations/envois | Aucun |
+
+Zoho Mail expose les statuts et journaux de livraison ainsi qu'une API SMTP Logs avec accès OAuth spécifique. ZeptoMail expose des webhooks bounce signés, mais avec un payload et une signature différents du contrat interne. L'OWNER doit choisir la voie fournisseur et autoriser les boîtes/scénarios QA avant toute intégration ou émission réelle.
