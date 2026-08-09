@@ -1467,9 +1467,9 @@ export const scheduleDailyOperationsDigest = async (now = new Date()) => {
   });
 };
 
-const PAYMENT_VERIFIED_NOTICE_DELAY_MS = 5 * 60 * 1000;
+const PAYMENT_VERIFIED_NOTICE_DELAY_MS = env.PAYMENT_VERIFIED_NOTICE_DELAY_MS;
 
-const PAYMENT_DECISION_OVERDUE_DELAY_MS = 30 * 60 * 1000;
+const PAYMENT_DECISION_OVERDUE_DELAY_MS = env.PAYMENT_DECISION_OVERDUE_DELAY_MS;
 type NotificationQueueContext = {
   now?: Date;
   commandId?: string;

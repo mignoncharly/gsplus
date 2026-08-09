@@ -506,10 +506,12 @@ describe('admin flow', () => {
       .patch(`/api/admin/packages/${pack.id}`)
       .send({
         price: 17000,
+        description: 'Résumé public de la formule mise à jour.',
         content: 'Nouveau contenu publié pour cette formule.',
         inclusions: ['Séance', 'Retouches'],
         conditions: 'Nouvelles conditions applicables à cette version.',
         legalText: 'Nouvelles mentions tarifaires obligatoires.',
+        deliveryLabel: 'Livraison sous 7 jours ouvrés.',
         effectiveAt: new Date(Date.now() - 60_000).toISOString(),
       })
       .expect(200);
@@ -575,6 +577,33 @@ describe('admin flow', () => {
     expect(rejected.body.error.code).toBe('PACKAGE_NOT_VALIDATED');
   });
 
+  it('P1-04 blocks validation when the public summary or delivery mention is missing', async () => {
+    const agent = await loginAdmin();
+    const created = await agent
+      .post('/api/admin/packages')
+      .send({
+        slug: 'p1-04-mentions-incompletes',
+        name: 'Formule mentions incomplètes',
+        category: 'Tests',
+        price: 28000,
+        currency: 'XAF',
+        durationMin: 60,
+        content: 'Séance photo standard.',
+        inclusions: ['Prise de vue'],
+        conditions: 'Réservation soumise aux conditions publiées.',
+        legalText: 'Mentions tarifaires obligatoires à valider.',
+        effectiveAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(201);
+
+    const rejected = await agent
+      .post(`/api/admin/packages/${created.body.data.id}/validate`)
+      .send({ expectedVersion: 1, mentionsApproved: true })
+      .expect(409);
+    expect(rejected.body.error.code).toBe('PACKAGE_PUBLICATION_FIELDS_REQUIRED');
+    expect(rejected.body.error.details.fields).toEqual(expect.arrayContaining(['description', 'deliveryLabel']));
+  });
+
   it('validates, publishes and audits a complete tariff version', async () => {
     const agent = await loginAdmin();
     const effectiveAt = new Date(Date.now() - 60_000).toISOString();
@@ -587,10 +616,12 @@ describe('admin flow', () => {
         price: 45000,
         currency: 'XAF',
         durationMin: 120,
+        description: 'Séance éditoriale complète avec accompagnement artistique.',
         content: 'Séance éditoriale avec accompagnement.',
         inclusions: ['Direction artistique', 'Dix fichiers retouchés'],
         conditions: 'Acompte requis et report selon les CGV.',
         legalText: 'Prix TTC, modalités de paiement et conditions de report.',
+        deliveryLabel: 'Livraison sous 10 jours ouvrés.',
         effectiveAt,
       })
       .expect(201);

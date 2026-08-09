@@ -1,5 +1,35 @@
 # Changelog — Golden Studio Plus
 
+## 9 août 2026 — Audit indépendant exhaustif des trois DOCX sources
+
+Le registre ordonné annoncé « 25/25 » ne couvrait qu'un sous-ensemble ordonné des exigences des trois documents sources (bibliothèque d'e-mails, rapport d'audit unifié, textes juridiques). Un audit indépendant, reparti des DOCX originaux sans se fier à la matrice existante, a été conduit pour contrôler chaque exigence atomique contre le code, la base, les tests et la production.
+
+### Constaté
+
+- Le registre classait `PLANIFIÉ` la quasi-totalité de la bibliothèque d'e-mails (E-03 à E-23, I-03 à I-12) : constat erroné. Cinq audits indépendants du code (lecture seule, preuve fichier:ligne) ont établi que ces 35 modèles étaient déjà implémentés dans `backend/src/emails/notifications.ts` (1947 lignes), `templates.ts` (383 lignes), couverts par des tests d'intégration HTTP réels, et déployés en production (workers actifs, SMTP Zoho réel configuré).
+- P0-01 à P0-04, P1-02, P1-03, UI-WA-01, REF-01, VAL-01, P2-01 à P2-06 et LEG-01 à LEG-07 confirmés conformes au code réel et aux tests réellement exécutés (pas de simple lecture du registre).
+
+### Corrigé
+
+- **P1-04** : `assertPublishable` (`backend/src/services/packages.ts`) ne bloquait pas la publication d'un tarif sans résumé public (`description`) ni délai de livraison (`deliveryLabel`), contrairement au critère de sortie de l'audit. Les 22 formules déjà publiées en étaient dépourvues. Garde backend et champs requis frontend ajoutés ; test rouge puis vert (`backend/test/integration/api.test.ts`).
+- **NOTIF-01** : fenêtre de regroupement E-03 (5 min) et délai d'escalade I-03 (30 min) codés en dur, contrairement à l'exigence « fenêtre configurable ». Rendus configurables via `PAYMENT_VERIFIED_NOTICE_DELAY_MS`/`PAYMENT_DECISION_OVERDUE_DELAY_MS` (`backend/src/config/env.ts`), valeurs par défaut inchangées. Test dédié `backend/test/notification-delay-config.test.ts`.
+- **LEG-02** : écart textuel avec le DOCX normatif du 31 juillet 2026 — « retirer un consentement pour l'avenir » devenu à tort « retirer à tout moment un consentement » (change le sens : effet prospectif vs moment de la demande). Corrigé mot pour mot dans `frontend/src/content/legal.js`.
+- Nettoyage mineur : constante `LEGAL_LAST_UPDATED` orpheline portant une date obsolète (24 juillet), mise à jour au 31 juillet 2026 par cohérence (jamais réellement affichée sur les pages).
+
+### Resté bloqué (preuve externe requise, non fabriquée)
+
+- **P1-01/I-08 — WhatsApp** : code complet et testé, mais `backend/.env` production ne contient aucune variable `WHATSAPP_*` ; `WHATSAPP_DELIVERY_ENABLED=false` par défaut. Aucun message WhatsApp n'a jamais été livré en production. Nécessite des identifiants Meta Business/WhatsApp Cloud API réels fournis par le client.
+- **E-17/E-18/E-19 et I-09/I-11** : code, schéma et tests réels (SMTP Zoho configuré, vérification live du lien de livraison), mais aucune capture fraîche de réception par un destinataire réel n'a été produite (l'audit interdit d'envoyer un vrai e-mail sans autorisation explicite, non demandée ici).
+
+### Validé
+
+- Sauvegarde PostgreSQL chiffrée (AES-256-CBC/PBKDF2) vérifiée par restauration de contrôle avant déploiement (`'.phase0-backups/20260809-audit-fixes/'`).
+- Backend 137/137 (16 fichiers), frontend 91/91, TypeScript strict, lint, Prisma format/validate/generate, build/budgets tous réussis.
+- Playwright local Chromium+WebKit 134/134, Playwright production ciblé 118/118 + axe production 2/2 (échecs intermittents rencontrés lors des runs complets confirmés non reproductibles en isolation — charge d'un hôte partagé, pas régression).
+- Compteurs métier identiques avant/après déploiement : 13 réservations/snapshots/paiements, 22 formules, 54 notifications, 11 synchronisations calendrier, 0 incident, 0 retrait, 0 demande de droits, 17/18 médias publiés.
+- Service redémarré (SIGTERM propre, `Restart=always`), santé et catalogue public HTTP 200 après redémarrage.
+- Aucun remote Git configuré : commit local uniquement, aucun push possible.
+
 ## 8 août 2026 — LEG-07 droits effectifs des médias validés en production
 
 ### Ajouté

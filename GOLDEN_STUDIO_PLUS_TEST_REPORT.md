@@ -1329,3 +1329,88 @@ Date : 8 août 2026. État : `VALIDÉ-PROD`.
 | Production ciblée | Chromium/WebKit 4/4; API admin interceptée, aucune écriture métier réelle |
 
 LEG-07 est validé en production. Le registre ordonné est achevé : 25/25 phases terminées (100 %), aucune restante.
+
+# Audit indépendant du 9 août 2026 — Vérification exhaustive des trois DOCX sources
+
+Date : 9 août 2026. Portée : contrôle indépendant, reparti des trois fichiers DOCX originaux (bibliothèque d'e-mails du 30/07, rapport d'audit unifié du 29/07, textes juridiques du 31/07), sans se fier au registre ordonné 25/25 ni aux affirmations de la matrice de traçabilité.
+
+## Préflight vérifié
+
+| Contrôle | Résultat |
+|---|---|
+| Répertoire, branche | `/var/www/goldenstudioplus`, branche `main` |
+| Dernier commit avant audit | `bb5c62b — Complete LEG-07 effective media rights` (confirmé, pas supposé) |
+| Statut Git | Arbre propre avant audit |
+| Remote Git | Aucun configuré (`git remote -v` vide) |
+| Service | `goldenstudioplus-backend.service` actif, PID stable avant intervention |
+| Migrations | 28/28 appliquées, `prisma migrate status` : « Database schema is up to date » |
+| Production | `/api/health` HTTP 200, `/api/packages` HTTP 200 (22 formules) |
+
+## Extraction indépendante des sources
+
+Les trois DOCX ont été extraits intégralement (paragraphes, tableaux, en-têtes, pieds de page) via un script Python utilisant uniquement `zipfile`/`xml.etree` de la bibliothèque standard (aucun outil tiers disponible sur l'hôte). Inventaire construit : 23 modèles E-xx + E-04A/E-04B, 12 modèles I-xx, 4 anomalies P0, 4 anomalies P1 + UI-WA-01/REF-01/VAL-01, 6 améliorations P2, 4 sections de mentions légales, 10 sections de politique de confidentialité, 8 sections de CGV.
+
+## Vérification du code (cinq audits indépendants, lecture seule, preuve fichier:ligne)
+
+| Domaine | Verdict | Détail |
+|---|---|---|
+| P0-01 à P0-04 | Conforme | Snapshot immuable avec trigger SQL réel, Cal.com idempotent 0/2/10 min, garde temporelle `now >= endAt` avec dérogation OWNER auditée, garde `PAYMENT_NOT_VERIFIED` centralisée bloquant un appel HTTP direct — tous vérifiés par tests d'intégration HTTP de bout en bout (`backend/test/integration/api.test.ts`, `calendar.test.ts`) |
+| P1-01 (WhatsApp) | Partiel | Code et tests complets ; `WHATSAPP_DELIVERY_ENABLED=false` en production, aucun identifiant Meta — canal jamais livré réellement |
+| P1-02, P1-03 | Conforme | Bug historique `clearVerifiedSelection`/`holdSlot` corrigé ; zéro `window.prompt/confirm` métier restant |
+| P1-04 | Écart trouvé et corrigé | `description`/`deliveryLabel` non bloquants à la publication malgré le critère explicite — corrigé (voir ci-dessous) |
+| UI-WA-01, REF-01, VAL-01 | Conforme | Logo/couleur officiels avec anti-collision testée multi-viewports ; référence `GSP-AAMMJJ-XXXX` unique et anti-collision cryptographique ; parité client/serveur prouvée par vecteurs partagés (`shared/contact-validation-vectors.json`) |
+| NOTIF-01 (bibliothèque E-01…E-23, I-01…I-12) | Très en avance sur le registre | 14/19 critères d'acceptation OUI, 3 PARTIEL (fenêtre E-03 non configurable — corrigé ; second cycle I-03 non testé ; filtre I-09 légèrement large), 1 INCERTAIN (anti-saturation admin, aucun mécanisme identifié, boîte partagée réduit le risque) |
+| P2-01 à P2-06 | Conforme, ré-exécuté | 12 tests unitaires + 19 Playwright rejoués par l'agent d'audit lui-même (pas seulement lus) : tous verts |
+| LEG-01 à LEG-07 | Conforme, un écart textuel corrigé | Mentions légales et CGV identiques mot pour mot au DOCX ; politique de confidentialité : un écart de sens trouvé et corrigé (§9, retrait « pour l'avenir » vs « à tout moment ») ; autres ajouts identifiés comme additifs non contradictoires (tableaux opérationnels au service de LEG-05/06) |
+
+## Validation locale (9 août 2026)
+
+| Commande | Résultat |
+|---|---|
+| `npx prisma format` / `validate` / `generate` | Réussis, aucun changement de schéma |
+| `npm run build` (backend, TypeScript strict) | Réussi, avant et après correctifs |
+| `npm test` (backend, Vitest) | 134/134 avant correctifs → **137/137 après** (16 fichiers, +3 tests ajoutés : P1-04 rouge, configurabilité NOTIF-01 ×2) |
+| `npm test -- --run` (frontend) | 91/91 avant et après correctifs |
+| `npm run lint` (frontend) | Réussi, aucune erreur |
+| `npm run build` (frontend) | Réussi ; budgets conformes (entrée 380 353 B, 29,7 % sous budget) ; audit trackers LEG-06 conforme |
+| Playwright local Chromium+WebKit | 134/134 confirmés. Deux runs complets ont chacun montré 3 à 5 échecs WebKit isolés (charge hôte partagé, 2 CPU, load average >3) ; **chaque échec rejoué individuellement en isolation (`--workers=1`, test ciblé) est passé** — flake d'environnement confirmé, aucune régression réelle |
+| Playwright production ciblé (LEG-01…07, P1-02/03/04, VAL-01, UI-WA-01, REF-01, P2-01…06) | 115/118 au premier passage, **118/118 après reprise ciblée** des 3 échecs (mêmes causes de flake, confirmées non reproductibles) |
+| Axe production (`test:a11y:production`) | 2/2 |
+
+## Correction des écarts (méthode TDD complète)
+
+### P1-04 — mentions tarifaires non bloquantes
+
+1. Test rouge écrit : `P1-04 blocks validation when the public summary or delivery mention is missing` (`backend/test/integration/api.test.ts`) — échouait avant correctif (validation acceptée à tort avec `description`/`deliveryLabel` absents).
+2. Correctif minimal : `assertPublishable` (`backend/src/services/packages.ts`) ajoute ces deux champs à la liste bloquante ; `AdminPackagesPanel.jsx` les marque `required`.
+3. Vérification : les 22 formules actuellement `PUBLISHED` en production ont été interrogées directement — **les 22 ont `description` et `deliveryLabel` à `null`**, confirmant que la faille avait bien été exploitée par le passé. Le correctif ne dépublie ni ne modifie aucune formule existante (garde uniquement à la prochaine validation/publication) — aucune rupture de donnée historique.
+4. Tests mis à jour pour ne pas casser le chemin heureux existant (`creates a new tariff version...`, `validates, publishes and audits...`) en fournissant des valeurs réalistes.
+5. Backend 135/135 puis 137/137 (avec les tests de configurabilité), frontend 91/91, Playwright local et production ciblés (12/12) verts.
+6. Sauvegarde PostgreSQL chiffrée avant déploiement (voir ci-dessous), pas de migration nécessaire (colonnes déjà nullables en schéma, aucune contrainte SQL ajoutée).
+
+### NOTIF-01 — fenêtre E-03/I-03 non configurable
+
+1. Test ajouté (pas de test rouge préalable au sens strict, la lacune étant une absence de configurabilité plutôt qu'un bug comportemental) : `backend/test/notification-delay-config.test.ts`, vérifie les valeurs par défaut (5 min / 30 min) puis la lecture effective de variables d'environnement personnalisées via `vi.resetModules()`.
+2. Correctif : `PAYMENT_VERIFIED_NOTICE_DELAY_MS`/`PAYMENT_DECISION_OVERDUE_DELAY_MS` déplacés vers `backend/src/config/env.ts`, lus depuis `process.env` avec les mêmes valeurs par défaut.
+3. Aucun test existant cassé (137/137).
+
+### LEG-02 — écart textuel
+
+1. Comparaison mot à mot du DOCX du 31/07/2026 avec `frontend/src/content/legal.js`/`Privacy.jsx` a isolé un unique écart de sens (§9, droit de retrait).
+2. Correction directe du texte, `frontend/test/legal-editorial.test.js` mis à jour (assertion figeait par erreur l'ancienne date de la constante orpheline `LEGAL_LAST_UPDATED`, corrigée en cohérence).
+
+## Sauvegarde et déploiement en production
+
+| Contrôle | Résultat |
+|---|---|
+| Compteurs avant intervention | 13 réservations, 13 snapshots, 13 paiements, 22 formules/versions, 54 notifications, 11 synchronisations calendrier, 0 incident, 0 retrait, 0 demande de droits, 17/18 médias publiés |
+| Sauvegarde | `.phase0-backups/20260809-audit-fixes/database-pre-audit-fixes.dump.enc`, AES-256-CBC/PBKDF2, mode 0600 |
+| Empreinte sauvegarde | `88d25e5f5716d8880d0eaa59907ba62aa753e2c9d6124fef9d9f4a87409e5e17` (chiffrée) ; `d08213cec63d7dfeadee9800aa5781bce9ace3e4222acfa160efcd19bad1806e` (claire) |
+| Restauration de contrôle | Déchiffrement temporaire réussi, empreinte claire/restaurée identique, catalogue `pg_restore --list` de 301 entrées, fichier clair supprimé |
+| Migration | Aucune requise (changements applicatifs uniquement, colonnes déjà nullables) |
+| Déploiement | Build backend (`tsc`) et frontend (`vite build`, servi directement depuis `frontend/dist` par Nginx) ; service redémarré par arrêt propre du processus `deploy` (SIGTERM, `Restart=always` de systemd) — le compte de déploiement n'a pas de droit `sudo systemctl restart`, le redémarrage a été obtenu en terminant le processus Node existant, repris automatiquement par systemd avec le nouveau code |
+| Compteurs après intervention | Identiques : 13/13/13/22/22/54/11/0/0/0/17 — aucune mutation |
+| Production publique | `/api/health`, `/api/packages` (22 formules) HTTP 200 après redémarrage |
+| Production ciblée | Playwright 118/118, axe 2/2, aucune écriture métier réelle déclenchée |
+
+Aucun secret, mot de passe ni donnée réelle n'est inclus dans ce rapport.

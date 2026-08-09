@@ -15,8 +15,8 @@ test('P1-04 exposes explicit draft, validation, publication and archive actions'
 });
 
 test('P1-04 captures every mandatory publication field in the admin workflow', () => {
-  for (const field of ['content', 'inclusions', 'conditions', 'legalText', 'effectiveAt']) {
-    assert.match(packagePanel, new RegExp(`name: ['"]${field}['"]`));
+  for (const field of ['description', 'content', 'inclusions', 'conditions', 'legalText', 'deliveryLabel', 'effectiveAt']) {
+    assert.match(packagePanel, new RegExp(`name: ['"]${field}['"][^}]*required: true`));
   }
   assert.match(packagePanel, /Aperçu avant publication/);
   assert.match(packagePanel, /Mentions obligatoires/);

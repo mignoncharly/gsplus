@@ -1,4 +1,4 @@
-export const LEGAL_LAST_UPDATED = '24 juillet 2026';
+export const LEGAL_LAST_UPDATED = '31 juillet 2026';
 export const LEGAL_MENTIONS_LAST_UPDATED = '31 juillet 2026';
 export const PRIVACY_LAST_UPDATED = '31 juillet 2026';
 export const TERMS_LAST_UPDATED = '31 juillet 2026';
@@ -89,7 +89,7 @@ export const PRIVACY_RIGHTS = [
   'demander leur rectification, leur mise à jour ou, lorsque les conditions sont réunies, leur effacement ;',
   'demander la limitation du traitement ou vous opposer à un traitement dans les conditions prévues par la loi ;',
   'demander la portabilité des données lorsque ce droit est applicable ;',
-  'retirer à tout moment un consentement, sans remettre en cause les traitements déjà réalisés licitement ;',
+  'retirer un consentement pour l’avenir, sans remettre en cause les traitements déjà réalisés licitement ;',
   'saisir l’autorité compétente en matière de protection des données.',
 ];
 

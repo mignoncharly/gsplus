@@ -4,6 +4,8 @@ Version du plan : 1er août 2026
 Sources normatives : rapport d’audit unifié du 29 juillet 2026, bibliothèque d’e-mails révisée du 30 juillet 2026, textes juridiques consolidés du 31 juillet 2026 et `docs/new_prompt.md`.
 Règle d’exécution : un seul problème à la fois, dans l’ordre ci-dessous. Aucun problème suivant ne commence avant preuves complètes et approbation explicite du problème courant.
 
+> **Correction du 9 août 2026** — L’audit indépendant du 9 août 2026 (voir `GOLDEN_STUDIO_PLUS_TRACEABILITY_MATRIX.md`, section « Audit indépendant du 9 août 2026 », et `GOLDEN_STUDIO_PLUS_TEST_REPORT.md`) a établi que la ligne « Notifications » ci-dessous, qui décrivait un état du 1er août 2026 (« six modèles rudimentaires seulement », « pas la cadence normative 0/2/10 min »), ne reflète plus l’état réel du dépôt : les 23 modèles E-xx (+E-04A/B) et 12 modèles I-xx sont implémentés dans `backend/src/emails/templates.ts`/`notifications.ts`, la cadence WhatsApp/Cal.com est bien 0/2/10 min, et l’ensemble est couvert par des tests d’intégration réels et déployé en production. Le NOTIF-01 décrit plus bas comme travail futur était donc déjà très largement réalisé au moment de la lecture de ce plan ; ne pas s’y fier pour évaluer l’état courant — se référer à la matrice de traçabilité mise à jour.
+
 ## 1. État initial vérifié
 
 ### Architecture réelle

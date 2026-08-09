@@ -423,10 +423,12 @@ const assertPublishable = (version: PackageVersion) => {
   if (version.price < 0) missing.push('price');
   if (!/^[A-Z]{3}$/.test(version.currency)) missing.push('currency');
   if (version.durationMin < 15) missing.push('durationMin');
+  if (!version.description?.trim()) missing.push('description');
   if (!version.content?.trim()) missing.push('content');
   if (!Array.isArray(version.inclusions) || version.inclusions.length === 0) missing.push('inclusions');
   if (!version.conditions?.trim()) missing.push('conditions');
   if (!version.legalText?.trim()) missing.push('legalText');
+  if (!version.deliveryLabel?.trim()) missing.push('deliveryLabel');
   if (!version.effectiveAt) missing.push('effectiveAt');
   if (missing.length > 0) {
     throw new HttpError(409, 'PACKAGE_PUBLICATION_FIELDS_REQUIRED', 'Complétez tous les champs obligatoires avant validation.', { fields: missing });

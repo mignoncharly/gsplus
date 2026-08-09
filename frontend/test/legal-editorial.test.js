@@ -17,7 +17,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const source = (path) => readFileSync(`${root}${path}`, 'utf8');
 
 test('July 2026 legal content covers providers, retention, rights, and pending particulars', () => {
-  assert.equal(LEGAL_LAST_UPDATED, '24 juillet 2026');
+  assert.equal(LEGAL_LAST_UPDATED, '31 juillet 2026');
   assert.ok(DATA_RETENTION.length >= 6);
   assert.ok(DATA_RETENTION.every(({ category, duration, details }) => category && duration && details));
 

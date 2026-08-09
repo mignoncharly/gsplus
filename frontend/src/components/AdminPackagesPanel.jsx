@@ -55,13 +55,13 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     { name: 'price', label: 'Montant', type: 'number', required: true, defaultValue: String(pack.price ?? 0), min: '0', validate: (value) => Number(value) >= 0 ? '' : 'Le montant doit être positif ou nul.' },
     { name: 'currency', label: 'Devise', type: 'select', required: true, defaultValue: pack.currency || 'XAF', options: [{ value: 'XAF', label: 'XAF — franc CFA' }] },
     { name: 'durationMin', label: 'Durée en minutes', type: 'number', required: true, defaultValue: String(pack.durationMin ?? 60), min: '15', validate: (value) => Number(value) >= 15 ? '' : 'La durée minimale est de 15 minutes.' },
-    { name: 'description', label: 'Résumé public', type: 'textarea', defaultValue: pack.description || '' },
+    { name: 'description', label: 'Résumé public', type: 'textarea', required: true, defaultValue: pack.description || '' },
     { name: 'content', label: 'Contenu de la formule', type: 'textarea', required: true, defaultValue: pack.content || '' },
     { name: 'inclusions', label: 'Inclusions — une par ligne', type: 'textarea', required: true, defaultValue: inclusionsText(pack), validate: (value) => String(value).split('\n').some((line) => line.trim()) ? '' : 'Renseignez au moins une inclusion.' },
     { name: 'conditions', label: 'Conditions applicables', type: 'textarea', required: true, defaultValue: pack.conditions || '' },
     { name: 'legalText', label: 'Mentions obligatoires', type: 'textarea', required: true, defaultValue: pack.legalText || '' },
     { name: 'effectiveAt', label: 'Date d’effet à Douala', type: 'datetime-local', required: true, defaultValue: pack.effectiveAt ? businessDateTimeLocalValue(pack.effectiveAt) : businessDateTimeLocalValue(new Date()) },
-    { name: 'deliveryLabel', label: 'Délai de livraison', defaultValue: pack.deliveryLabel || '' },
+    { name: 'deliveryLabel', label: 'Délai de livraison', required: true, defaultValue: pack.deliveryLabel || '' },
     { name: 'sortOrder', label: 'Ordre d’affichage', type: 'number', required: true, defaultValue: String(pack.sortOrder ?? 0), min: '0' },
   ];
   const draftPayload = (values) => {
