@@ -1,4 +1,14 @@
 # Changelog — Golden Studio Plus
+## 20 août 2026 — Phase 2 propositions et planification déployée
+
+- Révision runtime `16c933302ec17b8b230f7a3b24df05e60c85731c` poussée sur `codex/phase2-scheduling-20260820`, sans inclure les suppressions documentaires ni les binaires non suivis préexistants.
+- États `STANDARD_HOLD` et `CUSTOM_PROPOSAL` déployés : une proposition personnalisée persiste l’horaire Douala demandé sans bloquer l’agenda; la confirmation Studio reverrouille et revalide disponibilité, éligibilité et quota dans la transaction.
+- Persistance admin prouvée après focus/blur, soumission, rafraîchissement API et rechargement complet pour les reports et les blocages calendrier.
+- Happy Hours prouvé sous concurrence : six créneaux actifs autorisés, dépassements rejetés par `PACKAGE_DAILY_QUOTA_REACHED`, intents expirés exclus et quota libéré après report.
+- Sauvegarde PostgreSQL chiffrée et restaurable vérifiée avant migration (`e250ff12…be1d`, mode 0600); migration Phase 2 appliquée, production à 34/34.
+- Validation : backend 178/178 et build; frontend 98/98, lint/build/budgets/audit; Chromium local 75/75, reprises WebKit ciblées vertes, production Phase 2 Chromium 5/5 et WebKit 4/5 + reprise inchangée 1/1.
+- Backend redémarré à `2026-08-20 15:51:24 UTC`; santé HTTPS 200 et frontend `index-BPOPpDtQ.js` servi avec les en-têtes durcis.
+
 ## 20 août 2026 — Phase 1 communication et consentement déployée
 
 - Révision runtime `2794a08bd9da173899cdc08a67056eaaa8f50d8e` poussée sur `codex/phase1-communication-20260820`, sans inclure les suppressions documentaires ni les binaires non suivis préexistants.
