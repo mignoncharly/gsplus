@@ -1,4 +1,13 @@
 # Changelog — Golden Studio Plus
+## 20 août 2026 — Phase 0 figée, poussée et déployée
+
+- Révision applicative `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd` créée sur la branche isolée `codex/phase0-release-20260820` et poussée vers `origin` sans inclure les dix suppressions documentaires préexistantes ni les sources binaires non validées.
+- Sauvegarde PostgreSQL chiffrée et restaurable créée avant migration : `.phase0-backups/20260820T103700Z-pre-phase0-release/database.dump.enc`, SHA-256 `2c7920991f0ef679035b5e2598219943203776a511e80b613ef116e401b8ea4d`, catalogue de restauration 312 entrées.
+- Migrations locale et consentement marketing WhatsApp appliquées; production désormais à 32/32, sans migration en attente.
+- Backend reconstruit et redémarré à `2026-08-20 10:45:27 UTC`; santé HTTPS 200, 35 offres publiques et frontend `index-DM1CXvtx.js` servis.
+- Validation : backend 176/176; frontend 95/95, lint/build; Playwright local 135/138 puis reprises inchangées 3/3; production ciblée Chromium/WebKit 50/50 et axe production 2/2.
+- Contraste doré sur surfaces claires corrigé à au moins 5,26:1; ordre de focus du menu mobile corrigé; assertions juridiques/locale alignées sur les sources OWNER et l’inventaire `gsp.locale`.
+
 ## 12 août 2026 — POST-06 clôture après preuves POST-04
 
 - QA-A-R1 est passée normalement de `CONFIRMED` à `NO_SHOW` après sa fin réelle : un seul E-17, fournisseur `delivered`, puis réception humaine confirmée par l’OWNER.

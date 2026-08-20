@@ -35,7 +35,7 @@ test('production public copy is corrected and no Wikimedia image is requested', 
   await expect(page.getByText('Idéal pour un profil professionnel')).toBeVisible();
 
   await page.goto('/contact', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: "Horaires d'ouverture" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Horaires d[’']ouverture/ })).toBeVisible();
   await expect(page.getByText(/Fermé, sauf rendez-vous VIP préalable/)).toBeVisible();
 
   expect(requestedUrls.some((url) => url.includes('upload.wikimedia.org'))).toBe(false);

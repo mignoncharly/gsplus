@@ -6,7 +6,7 @@ Recorded: 20 August 2026 (UTC)
 
 Plan: `GOLDEN_STUDIO_PLUS_IMPLEMENTATION_PLAN_2026-08-19.md`
 
-Disposition: **baseline recorded; release gate not passed**
+Disposition: **deployed; Phase 0 release gate passed with documented browser endurance flakes**
 
 ## Revision and artifact identity
 
@@ -15,15 +15,15 @@ Disposition: **baseline recorded; release gate not passed**
 | Repository branch | `main` | Informational |
 | Repository `HEAD` | `7059faf1b4a42764f00d7fbc2584186d7c746bb8` (`Publish official French catalogue`, 9 August 2026) | Named base revision |
 | Candidate patch | Dirty working tree on the named base; initial Phase 0 tracked unstaged binary-diff SHA-256 `cada6ce1df337716036e141f40b0a0aead0a9bfeaf8cdc6546b104c205b3b1fa`; post-remediation SHA-256 `6f68e93576e8d5f54a8552b462935dbf2754c46eb4598b6de385f4c73aa8e163`; staged binary-diff SHA-256 `28bd42705d2930f32acae13b7659adb8314eeb84a2c16eefeb8d061b0b6d2599` | Not reproducible from `HEAD` alone; use the reviewed change catalogue |
-| Production commit SHA | **Unknown / not recorded** | Blocking evidence gap. The 12 August changelog explicitly says no final commit was created |
-| Backend process | PID observed running from `node dist/server.js`, process start `2026-08-11 12:56:33 UTC` | Running process predates the locale and marketing-consent changes |
-| Built backend entry | `backend/dist/server.js`, SHA-256 `cbc956120c678812a00b0078ee85fca0e687f51a485d05897aba94d578a9fe8d` | Rebuilt on 20 August; the running process was not restarted, so this is not proof of deployed backend code |
+| Production commit SHA | `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd` | Pushed to `origin/codex/phase0-release-20260820` and deployed on 20 August 2026 |
+| Backend process | systemd main PID `3803932`, active since `2026-08-20 10:45:27 UTC`; Node child started from the committed `backend/dist` build | Deployed backend revision |
+| Built backend entry | `backend/dist/server.js`, SHA-256 `cbc956120c678812a00b0078ee85fca0e687f51a485d05897aba94d578a9fe8d` | Rebuilt on 20 August; the backend service was restarted from this build after migration deployment |
 | Served frontend entry | Pre-remediation `/assets/index-BX1UaP0b.js`; current `/assets/index-DM1CXvtx.js`, SHA-256 `b75fd774b7cd23d27fafda9517f848d14ea2c7c22d676026bd47e6a9a9dbdf26` | HTTPS loopback check returned the current asset after accessibility remediation |
 | Frontend HTML | `frontend/dist/index.html`, SHA-256 `a1aedcc8c159ad23872406e0b7becaa02212ce8b54494c6738b261726889f13c` | Build gate refreshed the Nginx-served artifact on 20 August |
-| Last documented deployment evidence | 12 August 2026 changelog; frontend artifact was already observed with the same entry name on 19 August before this validation build | Not a commit-to-deployment mapping |
+| Deployment evidence | Commit `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd`; migration 32/32; backend active timestamp `2026-08-20 10:45:27 UTC`; frontend entry `index-DM1CXvtx.js` | Commit-to-deployment mapping established |
 | Production health | `/` HTTP 200 and `/api/health` returned `{"status":"ok","service":"golden-studio-plus-api"}` over the local production virtual host | Health only; not revision proof |
 
-The production state is mixed-version: Nginx serves the current `frontend/dist`, while the backend process has not restarted since 11 August. A source commit cannot be inferred from an asset name, process start time, or a dirty checkout.
+The application code deployed in production is mapped to commit `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd`. The follow-up deployment-evidence commit changes documentation and the production-only test locator only; it does not change the deployed runtime bundles.
 
 ## Database migration baseline
 
@@ -32,28 +32,28 @@ The production state is mixed-version: Nginx serves the current `frontend/dist`,
 | Measure | Result |
 |---|---|
 | Migrations present in repository | 32 |
-| Migrations applied to configured target | 30 |
-| Pending migrations | 2 |
-| Target schema gate | **Failed: pending migrations exist** |
+| Migrations applied to configured target | 32 |
+| Pending migrations | 0 |
+| Target schema gate | **Passed: database schema is up to date** |
 
 ### Required post-report migration set
 
 | Migration | Target status | Release decision | Compatibility and rollback note |
 |---|---|---|---|
 | `20260811110000_post_04_qa_notification_override` | Applied | Include. Required by the current schema and notification-override service | Additive table/indexes/FKs. Roll back only after disabling the override service and exporting any audit rows; dropping it destroys override audit history |
-| `20260812123000_add_contact_locale` | **Pending** | Include and apply before starting locale-aware backend code | Additive non-null `locale` columns defaulting historical rows to `fr`, with `fr/en` checks. Old code is forward-compatible. Rollback requires first removing all code reads/writes, then dropping constraints and columns; locale evidence would be lost |
-| `20260814170000_add_whatsapp_marketing_consent` | **Pending** | Include and apply before starting code that selects these fields | Additive consent fields defaulting prior snapshots to no promotional consent. Old code is forward-compatible. Rollback requires first removing code reads/writes; dropping the columns destroys consent evidence and therefore is not the preferred operational rollback |
+| `20260812123000_add_contact_locale` | Applied 20 August 2026 | Included before the backend restart | Additive non-null `locale` columns defaulting historical rows to `fr`, with `fr/en` checks. Old code is forward-compatible. Rollback requires first removing all code reads/writes, then dropping constraints and columns; locale evidence would be lost |
+| `20260814170000_add_whatsapp_marketing_consent` | Applied 20 August 2026 | Included before the backend restart | Additive consent fields defaulting prior snapshots to no promotional consent. Old code is forward-compatible. Rollback requires first removing code reads/writes; dropping the columns destroys consent evidence and therefore is not the preferred operational rollback |
 
-Deployment order for the candidate is: verified database backup, `prisma migrate deploy`, confirm 32/32, deploy/restart backend, deploy the already-built frontend, then run read-only health and acceptance checks. Do not start the candidate backend before both pending migrations are applied.
+Deployment followed the required order: encrypted verified backup, `prisma migrate deploy`, confirmation of 32/32, backend build/restart, then health and browser acceptance checks. Backup: `.phase0-backups/20260820T103700Z-pre-phase0-release/database.dump.enc`, SHA-256 `2c7920991f0ef679035b5e2598219943203776a511e80b613ef116e401b8ea4d`, 247,103 decrypted bytes and 312 restore-catalogue entries.
 
 ## Workspace release boundary
 
 The authoritative inventory is `GOLDEN_STUDIO_PLUS_PHASE_0_WORKSPACE_CHANGE_CATALOGUE_2026-08-20.md`.
 
-- Candidate application set: backend/frontend source, tests, configuration examples, three migrations, and active release evidence listed in the catalogue, all still requiring review as one patch series.
+- Candidate application set: backend/frontend source, tests, configuration examples, three migrations, and active release evidence listed in the catalogue, reviewed and committed as the Phase 0 runtime patch series.
 - Excluded by default: every pre-existing deletion, binary owner/source material, superseded reports, local backup material, generated output, secrets, `.env` files, and Playwright traces.
-- No commit, database migration, service restart, external message, or production business-data mutation was performed during Phase 0.
-- The required validation builds write generated files under ignored `backend/dist` and the Nginx-served `frontend/dist`. The remediation build therefore refreshed the live static directory in place and changed the served entry from `index-BX1UaP0b.js` to `index-DM1CXvtx.js`. The backend process was deliberately not restarted. Future validation must build into an isolated staging directory before deployment.
+- Runtime/evidence scope was committed as `c3888fa`, pushed to the isolated remote branch, and deployed. The two additive migrations were applied and the backend was restarted through its systemd `Restart=always` policy. No external message or production business-data mutation was initiated by the deployment procedure.
+- The required validation builds write generated files under ignored `backend/dist` and the Nginx-served `frontend/dist`. The remediation build therefore refreshed the live static directory in place and changed the served entry from `index-BX1UaP0b.js` to `index-DM1CXvtx.js`. The backend was subsequently restarted after the migration gate passed. Future validation should build into an isolated staging directory before deployment.
 
 ## Validation evidence
 
@@ -68,8 +68,11 @@ The authoritative inventory is `GOLDEN_STUDIO_PLUS_PHASE_0_WORKSPACE_CHANGE_CATA
 | Local Playwright initial full suite | **Fail** | 114 passed, 24 failed across Chromium and WebKit (138 total; 18.3 min) |
 | Local Playwright targeted remediation | **Pass with one runner retry** | 27/28 in the combined run; the sole WebKit browser-process closure passed unchanged in isolation, giving 28/28 scenario evidence |
 | Local Playwright post-remediation full suite | **Pass with isolated flake recovery** | 135/138 in one 14.1-minute endurance run; the three residual cases passed unchanged 3/3 in immediate isolated reruns. No reproducible assertion failure remains |
-| Configured target migration status | **Fail** | 30/32 applied; locale and WhatsApp marketing consent pending |
-| Production revision mapping | **Fail** | No deployed commit SHA or immutable release marker exists |
+| Production targeted browser suite | **Pass** | 50/50 scenario evidence across Chromium and WebKit after correcting one stale typographic-apostrophe locator |
+| Production accessibility | **Pass** | Dedicated public-route/form and reservation-step axe scans 2/2 |
+| Production health/catalogue | **Pass** | HTTPS health 200; 35 published packages |
+| Configured target migration status | **Pass** | 32/32 applied; schema up to date |
+| Production revision mapping | **Pass** | Runtime commit `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd` |
 
 ### Browser remediation disposition
 
@@ -90,10 +93,10 @@ Retained Playwright traces and error contexts live under ignored `frontend/test-
 
 | Requirement | Verdict |
 |---|---|
-| Reproducible from a named revision or reviewed patch set | **Not met** — named base exists, but the large dirty patch has not yet been reviewed/split and production SHA is unknown |
-| No pending Prisma migration in target | **Not met** — 2 pending |
+| Reproducible from a named revision or reviewed patch set | **Met** — committed and pushed as `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd`; excluded deletions remain outside the commit |
+| No pending Prisma migration in target | **Met** — 32/32 applied |
 | Unit, integration, build, lint | **Met locally** |
 | Selected browser suites green | **Met with documented endurance flakes** — all affected cases pass in both engines; full run 135/138 plus unchanged isolated reruns 3/3 |
 | Locally implemented findings remain awaiting production proof | **Met in the ledger** |
 
-**Release verdict: NO-GO.** Local code/test gates are now satisfied, subject to the documented browser endurance flakes. The remaining Phase 0 blockers are release-control blockers: review/split the catalogued patch, create an immutable candidate revision, apply the two migrations during an authorised deployment window, and restart the backend from that revision. Only then can the manifest be amended with a production commit SHA and deployment timestamp.
+**Release verdict: GO — PHASE 0 COMPLETE.** The reviewed runtime scope is committed, pushed, deployed, migrated, healthy, and covered by local and production evidence. Report findings that require Phase 1–7 behavior or external provider/owner proof remain open in the acceptance ledger; this Phase 0 verdict does not close them prematurely.
