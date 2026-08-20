@@ -10,6 +10,7 @@ import {
 } from '../src/catalogue/golden-studio-plus-2026-08-04.js';
 import { CATALOGUE_BENEFITS, CATALOGUE_TAXONOMY, packageLocalesForOffer, taxonomyKeyForCategory } from '../src/catalogue/catalogue-model.js';
 import { assertBookableSlot, packageBookingRules } from '../src/services/booking-slots.js';
+import { assertBenefitLocales } from '../src/services/catalogue.js';
 import { assertPublishable } from '../src/services/packages.js';
 import { addBusinessDays, businessDayOfWeek, businessLocalToInstant } from '../src/utils/business-time.js';
 
@@ -110,7 +111,17 @@ describe('catalogue officiel français du 4 août 2026', () => {
       'Fiançailles & pré-mariage', 'Événements', 'Créateurs & entreprises', 'Privilèges Golden — Promotion',
     ]);
     expect(CATALOGUE_TAXONOMY.every((item) => item.labels.fr && item.labels.en)).toBe(true);
-    expect(OFFICIAL_CATALOGUE_OFFERS.map((offer) => taxonomyKeyForCategory(offer.category))).toHaveLength(35);
+    const membership = Object.fromEntries(CATALOGUE_TAXONOMY.map((taxonomy) => [taxonomy.key, OFFICIAL_CATALOGUE_OFFERS.filter((offer) => taxonomyKeyForCategory(offer.category) === taxonomy.key).map((offer) => offer.slug)]));
+    expect(membership).toEqual({
+      'portraits-identite': ['flash-social', 'identite-standard', 'pack-decouverte', 'classic-propre', 'pack-signature', 'corporate-linkedin'],
+      'couples-familles-groupes': ['duo-couple', 'famille', 'groupe-fun', 'pack-fratrie'],
+      'maternite-bebe-enfant': ['maternite', 'maternite-douce', 'maternite-elegance', 'bebe-naissance', 'bebe-premiere-magie', 'enfant', 'enfant-star', 'ado-swag'],
+      anniversaires: ['anniversaire', 'anniversaire-enfant-star', 'anniversaire-adulte-classic', 'anniversaire-adulte-premium'],
+      'fiancailles-pre-mariage': ['fiancailles-decouverte', 'fiancailles-classic', 'fiancailles-premium', 'pre-mariage-decouverte', 'pre-mariage-classic', 'pre-mariage-premium'],
+      evenements: ['event-lite', 'event-standard', 'event-premium'],
+      'createurs-entreprises': ['abonnement-createur-starter', 'abonnement-createur-pro', 'abonnement-influenceur-vip'],
+      'privileges-golden-promotion': ['happy-hours'],
+    });
   });
 
   it('versionne les contenus FR/EN complets et les deux avantages catalogue', () => {
@@ -121,6 +132,13 @@ describe('catalogue officiel français du 4 août 2026', () => {
     }
     expect(CATALOGUE_BENEFITS.map((benefit) => benefit.code)).toEqual(['STUDENT', 'REFERRAL']);
     expect(CATALOGUE_BENEFITS.every((benefit) => benefit.locales.fr && benefit.locales.en)).toBe(true);
+  });
+
+  it('exige une approbation explicite de chaque langue avant publication des avantages', () => {
+    const approvedAt = new Date('2026-08-20T19:37:33.818Z');
+    const locales = (['fr', 'en'] as const).map((locale) => ({ locale, name: 'Name', advantage: 'Benefit', conditions: 'Conditions', applicationLabel: 'Application', mandatoryWording: 'Terms', sourceReference: 'TEST', approvedAt: locale === 'fr' ? null : approvedAt, isEnabled: true }));
+    expect(() => assertBenefitLocales(locales, true)).toThrowError('CATALOGUE_BENEFIT_LOCALE_UNAPPROVED:fr');
+    expect(() => assertBenefitLocales(locales.map((locale) => ({ ...locale, approvedAt })), true)).not.toThrow();
   });
 
   it('bloque la publication sans taxonomie connue ou avec une langue activée incomplète', () => {
@@ -134,6 +152,8 @@ describe('catalogue officiel français du 4 août 2026', () => {
       locales: ['fr', 'en'].map((locale) => ({ locale, name: 'Name', content: 'Content', inclusions: ['Item'], conditions: 'Conditions', deliveryLabel: 'Delivery', mandatoryWording: 'Terms', isEnabled: true })),
     };
     expect(() => assertPublishable(base as never)).not.toThrow();
+    expect(() => assertPublishable(base as never, true)).toThrowError(expect.objectContaining({ code: 'PACKAGE_PUBLICATION_FIELDS_REQUIRED' }));
+    expect(() => assertPublishable({ ...base, locales: base.locales.map((locale) => ({ ...locale, approvedAt: new Date() })) } as never, true)).not.toThrow();
     expect(() => assertPublishable({ ...base, taxonomy: null } as never)).toThrowError(expect.objectContaining({ code: 'PACKAGE_PUBLICATION_FIELDS_REQUIRED' }));
     expect(() => assertPublishable({ ...base, locales: base.locales.filter((item) => item.locale === 'fr') } as never)).toThrowError(expect.objectContaining({ code: 'PACKAGE_PUBLICATION_FIELDS_REQUIRED' }));
   });

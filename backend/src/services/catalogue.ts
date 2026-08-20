@@ -57,10 +57,11 @@ export const listAdminCatalogueBenefits = () => prisma.catalogueBenefit.findMany
 export type BenefitLocaleInput = { locale: 'fr' | 'en'; name: string; advantage: string; conditions: string; applicationLabel: string; mandatoryWording: string; sourceReference: string; approvedAt?: Date | null; isEnabled?: boolean };
 export type BenefitDraftInput = { code: string; taxonomyKey: string; applicationMode: string; sortOrder: number; effectiveAt: Date | null; locales: BenefitLocaleInput[] };
 const benefitLocaleData = (item: BenefitLocaleInput) => ({ ...item, approvedAt: item.approvedAt ?? null, isEnabled: item.isEnabled ?? true });
-const assertBenefitLocales = (locales: BenefitLocaleInput[]) => {
+export const assertBenefitLocales = (locales: BenefitLocaleInput[], requireApproval = false) => {
   for (const locale of ['fr', 'en']) {
     const item = locales.find((entry) => entry.locale === locale && entry.isEnabled !== false);
     if (!item || !item.name.trim() || !item.advantage.trim() || !item.conditions.trim() || !item.applicationLabel.trim() || !item.mandatoryWording.trim()) throw new Error(`CATALOGUE_BENEFIT_LOCALE_INCOMPLETE:${locale}`);
+    if (requireApproval && !item.approvedAt) throw new Error(`CATALOGUE_BENEFIT_LOCALE_UNAPPROVED:${locale}`);
   }
 };
 export const createCatalogueBenefitDraft = async (input: BenefitDraftInput, adminUserId: string) => {
@@ -95,7 +96,7 @@ export const validateCatalogueBenefitVersion = async (benefitId: string, expecte
 export const publishCatalogueBenefitVersion = async (benefitId: string, expectedVersion: number, adminUserId: string) => prisma.$transaction(async (tx) => {
   const current = await tx.catalogueBenefitVersion.findUnique({ where: { benefitId_version: { benefitId, version: expectedVersion } }, include: { locales: true, taxonomy: true } });
   if (!current || current.status !== PackageVersionStatus.VALIDATED || !current.effectiveAt || current.effectiveAt > new Date()) throw new Error('CATALOGUE_BENEFIT_NOT_VALIDATED');
-  assertBenefitLocales(current.locales as BenefitLocaleInput[]);
+  assertBenefitLocales(current.locales as BenefitLocaleInput[], true);
   const now = new Date(); await tx.catalogueBenefitVersion.updateMany({ where: { benefitId, status: PackageVersionStatus.PUBLISHED }, data: { status: PackageVersionStatus.ARCHIVED, archivedAt: now } });
   await tx.catalogueBenefitVersion.update({ where: { id: current.id }, data: { status: PackageVersionStatus.PUBLISHED, publishedAt: now, publishedById: adminUserId, archivedAt: null } });
   return tx.catalogueBenefit.update({ where: { id: benefitId }, data: { publishedVersion: expectedVersion, isActive: true } });
