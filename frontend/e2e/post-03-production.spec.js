@@ -6,7 +6,8 @@ test('POST-03 publie 35 offres et réserve uniquement les 31 offres directes', a
 
   const identity = page.locator('.pack-card-premium').filter({ hasText: 'Identité Standard' });
   await expect(identity).toContainText('Organisation sur échange');
-  await expect(identity.getByRole('link', { name: 'Réserver ce pack' })).toBeVisible();
+  await expect(identity.getByRole('link', { name: 'Nous contacter' })).toHaveAttribute('href', '/contact');
+  await expect(identity.getByRole('link', { name: 'Réserver ce pack' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Avantage étudiant' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Parrainage Golden' })).toBeVisible();
 

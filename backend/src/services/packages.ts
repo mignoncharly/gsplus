@@ -522,9 +522,9 @@ const requireCurrentVersion = async (
   return { pack, current };
 };
 
-type PublishableVersion = PackageVersion & { locales: Array<{ locale: string; name: string; content: string; inclusions: Prisma.JsonValue; conditions: string; deliveryLabel: string; mandatoryWording: string; isEnabled: boolean }>; taxonomy: { isActive: boolean } | null };
+type PublishableVersion = PackageVersion & { locales: Array<{ locale: string; name: string; content: string; inclusions: Prisma.JsonValue; conditions: string; deliveryLabel: string; mandatoryWording: string; approvedAt: Date | null; isEnabled: boolean }>; taxonomy: { isActive: boolean } | null };
 
-export const assertPublishable = (version: PublishableVersion) => {
+export const assertPublishable = (version: PublishableVersion, requireLocaleApproval = false) => {
   const missing: string[] = [];
   if (!version.name.trim()) missing.push('name');
   if (version.price < 0) missing.push('price');
@@ -541,7 +541,7 @@ export const assertPublishable = (version: PublishableVersion) => {
   const requiredLocales = version.englishEnabled ? ['fr', 'en'] : ['fr'];
   for (const locale of requiredLocales) {
     const localized = version.locales.find((item) => item.locale === locale && item.isEnabled);
-    if (!localized || !localized.name.trim() || !localized.content.trim() || !Array.isArray(localized.inclusions) || localized.inclusions.length === 0 || !localized.conditions.trim() || !localized.deliveryLabel.trim() || !localized.mandatoryWording.trim()) {
+    if (!localized || !localized.name.trim() || !localized.content.trim() || !Array.isArray(localized.inclusions) || localized.inclusions.length === 0 || !localized.conditions.trim() || !localized.deliveryLabel.trim() || !localized.mandatoryWording.trim() || (requireLocaleApproval && !localized.approvedAt)) {
       missing.push(`locales.${locale}`);
     }
   }
@@ -568,6 +568,7 @@ export const validatePackageVersion = async (
       throw new HttpError(409, 'PACKAGE_MENTIONS_APPROVAL_REQUIRED', 'Les mentions obligatoires doivent être approuvées.');
     }
     const now = new Date();
+    await tx.packageVersionLocale.updateMany({ where: { packageVersionId: current.id, isEnabled: true }, data: { approvedAt: now } });
     await tx.packageVersion.update({
       where: { id: current.id },
       data: {
@@ -591,7 +592,7 @@ export const publishPackageVersion = async (
     if (current.status !== PackageVersionStatus.VALIDATED || !current.legalApprovedAt) {
       throw new HttpError(409, 'PACKAGE_NOT_VALIDATED', 'Validez les mentions obligatoires avant publication.');
     }
-    assertPublishable(current);
+    assertPublishable(current, true);
     const now = new Date();
     await tx.packageVersion.updateMany({
       where: { packageId, status: PackageVersionStatus.PUBLISHED },

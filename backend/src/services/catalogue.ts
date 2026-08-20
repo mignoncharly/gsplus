@@ -90,7 +90,7 @@ export const validateCatalogueBenefitVersion = async (benefitId: string, expecte
   const current = await prisma.catalogueBenefitVersion.findUnique({ where: { benefitId_version: { benefitId, version: expectedVersion } }, include: { locales: true, taxonomy: true } });
   if (!current || current.status !== PackageVersionStatus.DRAFT || !current.taxonomy.isActive || !current.effectiveAt) throw new Error('CATALOGUE_BENEFIT_NOT_PUBLISHABLE');
   assertBenefitLocales(current.locales as BenefitLocaleInput[]);
-  const now = new Date(); await prisma.catalogueBenefitVersion.update({ where: { id: current.id }, data: { status: PackageVersionStatus.VALIDATED, validatedAt: now, validatedById: adminUserId } });
+  const now = new Date(); await prisma.$transaction([prisma.catalogueBenefitVersionLocale.updateMany({ where: { benefitVersionId: current.id, isEnabled: true }, data: { approvedAt: now } }), prisma.catalogueBenefitVersion.update({ where: { id: current.id }, data: { status: PackageVersionStatus.VALIDATED, validatedAt: now, validatedById: adminUserId } })]);
 };
 export const publishCatalogueBenefitVersion = async (benefitId: string, expectedVersion: number, adminUserId: string) => prisma.$transaction(async (tx) => {
   const current = await tx.catalogueBenefitVersion.findUnique({ where: { benefitId_version: { benefitId, version: expectedVersion } }, include: { locales: true, taxonomy: true } });

@@ -17,6 +17,7 @@ credentials/
 .phase0-backups/
 .phase1-backups/
 .phase2-backups/
+.phase3-backups/
 *.zip
 *.tar
 *.tar.gz

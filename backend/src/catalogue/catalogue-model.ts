@@ -85,7 +85,7 @@ export type VersionLocaleInput = {
   mandatoryWording: string;
   options: Prisma.InputJsonValue | null;
   sourceReference: string;
-  approvedAt: Date;
+  approvedAt: Date | null;
   isEnabled: true;
 };
 
@@ -98,10 +98,9 @@ export const packageLocalesForOffer = (offer: OfficialCatalogueOffer): VersionLo
     : offer.slug === 'happy-hours'
       ? englishDescription
       : offer.bookingMode === 'CONTACT' ? ENGLISH_CONTACT_CONDITIONS : ENGLISH_DEFAULT_CONDITIONS;
-  const approvalDate = new Date('2026-08-20T00:00:00.000Z');
   return [
-    { locale: 'fr', name: offer.name, description: offer.description, content: offer.content, inclusions: offer.inclusions, conditions: offer.conditions, deliveryLabel: offer.deliveryLabel, mandatoryWording: offer.legalText, options: offer.options, sourceReference, approvedAt: approvalDate, isEnabled: true },
-    { locale: 'en', name: englishName, description: englishDescription, content: englishDescription, inclusions: englishDescription.split(' · ').map((item) => item.trim()).filter(Boolean), conditions: englishConditions, deliveryLabel: ENGLISH_DELIVERY[offer.slug] ?? ENGLISH_DEFAULT_DELIVERY, mandatoryWording: ENGLISH_LEGAL, options: translatedOptions(offer), sourceReference, approvedAt: approvalDate, isEnabled: true },
+    { locale: 'fr', name: offer.name, description: offer.description, content: offer.content, inclusions: offer.inclusions, conditions: offer.conditions, deliveryLabel: offer.deliveryLabel, mandatoryWording: offer.legalText, options: offer.options, sourceReference, approvedAt: null, isEnabled: true },
+    { locale: 'en', name: englishName, description: englishDescription, content: englishDescription, inclusions: englishDescription.split(' · ').map((item) => item.trim()).filter(Boolean), conditions: englishConditions, deliveryLabel: ENGLISH_DELIVERY[offer.slug] ?? ENGLISH_DEFAULT_DELIVERY, mandatoryWording: ENGLISH_LEGAL, options: translatedOptions(offer), sourceReference, approvedAt: null, isEnabled: true },
   ];
 };
 
