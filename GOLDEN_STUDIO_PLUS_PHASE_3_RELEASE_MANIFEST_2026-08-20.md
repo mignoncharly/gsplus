@@ -6,7 +6,7 @@ Runtime revision: `b2944ea`
 
 Branch: `codex/phase3-catalogue-20260820`
 
-Disposition: **deployed; technical catalogue gate passed; OWNER locale-content approval remains explicitly pending**
+Disposition: **deployed; Phase 3 technical and OWNER editorial gates passed**
 
 ## Released scope
 
@@ -38,12 +38,16 @@ Disposition: **deployed; technical catalogue gate passed; OWNER locale-content a
 
 - Read-only pre-apply reconciliation: 35/35 found, zero commercial mismatches, eight taxonomy keys, 35 pending locale migrations, two pending benefit migrations.
 - Post-apply reconciliation: 35/35 found, zero commercial mismatches, zero taxonomy mismatches, zero locale mismatches, and 2/2 benefits present.
-- Migrated English and benefit locale records intentionally expose `approvedAt: null`; a later OWNER validation stamps approval before any newly validated version can publish.
+- OWNER approval was recorded at `2026-08-20T19:37:33.818Z` for all 70 package-version FR/EN locale records and all 4 benefit FR/EN locale records. The transaction changed approval metadata only and published 0 versions.
+- Approval workflow revision `65c6308` first required exact 35/35 package, taxonomy, locale, and 2/2 benefit reconciliation; it also made migration re-runs preserve existing approval timestamps.
 - Backend restarted from revision `b2944ea` at 19:19:45 UTC with PID `369635`.
 - `https://gsplus.vip/api/health` returned `status: ok`.
 - Live aggregate catalogue returned 35 packages, 8 taxonomy sections, and 2 benefits. Identité Standard returned `CONTACT`, null duration, and the versioned English name “Standard ID”; Classic Propre returned 18,000 FCFA and “Livraison sous 48 à 72 heures”.
 - Nginx serves `assets/index-DRyxIe36.js`, SHA-256 `3507a7575a5549c87191726cd0e3c022897aabacbfa76cbb2d267458aa071503`.
 - Focused live catalogue browser acceptance passed 1/1 Chromium and 1/1 WebKit: 35 public offers, exactly 31 direct reservation choices, CONTACT CTA for Identité Standard, both benefits visible.
+- Post-approval reconciliation reports 0 pending package locales, 0 pending benefit locales, and `ownerSignOff: APPROVED`; an immediate repeat returned `ALREADY_APPROVED`.
+- Audit event `cmt1x9wuo0000truugf0z30nh` is the sole `CatalogueRelease/PHASE3_OWNER_APPROVAL_2026-08-20` approval record, attributed to the active OWNER and recording source hash, scope, timestamp, and `publicationsPerformed: 0`.
+- The live `/api/catalogue` response exposes the common approval timestamp on package and benefit locales while retaining 35 packages, 8 taxonomy sections, and 2 benefits.
 
 ## Phase 3 exit gate
 
@@ -51,8 +55,8 @@ Disposition: **deployed; technical catalogue gate passed; OWNER locale-content a
 |---|---|
 | Exactly eight stable public sections | **Met** — database taxonomy and live API return 8/8 ordered FR/EN sections |
 | All 35 tariffs attributable to the approved source | **Met** — exact source reconciliation has zero core/taxonomy/locale mismatch |
-| Two benefits are versioned and auditable | **Met technically** — version 1 records and actors/effective dates exist; locale OWNER approval remains pending |
+| Two benefits are versioned and auditable | **Met** — version 1 records, actors/effective dates, and all 4 OWNER-approved locale records exist |
 | No frontend slug-specific commercial copy or CTA | **Met** — source and automated tests prove removal; production browser proves CONTACT identity CTA |
 | API, preview, and card use one version/localization | **Met** — published version locale records are projected and selected without frontend derivation |
 | Publication rejects unknown taxonomy/incomplete locale | **Met** — service validation plus integration/unit evidence; publishing also requires locale approval timestamps |
-| Owner editorial sign-off | **Pending** — migrated English and benefit copy remains explicitly unapproved; no synthetic sign-off was recorded |
+| Owner editorial sign-off | **Met** — explicit OWNER approval is recorded on all 74 locale records and in one attributable audit event |

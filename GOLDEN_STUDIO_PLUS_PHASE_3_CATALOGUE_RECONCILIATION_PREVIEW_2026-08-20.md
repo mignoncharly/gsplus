@@ -6,7 +6,7 @@
 - Source: `docs/Golden_Studio_Plus_Catalogue.docx`, version 4 August 2026, SHA-256 `002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696`.
 - Scope: 35 official tariffs, 8 approved public sections, and 2 existing Golden benefits.
 - Publication effect: **none**. The reconciliation command creates no package draft, performs no validation, and publishes no package version.
-- Owner gate: **required** before any later official-catalogue draft is validated or published. English migration records remain visibly attributed to the Phase 3 versioned migration source.
+- Owner gate: **satisfied at 19:37:33 UTC on 20 August 2026**. All 70 package-version locale records and all 4 benefit locale records retain their migration source attribution and now carry the OWNER approval timestamp.
 
 ## Tariff-by-tariff preview
 
@@ -66,6 +66,8 @@
 
 ## Owner decision
 
-- Decision: **pending owner review**.
-- No automatic publication is authorized by this preview.
+- Decision: **approved by the OWNER** on 20 August 2026.
+- Evidence: approval timestamp `2026-08-20T19:37:33.818Z`; audit event `cmt1x9wuo0000truugf0z30nh`; action `catalogue.phase3.owner_approve`; 70 package locales and 4 benefit locales approved.
+- Publication effect: **none**. The approval transaction created 0 drafts, performed 0 validations, and published 0 versions.
+- Idempotency evidence: an immediate second approval invocation returned `ALREADY_APPROVED` and the audit-event count remained exactly 1.
 - Rollback: revert the Phase 3 frontend/API release and database migration; existing package identity, price, booking, and reservation snapshot columns remain intact.
