@@ -1,7 +1,8 @@
 import { HttpError } from '../errors/http-error.js';
 import { queueReservationCreatedNotifications } from '../emails/notifications.js';
-import { PackageBookingMode, PaymentStatus, Prisma, ReservationStatus } from '../generated/prisma/client.js';
+import { PackageBookingMode, PaymentStatus, Prisma, ReservationScheduleKind, ReservationStatus } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
+import { BUSINESS_TIME_ZONE } from '../utils/business-time.js';
 import { ensurePublishedPackageVersion } from './packages.js';
 import { assertBookableSlot, lockBookingWindow, packageBookingRules } from './booking-slots.js';
 import { resolvePublishedLegalVersions } from './legal-consents.js';
@@ -83,7 +84,9 @@ export const createReservation = async (input: ReservationCreateInput) => {
             throw new HttpError(404, 'RESERVATION_INTENT_NOT_FOUND', 'The booking intent was not found.');
           }
 
-          await lockBookingWindow(tx, initialIntent.startAt, initialIntent.endAt);
+          if (initialIntent.scheduleKind === ReservationScheduleKind.STANDARD_HOLD) {
+            await lockBookingWindow(tx, initialIntent.startAt, initialIntent.endAt);
+          }
           const intent = await tx.reservationIntent.findFirst({
             where: { id: input.intentId, idempotencyKey: input.idempotencyKey },
             include: { package: true, packageVersion: true },
@@ -103,9 +106,11 @@ export const createReservation = async (input: ReservationCreateInput) => {
             throw new HttpError(409, 'RESERVATION_INTENT_EXPIRED', 'The slot hold expired. Please verify the slot again.');
           }
 
-          await assertBookableSlot(tx, intent.package, intent.startAt, intent.endAt, {
-            excludeIntentId: intent.id,
-          });
+          if (intent.scheduleKind === ReservationScheduleKind.STANDARD_HOLD) {
+            await assertBookableSlot(tx, intent.package, intent.startAt, intent.endAt, {
+              excludeIntentId: intent.id,
+            });
+          }
 
           const packageVersion = intent.packageVersion ?? await ensurePublishedPackageVersion(tx, intent.package);
           if (packageVersion.bookingMode !== PackageBookingMode.DIRECT || packageVersion.durationMin === null) {
@@ -142,6 +147,10 @@ export const createReservation = async (input: ReservationCreateInput) => {
               packageVersionId: packageVersion.id,
               startAt: intent.startAt,
               endAt: intent.endAt,
+              scheduleKind: intent.scheduleKind,
+              requestedStartAt: intent.requestedStartAt,
+              requestedEndAt: intent.requestedEndAt,
+              requestedTimeZone: intent.requestedTimeZone || BUSINESS_TIME_ZONE,
               status: ReservationStatus.PENDING_CONFIRMATION,
               paymentChoice: input.paymentChoice,
               extraInfo: input.extraInfo,
@@ -170,6 +179,10 @@ export const createReservation = async (input: ReservationCreateInput) => {
                   packagePublishedAt: packageVersion.publishedAt,
                   startAt: intent.startAt,
                   endAt: intent.endAt,
+                  scheduleKind: intent.scheduleKind,
+                  requestedStartAt: intent.requestedStartAt,
+                  requestedEndAt: intent.requestedEndAt,
+                  requestedTimeZone: intent.requestedTimeZone || BUSINESS_TIME_ZONE,
                   durationMin: packageVersion.durationMin,
                   amount: packageVersion.price,
                   currency: packageVersion.currency,
@@ -186,10 +199,14 @@ export const createReservation = async (input: ReservationCreateInput) => {
                   imageConsent: input.consentImage,
                   imageAuthorizationVersion: legalVersions.imageAuthorization.version,
                   imageConsentAt: input.consentImage ? capturedAt : null,
-                  source: 'PUBLIC_BOOKING',
+                  source: intent.scheduleKind === ReservationScheduleKind.CUSTOM_PROPOSAL
+                    ? 'PUBLIC_CUSTOM_PROPOSAL'
+                    : 'PUBLIC_BOOKING',
                   evidence: {
                     intentId: input.intentId,
                     idempotencyKey: input.idempotencyKey,
+                    scheduleKind: intent.scheduleKind,
+                    requestedTimeZone: intent.requestedTimeZone || BUSINESS_TIME_ZONE,
                     legalVersionIds: {
                       terms: legalVersions.terms.id,
                       privacy: legalVersions.privacy.id,
@@ -214,7 +231,9 @@ export const createReservation = async (input: ReservationCreateInput) => {
                     optional: !intent.package.isPromo,
                     promotionalOfferCondition: intent.package.isPromo,
                   },
-                  source: 'PUBLIC_BOOKING',
+                  source: intent.scheduleKind === ReservationScheduleKind.CUSTOM_PROPOSAL
+                    ? 'PUBLIC_CUSTOM_PROPOSAL'
+                    : 'PUBLIC_BOOKING',
                   effectiveAt: capturedAt,
                 },
               },

@@ -1301,7 +1301,7 @@ const AdminDashboard = () => {
                         return (
                           <tr key={reservation.id}>
                             <td><code className="admin-public-reference">{reservation.reference}</code></td>
-                            <td>{dateTime(reservation.startAt)}</td>
+                            <td>{dateTime(reservation.startAt)}{reservation.scheduleKind === 'CUSTOM_PROPOSAL' && <small className="text-gold">Proposition non bloquante</small>}</td>
                             <td>
                               <strong>{contact.firstName} {contact.lastName}</strong>
                               <small>{contact.phone}</small>
@@ -1648,8 +1648,14 @@ const AdminDashboard = () => {
                 <span>Formule :</span>
                 <strong>{selectedRes.package?.name} ({formatFcfa(selectedRes.package?.price)})</strong>
               </div>
+              {selectedRes.scheduleKind === 'CUSTOM_PROPOSAL' && (
+                <div className="admin-modal-block" role="status">
+                  <strong>Proposition d’horaire — non bloquante et non confirmée</strong>
+                  <p>Demandée pour {dateTime(selectedRes.requestedStartAt || selectedRes.startAt)} — {dateTime(selectedRes.requestedEndAt || selectedRes.endAt)} ({selectedRes.requestedTimeZone || 'Africa/Douala'}). La confirmation relancera tous les contrôles de disponibilité.</p>
+                </div>
+              )}
               <div className="admin-modal-info-row">
-                <span>Séance programmée :</span>
+                <span>{selectedRes.scheduleKind === 'CUSTOM_PROPOSAL' ? 'Horaire demandé :' : 'Séance programmée :'}</span>
                 <strong>{dateTime(selectedRes.startAt)} — {dateTime(selectedRes.endAt)}</strong>
               </div>
               <div className="admin-modal-info-row">

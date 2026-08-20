@@ -2,11 +2,13 @@ import { HttpError } from '../errors/http-error.js';
 import {
   PaymentStatus,
   Prisma,
+  ReservationScheduleKind,
   ReservationStatus,
   type Payment,
   type Reservation,
 } from '../generated/prisma/client.js';
 import type { PersistedCustomerDecisionCopy } from './customer-decision-copy.js';
+import { assertBookableSlot, lockBookingWindow } from './booking-slots.js';
 
 import { paymentReferenceValidationMessage, type SupportedPaymentMethod } from '../utils/payment-reference.js';
 const RESERVATION_TRANSITIONS: Record<ReservationStatus, readonly ReservationStatus[]> = {
@@ -127,7 +129,10 @@ export const transitionReservationStatus = async (
   reservationId: string,
   input: ReservationTransitionInput,
 ): Promise<Reservation> => {
-  const current = await tx.reservation.findUnique({ where: { id: reservationId } });
+  const current = await tx.reservation.findUnique({
+    where: { id: reservationId },
+    include: { package: true },
+  });
 
   if (!current) {
     throw new HttpError(404, 'RESERVATION_NOT_FOUND', 'Reservation not found.');
@@ -173,6 +178,16 @@ export const transitionReservationStatus = async (
   }
 
   const now = input.now ?? new Date();
+  const acceptsCustomProposal =
+    input.toStatus === ReservationStatus.CONFIRMED &&
+    current.scheduleKind === ReservationScheduleKind.CUSTOM_PROPOSAL;
+  if (acceptsCustomProposal) {
+    await lockBookingWindow(tx, current.startAt, current.endAt);
+    await assertBookableSlot(tx, current.package, current.startAt, current.endAt, {
+      excludeReservationId: current.id,
+      now,
+    });
+  }
   let earlyClosureReason: string | null = null;
   let temporalOverrideMetadata: Prisma.InputJsonValue | undefined;
 
@@ -219,6 +234,8 @@ export const transitionReservationStatus = async (
       status: input.toStatus,
       statusReason: reason,
       statusChangedAt: now,
+      scheduleKind: acceptsCustomProposal ? ReservationScheduleKind.STANDARD_HOLD : undefined,
+      scheduleConfirmedAt: input.toStatus === ReservationStatus.CONFIRMED ? now : undefined,
       version: { increment: 1 },
     },
   });

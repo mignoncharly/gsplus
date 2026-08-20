@@ -89,7 +89,7 @@ test('P0-03 disables normal early closure and records an explicit owner override
 
   await overrideButton.click();
   const dialog = page.getByRole('dialog', { name: 'Confirmer une dérogation temporelle' });
-  await dialog.getByLabel('Motif *').fill('Incident studio contrôlé');
+  await dialog.getByLabel('Motif interne *').fill('Incident studio contrôlé');
   await dialog.getByRole('button', { name: 'Dérogation : marquer terminée' }).click();
 
   await expect(page.getByText('Dérogation temporelle — clôture avant la fin programmée')).toBeVisible();

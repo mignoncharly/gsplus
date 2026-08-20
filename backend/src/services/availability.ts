@@ -1,6 +1,7 @@
 import { HttpError } from '../errors/http-error.js';
 import {
   PackageBookingMode,
+  ReservationScheduleKind,
   type AvailabilityBlock,
   type BusinessHour,
   type Package,
@@ -181,6 +182,7 @@ export const getAvailability = async ({ from, to, packageId }: AvailabilityQuery
     }),
     prisma.reservationIntent.findMany({
       where: {
+        scheduleKind: ReservationScheduleKind.STANDARD_HOLD,
         reservationId: null,
         expiresAt: { gt: now },
         startAt: { lt: windowEnd },

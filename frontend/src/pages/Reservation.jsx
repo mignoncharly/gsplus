@@ -26,6 +26,7 @@ import {
   businessDateKey,
   businessDateLabelParts,
   formatBusinessDateKey,
+  doualaLocalDateTimeToIso,
 } from '../lib/business-time';
 import { formatFcfa } from '../lib/display-formatters';
 import { packageView, selectPackageFromQuery } from '../lib/packages';
@@ -94,7 +95,6 @@ const Reservation = () => {
   const [slotVerification, setSlotVerification] = useState(null);
   const [checkingSlot, setCheckingSlot] = useState(false);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
-  const [suggestions, setSuggestions] = useState([]);
   const [freeDate, setFreeDate] = useState('');
   const [freeTime, setFreeTime] = useState('');
   const [checkResult, setCheckResult] = useState(null);
@@ -325,7 +325,6 @@ const Reservation = () => {
     setReservationIntent(null);
     setSlotVerification(null);
     setCheckResult(null);
-    setSuggestions([]);
   };
 
   const timeToMin = (t) => {
@@ -382,7 +381,6 @@ const Reservation = () => {
     setFormData((current) => ({ ...current, date: '', time: '', startAt: '' }));
     setSlotVerification(null);
     setCheckResult(null);
-    setSuggestions([]);
   };
 
   const switchBookingMode = (mode) => {
@@ -411,6 +409,7 @@ const Reservation = () => {
         idempotencyKey,
         packageId: formData.packageId,
         startAt: slot.startAt,
+        scheduleKind: 'STANDARD_HOLD',
         website: '',
       });
       if (!slotRequestGate.current.isCurrent(requestVersion)) return false;
@@ -430,46 +429,17 @@ const Reservation = () => {
     }
   };
 
-  const findSuggestions = (requestedDate, requestedTime) => {
-    const results = [];
-    const requestedMin = timeToMin(requestedTime);
-    const today = businessDateKey();
-    
-    for (let dayOffset = 0; dayOffset <= 6; dayOffset++) {
-      const offsets = dayOffset === 0 ? [0] : [-dayOffset, dayOffset];
-      for (const off of offsets) {
-        const dateStr = addBusinessDays(requestedDate, off);
-        if (dateStr <= today) continue;
-        const daySlots = getAvailableSlots(dateStr).filter((slot) => slot.available);
-
-        for (const slot of daySlots) {
-          const slotMin = timeToMin(slot.time);
-          const dayDiff = Math.abs(off);
-          const timeDiff = Math.abs(slotMin - requestedMin);
-          const totalDiff = dayDiff * 1440 + timeDiff; 
-          results.push({ date: dateStr, time: slot.time, totalDiff, slot });
-        }
-      }
-    }
-    
-    results.sort((a, b) => a.totalDiff - b.totalDiff);
-    return results.slice(0, 3);
-  };
-
   const handleFreeCheck = async () => {
     setError('');
     setCheckResult(null);
     setSlotVerification(null);
-    setSuggestions([]);
 
     if (!freeDate || !freeTime) {
       setError(copy.dateTimeRequired);
-      setCheckResult('unavailable');
       return;
     }
     if (freeDate <= businessDateKey()) {
       setError(copy.dateFuture);
-      setCheckResult('unavailable');
       return;
     }
 
@@ -479,46 +449,29 @@ const Reservation = () => {
     const requestedTime = freeTime;
 
     try {
-      const availability = await getAvailability({ from: requestedDate, to: requestedDate, packageId: formData.packageId });
+      const intent = await createReservationIntent({
+        idempotencyKey,
+        packageId: formData.packageId,
+        startAt: doualaLocalDateTimeToIso(`${requestedDate}T${requestedTime}`),
+        scheduleKind: 'CUSTOM_PROPOSAL',
+        website: '',
+      });
       if (!slotRequestGate.current.isCurrent(requestVersion)) return;
-      const day = availability.days?.[0];
-      setAvailabilityDays((current) => [...current.filter((item) => item.date !== requestedDate), ...(day ? [day] : [])].sort((a, b) => a.date.localeCompare(b.date)));
-      if (day?.isClosed) {
-        setError(copy.studioClosed);
-        setCheckResult('unavailable');
-        return;
-      }
-      const exactSlot = day?.slots?.find((slot) => slot.time === requestedTime);
-      if (!exactSlot) {
-        setError(copy.exactSlotMissing);
-        setSuggestions(findSuggestions(requestedDate, requestedTime));
-        setCheckResult('unavailable');
-        return;
-      }
-      const heldByThisFlow = reservationIntent?.startAt === exactSlot.startAt;
-      if (!exactSlot.available && !heldByThisFlow) {
-        setError(getUnavailableMessage(exactSlot.reason, requestedDate, requestedTime));
-        setSuggestions(findSuggestions(requestedDate, requestedTime));
-        setCheckResult('unavailable');
-        return;
-      }
-      await holdSlot(exactSlot, requestedDate, 'free', requestVersion);
+      setReservationIntent(intent);
+      setFormData((current) => ({
+        ...current,
+        date: requestedDate,
+        time: requestedTime,
+        startAt: intent.startAt,
+      }));
+      setSlotVerification(`free:${requestedDate}:${requestedTime}`);
+      setCheckResult('proposed');
     } catch (err) {
       if (!slotRequestGate.current.isCurrent(requestVersion)) return;
-      setCheckResult('unavailable');
-      setError(err.message || copy.slotCheckFailed);
+      setError(err.message || copy.bookingFailed);
     } finally {
       finishSlotRequest(requestVersion);
     }
-  };
-
-  const selectSuggestion = async (sug) => {
-    const slot = sug.slot || getAvailableSlots(sug.date).find((item) => item.time === sug.time);
-    if (!slot) return;
-    setFreeDate(sug.date);
-    setFreeTime(sug.time);
-    setSuggestions([]);
-    await holdSlot(slot, sug.date, 'free');
   };
 
   const formatSelectedDate = formatBusinessDateKey;
@@ -750,7 +703,7 @@ const Reservation = () => {
                 {bookingMode === 'free' && (
                   <div className="booking-free-wrap">
                     <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
-                      {t("Saisissez la date et l'heure idéales pour vous. Notre système interrogera instantanément l'agenda du studio.", 'Enter your ideal date and time. Our system will check the studio calendar instantly.')}
+                      {t("Proposez l'horaire idéal. Il sera enregistré sans bloquer l'agenda et devra être accepté séparément par le Studio.", 'Suggest your ideal time. It will be recorded without holding the calendar and must be accepted separately by the Studio.')}
                     </p>
 
                     <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
@@ -777,7 +730,7 @@ const Reservation = () => {
                           className="form-input" 
                           value={freeTime} 
                           onChange={e => { setFreeTime(e.target.value); clearVerifiedSelection(); }}
-                          min="09:00" max="17:30" step="1800"
+                          step="900"
                         />
                       </div>
                     </div>
@@ -790,8 +743,18 @@ const Reservation = () => {
                       disabled={checkingSlot}
                       aria-busy={checkingSlot}
                     >
-                      {checkingSlot ? copy.checkingAvailability : copy.checkAvailability}
+                      {checkingSlot ? t('Enregistrement…', 'Recording…') : t('Enregistrer cette proposition', 'Record this proposal')}
                     </button>
+
+                    {checkResult === 'proposed' && (
+                      <div className="check-result-available" role="status" aria-live="polite">
+                        <MessageSquare size={36} style={{ color: 'var(--c-gold-light)', flexShrink: 0 }} />
+                        <div>
+                          <h4>{t('Proposition enregistrée — non confirmée', 'Proposal recorded — not confirmed')}</h4>
+                          <p>{t("Cet horaire ne bloque pas l'agenda. Le Studio vérifiera les règles et la disponibilité avant toute confirmation.", 'This time does not hold the calendar. The Studio will check the rules and availability before any confirmation.')}</p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Result Available */}
                     {checkResult === 'available' && (
@@ -826,28 +789,6 @@ const Reservation = () => {
                           {error && <p>{error}</p>}
                         </div>
 
-                        {suggestions.length > 0 && (
-                          <div style={{ marginTop: '1.5rem' }}>
-                            <h3 style={{ fontSize: '0.9rem', color: 'var(--c-gold-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
-                              {t('Propositions alternatives proches :', 'Nearby alternatives:')}
-                            </h3>
-                            {suggestions.map((sug, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => selectSuggestion(sug)}
-                                className="suggestion-btn"
-                                disabled={checkingSlot}
-                              >
-                                <div>
-                                  <strong>{formatSelectedDate(sug.date)}</strong>
-                                  <span>{copy.from} {sug.time} {copy.timeTo} {getEndTime(sug.time, formData.packDuration)}</span>
-                                </div>
-                                <span className="suggestion-select-label">{t('Réserver', 'Book')}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </Motion.div>
                     )}
                   </div>
@@ -861,9 +802,9 @@ const Reservation = () => {
                   >
                     <CheckCircle2 size={24} style={{ color: 'var(--c-gold)', flexShrink: 0 }} />
                     <div>
-                      <h4 style={{ color: 'var(--c-gold-light)' }}>{copy.scheduledSession}</h4>
+                      <h4 style={{ color: 'var(--c-gold-light)' }}>{bookingMode === 'free' ? t('Horaire demandé — non confirmé', 'Requested time — not confirmed') : copy.scheduledSession}</h4>
                       <p style={{ color: 'rgba(255,255,255,0.85)' }}>
-                        {copy.sessionOn}<strong>{formatSelectedDate(formData.date)}</strong> {copy.timeFrom} <strong>{formData.time}</strong> {copy.timeTo} <strong>{getEndTime(formData.time, formData.packDuration)}</strong> ({formData.packDurationLabel})
+                        {bookingMode === 'free' ? t('Demande pour le ', 'Requested for ') : copy.sessionOn}<strong>{formatSelectedDate(formData.date)}</strong> {copy.timeFrom} <strong>{formData.time}</strong> {copy.timeTo} <strong>{getEndTime(formData.time, formData.packDuration)}</strong> ({formData.packDurationLabel})
                       </p>
                     </div>
                   </div>
@@ -1008,8 +949,8 @@ const Reservation = () => {
                         onChange={() => setFormData({...formData, paymentChoice: 'base'})} 
                       />
                       <div>
-                        <strong>{copy.baseOption}</strong>
-                        <p>{copy.baseOptionDetail}</p>
+                        <strong>{bookingMode === 'free' ? t('Option A : payer le forfait — horaire toujours soumis à validation', 'Option A: pay the package — time still subject to approval') : copy.baseOption}</strong>
+                        <p>{bookingMode === 'free' ? t("Le paiement n'accepte ni ne bloque l'horaire proposé. Le Studio rendra une décision séparée après contrôle.", 'Payment neither accepts nor holds the proposed time. The Studio will make a separate decision after checking it.') : copy.baseOptionDetail}</p>
                       </div>
                     </label>
 
@@ -1022,8 +963,8 @@ const Reservation = () => {
                         onChange={() => setFormData({...formData, paymentChoice: 'quote', transactionId: '', paymentPhone: ''})} 
                       />
                       <div>
-                        <strong>{copy.quoteOption}</strong>
-                        <p>{copy.quoteOptionDetail}</p>
+                        <strong>{bookingMode === 'free' ? t('Option B : transmettre la proposition sans paiement', 'Option B: submit the proposal without payment') : copy.quoteOption}</strong>
+                        <p>{bookingMode === 'free' ? t("L'horaire reste une demande non bloquante jusqu'à son acceptation explicite par le Studio.", 'The time remains a non-blocking request until explicitly accepted by the Studio.') : copy.quoteOptionDetail}</p>
                       </div>
                     </label>
                   </div>
@@ -1130,7 +1071,7 @@ const Reservation = () => {
                 </div>
                 
                 <h2>
-                  {formData.paymentChoice === 'quote' ? copy.quoteReceived : copy.sessionRegistered}
+                  {bookingMode === 'free' ? t('Proposition d’horaire reçue !', 'Time proposal received!') : formData.paymentChoice === 'quote' ? copy.quoteReceived : copy.sessionRegistered}
                 </h2>
                 
                 <div className="booking-success-summary">
@@ -1140,7 +1081,7 @@ const Reservation = () => {
                     <strong>{formData.packName}</strong>
                   </div>
                   <div className="summary-row">
-                    <span>{copy.dateTime}</span>
+                    <span>{bookingMode === 'free' ? t('Horaire demandé :', 'Requested time:') : copy.dateTime}</span>
                     <strong>{formatSelectedDate(formData.date)} {copy.timeTo} {formData.time}</strong>
                   </div>
                   <div className="summary-row">
@@ -1156,14 +1097,12 @@ const Reservation = () => {
                 </div>
 
                 <p className="booking-success-note">
-                  {formData.paymentChoice === 'quote' ? (
-                    <>
-                      {copy.quoteSuccessBefore}<strong>WhatsApp</strong>{copy.quoteSuccessAfter}
-                    </>
+                  {bookingMode === 'free' ? (
+                    <>{t("Votre horaire a été demandé, sans bloquer l'agenda. Une confirmation séparée vous sera envoyée uniquement si le Studio l'accepte après vérification.", 'Your time has been requested without holding the calendar. A separate confirmation will be sent only if the Studio accepts it after verification.')}</>
+                  ) : formData.paymentChoice === 'quote' ? (
+                    <>{copy.quoteSuccessBefore}<strong>WhatsApp</strong>{copy.quoteSuccessAfter}</>
                   ) : (
-                    <>
-                      {copy.paymentSuccessBefore}{formData.transactionId}{copy.paymentSuccessAfter}
-                    </>
+                    <>{copy.paymentSuccessBefore}{formData.transactionId}{copy.paymentSuccessAfter}</>
                   )}
                 </p>
 

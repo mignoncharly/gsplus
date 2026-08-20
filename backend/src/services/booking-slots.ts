@@ -1,5 +1,5 @@
 import { HttpError } from '../errors/http-error.js';
-import { PackageBookingMode, Prisma, ReservationStatus, type Package } from '../generated/prisma/client.js';
+import { PackageBookingMode, Prisma, ReservationScheduleKind, ReservationStatus, type Package } from '../generated/prisma/client.js';
 import {
   addBusinessDays,
   businessDateKey,
@@ -19,6 +19,7 @@ export const FUTURE_CLOSURE_BLOCKING_STATUSES: ReservationStatus[] = [
 ];
 
 export const blockingReservationWhere = (now = new Date()): Prisma.ReservationWhereInput => ({
+  scheduleKind: ReservationScheduleKind.STANDARD_HOLD,
   OR: [
     { status: { in: BLOCKING_RESERVATION_STATUSES } },
     {
@@ -147,6 +148,7 @@ export const assertBookableSlot = async (
         where: {
           id: options.excludeIntentId ? { not: options.excludeIntentId } : undefined,
           packageId: pack.id,
+          scheduleKind: ReservationScheduleKind.STANDARD_HOLD,
           reservationId: null,
           expiresAt: { gt: now },
           startAt: { gte: dayStart, lt: dayEnd },
@@ -175,6 +177,7 @@ export const assertBookableSlot = async (
     tx.reservationIntent.findFirst({
       where: {
         id: options.excludeIntentId ? { not: options.excludeIntentId } : undefined,
+        scheduleKind: ReservationScheduleKind.STANDARD_HOLD,
         reservationId: null,
         expiresAt: { gt: now },
         startAt: { lt: endAt },

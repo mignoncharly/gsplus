@@ -90,6 +90,7 @@ export const reservationIntentCreateSchema = z.object({
   idempotencyKey: z.uuid(),
   packageId: requiredString,
   startAt: z.coerce.date(),
+  scheduleKind: z.enum(['STANDARD_HOLD', 'CUSTOM_PROPOSAL']).default('STANDARD_HOLD'),
 });
 
 export const reservationCreateSchema = z.object({

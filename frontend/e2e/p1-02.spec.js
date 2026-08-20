@@ -29,7 +29,7 @@ const json = (route, data, status = 200) => route.fulfill({
 });
 
 const installApi = async (page, options = {}) => {
-  const calls = { availability: 0, freeAvailability: 0, intents: 0 };
+  const calls = { availability: 0, freeAvailability: 0, intents: 0, lastIntent: null };
 
   await page.route('**/api/**', async (route) => {
     const request = route.request();
@@ -55,6 +55,7 @@ const installApi = async (page, options = {}) => {
     if (url.pathname === '/api/reservation-intents') {
       calls.intents += 1;
       const body = request.postDataJSON();
+      calls.lastIntent = body;
       if (options.intentDelay) await new Promise((resolve) => setTimeout(resolve, options.intentDelay));
       return json(route, {
         data: {
@@ -63,6 +64,7 @@ const installApi = async (page, options = {}) => {
           startAt: body.startAt,
           endAt: body.startAt,
           expiresAt: '2028-01-01T00:15:00.000Z',
+          scheduleKind: body.scheduleKind,
         },
       }, 201);
     }
@@ -83,7 +85,7 @@ const openFreeMode = async (page) => {
   await freeMode.press('Enter');
 };
 
-test('free proposal keeps its values, blocks duplicate verification and preserves the profile on back', async ({ page }) => {
+test('custom proposal keeps its values, blocks duplicate recording and preserves the profile on back', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
   const calls = await installApi(page, { intentDelay: 300 });
@@ -91,7 +93,7 @@ test('free proposal keeps its values, blocks duplicate verification and preserve
 
   const date = page.getByLabel('Date souhaitée');
   const time = page.getByLabel('Heure souhaitée');
-  const verify = page.getByRole('button', { name: 'Vérifier la disponibilité' });
+  const verify = page.getByRole('button', { name: 'Enregistrer cette proposition' });
   await date.fill('2027-08-04');
   await time.fill('10:00');
   await verify.focus();
@@ -100,13 +102,14 @@ test('free proposal keeps its values, blocks duplicate verification and preserve
     button.click();
   });
 
-  const busyVerify = page.getByRole('button', { name: 'Vérification en cours…' });
+  const busyVerify = page.getByRole('button', { name: 'Enregistrement…' });
   await expect(busyVerify).toBeDisabled();
   await expect(busyVerify).toHaveAttribute('aria-busy', 'true');
   await expect(date).toHaveValue('2027-08-04');
   await expect(time).toHaveValue('10:00');
-  await expect(page.getByText('Créneau Disponible !')).toBeVisible();
-  expect(calls.freeAvailability).toBe(1);
+  await expect(page.getByText('Proposition enregistrée — non confirmée')).toBeVisible();
+  expect(calls.freeAvailability).toBe(0);
+  expect(calls.lastIntent.scheduleKind).toBe('CUSTOM_PROPOSAL');
   expect(calls.intents).toBe(1);
 
   await expect(page.getByRole('button', { name: /Continuer/ })).toBeEnabled();
@@ -128,62 +131,36 @@ test('free proposal keeps its values, blocks duplicate verification and preserve
   await expect(page.getByLabel('Adresse email *')).toHaveValue('p1-02@example.com');
 });
 
-test('editing the proposal invalidates a stale availability response', async ({ page }) => {
-  await installApi(page, {
-    availability: (date) => ({
-      delay: date === '2027-08-04' ? 200 : 0,
-      days: [{ date, isClosed: false, slots: [slot(date)] }],
-    }),
-  });
+test('editing the proposal invalidates a stale intent response', async ({ page }) => {
+  await installApi(page, { intentDelay: 200 });
   await openFreeMode(page);
 
   const date = page.getByLabel('Date souhaitée');
   await date.fill('2027-08-04');
   await page.getByLabel('Heure souhaitée').fill('10:00');
-  await page.getByRole('button', { name: 'Vérifier la disponibilité' }).click({ noWaitAfter: true });
+  await page.getByRole('button', { name: 'Enregistrer cette proposition' }).click({ noWaitAfter: true });
   await date.fill('2027-08-05');
 
   await page.waitForTimeout(300);
   await expect(date).toHaveValue('2027-08-05');
-  await expect(page.getByText('Créneau Disponible !')).toBeHidden();
+  await expect(page.getByText('Proposition enregistrée — non confirmée')).toBeHidden();
   await expect(page.getByRole('button', { name: /Continuer/ })).toBeDisabled();
 });
 
-test('free proposal reports closed, occupied, duration and server-error states explicitly', async ({ page }) => {
-  await installApi(page, {
-    availability: (date) => {
-      if (date === '2027-08-04') return { days: [{ date, isClosed: true, slots: [] }] };
-      if (date === '2027-08-05') return {
-        days: [{ date, isClosed: false, slots: [slot(date, '10:00', { available: false, reason: 'reservation' })] }],
-      };
-      if (date === '2027-08-06') return { days: [{ date, isClosed: false, slots: [slot(date, '11:00')] }] };
-      return { error: 'Agenda temporairement indisponible.' };
-    },
-  });
+test('custom proposal accepts an off-grid request without claiming availability', async ({ page }) => {
+  const calls = await installApi(page);
   await openFreeMode(page);
 
   const date = page.getByLabel('Date souhaitée');
   const time = page.getByLabel('Heure souhaitée');
-  const verify = page.getByRole('button', { name: 'Vérifier la disponibilité' });
-  await time.fill('10:00');
+  const record = page.getByRole('button', { name: 'Enregistrer cette proposition' });
 
-  await date.fill('2026-08-02');
-  await verify.click();
-  await expect(page.getByText('La date doit être dans le futur.')).toBeVisible();
-
+  await time.fill('10:15');
   await date.fill('2027-08-04');
-  await verify.click();
-  await expect(page.getByText('Le studio est fermé ce jour-là.')).toBeVisible();
-
-  await date.fill('2027-08-05');
-  await verify.click();
-  await expect(page.getByText(/déjà réservé/)).toBeVisible();
-
-  await date.fill('2027-08-06');
-  await verify.click();
-  await expect(page.getByText(/n[’']est pas proposé pour la durée choisie/)).toBeVisible();
-
-  await date.fill('2027-08-07');
-  await verify.click();
-  await expect(page.getByText('Agenda temporairement indisponible.')).toBeVisible();
+  await record.click();
+  await expect(page.getByText('Proposition enregistrée — non confirmée')).toBeVisible();
+  await expect(page.getByText(/ne bloque pas l.agenda/)).toBeVisible();
+  expect(calls.freeAvailability).toBe(0);
+  expect(calls.lastIntent).toMatchObject({ scheduleKind: 'CUSTOM_PROPOSAL' });
+  expect(calls.lastIntent.startAt).toBe('2027-08-04T09:15:00.000Z');
 });

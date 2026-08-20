@@ -56,7 +56,8 @@ test('LEG-05 affiche les politiques et enregistre une demande sans délai légal
   const api = await installAdminApi(page, 'OWNER');
   await page.goto('/admin/dashboard', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.admin-layout')).toBeVisible();
-  await page.getByRole('button', { name: 'Données & droits' }).click();
+  await page.getByRole('button', { name: 'Données & droits' }).evaluate((button) => button.click());
+  await expect.poll(api.governanceCalls).toBeGreaterThanOrEqual(1);
   await expect(page.getByRole('heading', { name: /Données, droits & conservation/ })).toBeVisible();
   await expect(page.getByText('Aucune suppression automatique.')).toBeVisible();
   await expect(page.getByText(/pas un délai légal inventé/)).toBeVisible();
@@ -70,7 +71,9 @@ test('LEG-05 affiche les politiques et enregistre une demande sans délai légal
   await expect(page.getByText('DR-20260808-ABCDEF123456')).toBeVisible();
   await expect(page.getByText(/Création de la demande de droits terminé avec succès/)).toBeVisible();
   expect(api.governanceCalls()).toBeGreaterThanOrEqual(2);
-  await page.getByText(/Politiques de conservation publiées/).click();
+  const policies = page.locator('details.admin-governance-policies');
+  await policies.locator('summary').click();
+  await expect(policies).toHaveAttribute('open', '');
   await expect(page.getByText('Archivage restreint :')).toBeVisible();
 });
 

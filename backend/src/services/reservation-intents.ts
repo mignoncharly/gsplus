@@ -1,5 +1,5 @@
 import { HttpError } from '../errors/http-error.js';
-import { PackageBookingMode, Prisma } from '../generated/prisma/client.js';
+import { PackageBookingMode, Prisma, ReservationScheduleKind } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
 import { BUSINESS_TIME_ZONE } from '../utils/business-time.js';
 import { allocatePublicReservationReference } from '../utils/reservation-reference.js';
@@ -12,6 +12,7 @@ type ReservationIntentInput = {
   idempotencyKey: string;
   packageId: string;
   startAt: Date;
+  scheduleKind: ReservationScheduleKind;
 };
 
 const publicIntent = <T extends {
@@ -22,6 +23,7 @@ const publicIntent = <T extends {
   endAt: Date;
   expiresAt: Date;
   reservationId: string | null;
+  scheduleKind: ReservationScheduleKind;
 }>(intent: T) => ({
   id: intent.id,
   reference: intent.reference,
@@ -30,6 +32,7 @@ const publicIntent = <T extends {
   endAt: intent.endAt,
   expiresAt: intent.expiresAt,
   reservationId: intent.reservationId,
+  scheduleKind: intent.scheduleKind,
   timeZone: BUSINESS_TIME_ZONE,
 });
 
@@ -59,10 +62,15 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
           }
           const startAt = input.startAt;
           const endAt = addMinutes(startAt, packageVersion.durationMin);
-          await lockBookingWindow(tx, startAt, endAt);
-          await assertBookableSlot(tx, pack, startAt, endAt, {
-            excludeIntentId: existing?.id,
-          });
+          if (startAt <= new Date()) {
+            throw new HttpError(409, 'PAST_SLOT', 'The requested time must be in the future.');
+          }
+          if (input.scheduleKind === ReservationScheduleKind.STANDARD_HOLD) {
+            await lockBookingWindow(tx, startAt, endAt);
+            await assertBookableSlot(tx, pack, startAt, endAt, {
+              excludeIntentId: existing?.id,
+            });
+          }
 
           const expiresAt = addMinutes(new Date(), INTENT_TTL_MINUTES);
           const reference = existing
@@ -84,6 +92,10 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
                   packageVersionId: packageVersion.id,
                   startAt,
                   endAt,
+                  scheduleKind: input.scheduleKind,
+                  requestedStartAt: startAt,
+                  requestedEndAt: endAt,
+                  requestedTimeZone: BUSINESS_TIME_ZONE,
                   expiresAt,
                 },
               })
@@ -92,8 +104,13 @@ export const createOrRefreshReservationIntent = async (input: ReservationIntentI
                   idempotencyKey: input.idempotencyKey,
                   reference,
                   packageId: pack.id,
+                  packageVersionId: packageVersion.id,
                   startAt,
                   endAt,
+                  scheduleKind: input.scheduleKind,
+                  requestedStartAt: startAt,
+                  requestedEndAt: endAt,
+                  requestedTimeZone: BUSINESS_TIME_ZONE,
                   expiresAt,
                 },
               });

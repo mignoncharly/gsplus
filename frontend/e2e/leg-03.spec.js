@@ -53,7 +53,7 @@ const installWithdrawalAdminApi = async (page) => {
     if (path === '/api/admin/withdrawal-requests/withdrawal-leg-03/decision' && request.method() === 'PATCH') {
       const body = request.postDataJSON();
       calls.decide.push(body);
-      const withdrawal = { ...reservation.withdrawalRequests[0], version: 2, status: body.decision, decisionReason: body.reason };
+      const withdrawal = { ...reservation.withdrawalRequests[0], version: 2, status: body.decision, decisionReason: body.internalReason };
       reservation = { ...reservation, withdrawalRequests: [withdrawal] };
       return json(route, { data: { request: withdrawal, reservation, replayed: false } });
     }
@@ -135,7 +135,7 @@ test('LEG-03 enregistre le contexte puis exige une décision propriétaire motiv
 
   await page.getByRole('button', { name: 'Accepter la rétractation' }).click();
   const decisionDialog = page.getByRole('dialog', { name: 'Accepter la demande de rétractation' });
-  await decisionDialog.getByLabel('Analyse et motif de la décision *').fill('Délai respecté, service non commencé et preuve vérifiée.');
+  await decisionDialog.getByLabel('Analyse interne privée *').fill('Délai respecté, service non commencé et preuve vérifiée.');
   await decisionDialog.getByRole('button', { name: 'Accepter la rétractation' }).click();
 
   await expect(page.getByText(/Décision motivée : Délai respecté/)).toBeVisible();

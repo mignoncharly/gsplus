@@ -72,6 +72,11 @@ enum PackageBookingMode {
   CONTACT
 }
 
+enum ReservationScheduleKind {
+  STANDARD_HOLD
+  CUSTOM_PROPOSAL
+}
+
 model AdminUser {
   id                               String                            @id @default(cuid())
   email                            String                            @unique
@@ -202,6 +207,11 @@ model Reservation {
   packageVersionId      String
   startAt               DateTime
   endAt                 DateTime
+  scheduleKind          ReservationScheduleKind           @default(STANDARD_HOLD)
+  requestedStartAt      DateTime?
+  requestedEndAt        DateTime?
+  requestedTimeZone     String                            @default("Africa/Douala")
+  scheduleConfirmedAt   DateTime?
   status                ReservationStatus                 @default(PENDING_CONFIRMATION)
   statusReason          String?
   statusChangedAt       DateTime                          @default(now())
@@ -240,6 +250,7 @@ model Reservation {
   @@index([packageId])
   @@index([packageVersionId])
   @@index([expiresAt])
+  @@index([scheduleKind, startAt, endAt])
 }
 
 model ReservationNotificationOverride {
@@ -264,48 +275,52 @@ model ReservationNotificationOverride {
 }
 
 model ReservationSnapshot {
-  id                        String      @id @default(cuid())
-  reservationId             String      @unique
-  firstName                 String
-  locale                    String      @default("fr")
-  lastName                  String
-  phoneRaw                  String
-  phoneE164                 String
-  email                     String?
-  notificationEmail         String?
-  notificationPhoneE164     String
-  packageId                 String
-  packageVersionId          String
-  packageVersion            Int
-  packageName               String
-  packageContent            String?
-  packageInclusions         Json?
-  packageConditions         String?
-  packageLegalText          String?
-  packageEffectiveAt        DateTime?
-  packagePublishedAt        DateTime?
-  startAt                   DateTime
-  endAt                     DateTime
-  durationMin               Int
-  amount                    Int
-  currency                  String
-  termsAccepted             Boolean
-  termsVersion              String
-  termsAcceptedAt           DateTime
-  privacyAccepted           Boolean
-  privacyVersion            String
-  privacyAcceptedAt         DateTime
-  whatsappConsent           Boolean
-  whatsappConsentAt         DateTime?
-  whatsappMarketingConsent   Boolean     @default(false)
+  id                         String                  @id @default(cuid())
+  reservationId              String                  @unique
+  firstName                  String
+  locale                     String                  @default("fr")
+  lastName                   String
+  phoneRaw                   String
+  phoneE164                  String
+  email                      String?
+  notificationEmail          String?
+  notificationPhoneE164      String
+  packageId                  String
+  packageVersionId           String
+  packageVersion             Int
+  packageName                String
+  packageContent             String?
+  packageInclusions          Json?
+  packageConditions          String?
+  packageLegalText           String?
+  packageEffectiveAt         DateTime?
+  packagePublishedAt         DateTime?
+  startAt                    DateTime
+  endAt                      DateTime
+  durationMin                Int
+  amount                     Int
+  currency                   String
+  termsAccepted              Boolean
+  termsVersion               String
+  termsAcceptedAt            DateTime
+  privacyAccepted            Boolean
+  privacyVersion             String
+  privacyAcceptedAt          DateTime
+  whatsappConsent            Boolean
+  whatsappConsentAt          DateTime?
+  whatsappMarketingConsent   Boolean                 @default(false)
   whatsappMarketingConsentAt DateTime?
-  imageConsent              Boolean
-  imageAuthorizationVersion String
-  imageConsentAt            DateTime?
-  source                    String
-  evidence                  Json?
-  createdAt                 DateTime    @default(now())
-  reservation               Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  imageConsent               Boolean
+  imageAuthorizationVersion  String
+  imageConsentAt             DateTime?
+  source                     String
+  evidence                   Json?
+  scheduleKind               ReservationScheduleKind @default(STANDARD_HOLD)
+  requestedStartAt           DateTime?
+  requestedEndAt             DateTime?
+  requestedTimeZone          String                  @default("Africa/Douala")
+  createdAt                  DateTime                @default(now())
+  reservation                Reservation             @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@index([phoneE164])
   @@index([email])
@@ -456,48 +471,53 @@ model DataIntegrityIncident {
 }
 
 model ReservationIntent {
-  id               String          @id @default(cuid())
-  idempotencyKey   String          @unique
-  reference        String          @unique
-  packageId        String
-  packageVersionId String?
-  startAt          DateTime
-  endAt            DateTime
-  expiresAt        DateTime
-  consumedAt       DateTime?
-  reservationId    String?         @unique
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  package          Package         @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  packageVersion   PackageVersion? @relation(fields: [packageVersionId], references: [id], onDelete: SetNull)
-  reservation      Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  id                String                  @id @default(cuid())
+  idempotencyKey    String                  @unique
+  reference         String                  @unique
+  packageId         String
+  packageVersionId  String?
+  startAt           DateTime
+  endAt             DateTime
+  scheduleKind      ReservationScheduleKind @default(STANDARD_HOLD)
+  requestedStartAt  DateTime?
+  requestedEndAt    DateTime?
+  requestedTimeZone String                  @default("Africa/Douala")
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  reservationId     String?                 @unique
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  package           Package                 @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageVersion    PackageVersion?         @relation(fields: [packageVersionId], references: [id], onDelete: SetNull)
+  reservation       Reservation?            @relation(fields: [reservationId], references: [id], onDelete: SetNull)
 
   @@index([startAt, endAt, expiresAt])
+  @@index([scheduleKind, startAt, endAt, expiresAt])
   @@index([packageId])
   @@index([packageVersionId])
 }
 
 model ReservationTransition {
-  id            String      @id @default(cuid())
-  reservationId String
-  fromStatus    String?
-  toStatus      String
-  reason        String?
+  id                  String      @id @default(cuid())
+  reservationId       String
+  fromStatus          String?
+  toStatus            String
+  reason              String?
   internalReason      String?
   customerReasonCode  String?
   customerReasonText  String?
   customerLocale      String?
   customerCopyVersion String?
-  actorType     String      @default("SYSTEM")
-  adminUserId   String?
-  oldStartAt    DateTime?
-  oldEndAt      DateTime?
-  newStartAt    DateTime?
-  newEndAt      DateTime?
-  metadata      Json?
-  createdAt     DateTime    @default(now())
-  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  adminUser     AdminUser?  @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  actorType           String      @default("SYSTEM")
+  adminUserId         String?
+  oldStartAt          DateTime?
+  oldEndAt            DateTime?
+  newStartAt          DateTime?
+  newEndAt            DateTime?
+  metadata            Json?
+  createdAt           DateTime    @default(now())
+  reservation         Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  adminUser           AdminUser?  @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
 
   @@index([reservationId, createdAt])
   @@index([adminUserId])
@@ -534,22 +554,22 @@ model Payment {
 }
 
 model PaymentTransition {
-  id          String     @id @default(cuid())
-  paymentId   String
-  fromStatus  String?
-  toStatus    String
-  reason      String?
+  id                  String     @id @default(cuid())
+  paymentId           String
+  fromStatus          String?
+  toStatus            String
+  reason              String?
   internalReason      String?
   customerReasonCode  String?
   customerReasonText  String?
   customerLocale      String?
   customerCopyVersion String?
-  actorType   String     @default("SYSTEM")
-  adminUserId String?
-  metadata    Json?
-  createdAt   DateTime   @default(now())
-  payment     Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  actorType           String     @default("SYSTEM")
+  adminUserId         String?
+  metadata            Json?
+  createdAt           DateTime   @default(now())
+  payment             Payment    @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  adminUser           AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
 
   @@index([paymentId, createdAt])
   @@index([adminUserId])

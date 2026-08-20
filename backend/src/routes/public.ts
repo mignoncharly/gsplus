@@ -103,6 +103,11 @@ router.post(
         status: reservation.status,
         startAt: reservation.startAt,
         endAt: reservation.endAt,
+        scheduleKind: reservation.scheduleKind,
+        requestedStartAt: reservation.requestedStartAt,
+        requestedEndAt: reservation.requestedEndAt,
+        requestedTimeZone: reservation.requestedTimeZone,
+        scheduleConfirmedAt: reservation.scheduleConfirmedAt,
         paymentChoice: reservation.paymentChoice,
         customer: {
           ...reservation.customer,
