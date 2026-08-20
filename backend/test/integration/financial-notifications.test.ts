@@ -6,6 +6,7 @@ import { prisma } from '../../src/db/prisma.js';
 import { AdminRole, PaymentStatus, ReservationStatus } from '../../src/generated/prisma/client.js';
 import {
   queueCancellationNotifications,
+  previewCustomerDecisionEmail,
   queueRefundStatusNotifications,
   queueReservationStatusNotification,
 } from '../../src/emails/notifications.js';
@@ -27,7 +28,7 @@ const resetDatabase = async () => {
   await prisma.adminUser.deleteMany();
 };
 
-const seedPaidReservation = async () => {
+const seedPaidReservation = async (whatsappConsent = false) => {
   const admin = await prisma.adminUser.create({
     data: {
       email: 'finance-owner@example.test',
@@ -88,7 +89,8 @@ const seedPaidReservation = async () => {
           privacyAccepted: true,
           privacyVersion: 'TEST',
           privacyAcceptedAt: capturedAt,
-          whatsappConsent: false,
+          whatsappConsent,
+          whatsappConsentAt: whatsappConsent ? capturedAt : null,
           imageConsent: false,
           imageAuthorizationVersion: 'TEST',
           source: 'TEST',
@@ -125,7 +127,8 @@ describe('NOTIF-01 durable financial workflow', () => {
       commandId: randomUUID(),
       expectedVersion: fixture.reservation.version,
       origin,
-      reason: origin === 'STUDIO' ? 'Incident technique Studio' : 'Demande du client',
+      internalReason: origin === 'STUDIO' ? 'TEST-AUDIT Incident technique Studio' : 'Demande du client',
+      ...(origin === 'STUDIO' ? { customerReasonCode: 'STUDIO_UNAVAILABLE' as const } : {}),
       admin: fixture.admin,
       now,
     });
@@ -188,7 +191,7 @@ describe('NOTIF-01 durable financial workflow', () => {
     })).toEqual([{ templateCode: 'E-12' }]);
   });
 
-  it('opens a full refund and E-13/I-05 for a Studio cancellation at any lead time', async () => {
+  it('opens a full refund and financially neutral E-13/I-05 for a Studio cancellation at any lead time', async () => {
     const { reservation, payment, outcome } = await cancelPaidReservation('STUDIO', 60 * 60 * 1000);
     expect(outcome.value.financialTask).toMatchObject({
       paymentId: payment.id,
@@ -196,21 +199,23 @@ describe('NOTIF-01 durable financial workflow', () => {
       status: 'PENDING',
       amount: 20000,
     });
-    expect(await prisma.notificationEvent.findMany({
-      where: { reservationId: reservation.id },
-      orderBy: { templateCode: 'asc' },
-      select: { templateCode: true },
-    })).toEqual([{ templateCode: 'E-13' }, { templateCode: 'I-05' }]);
+    const events = await prisma.notificationEvent.findMany({ where: { reservationId: reservation.id }, orderBy: { templateCode: 'asc' } });
+    expect(events.map(({ templateCode }) => ({ templateCode }))).toEqual([{ templateCode: 'E-13' }, { templateCode: 'I-05' }]);
+    const customerText = (events.find((event) => event.templateCode === 'E-13')?.renderedContent as { text: string }).text;
+    expect(customerText).toContain('situation financière est en cours d’examen');
+    expect(customerText).not.toMatch(/\d[\d .]*FCFA|remboursement de|sera rembours|à traiter/i);
   });
 
-  it('atomically creates one full-refund task before E-07 and I-06', async () => {
-    const { admin, reservation, payment } = await seedPaidReservation();
+  it('keeps internal notes out of exact preview/outbox content for paid rejection', async () => {
+    const { admin, reservation, payment } = await seedPaidReservation(true);
+    const copyInput = { internalReason: 'TEST-AUDIT paiement simulé — instruction interne', customerReasonCode: 'SLOT_UNAVAILABLE' as const };
+    const preview = await previewCustomerDecisionEmail({ scope: 'RESERVATION_REJECTION', entityId: reservation.id, ...copyInput });
     const outcome = await executeReservationDecision({
       reservationId: reservation.id,
       commandId: randomUUID(),
       expectedVersion: reservation.version,
       status: ReservationStatus.REJECTED,
-      reason: 'Créneau finalement indisponible',
+      ...copyInput,
       admin,
     });
     await queueReservationStatusNotification(reservation.id, outcome.value.status);
@@ -229,6 +234,14 @@ describe('NOTIF-01 durable financial workflow', () => {
     });
     expect(events).toHaveLength(2);
     expect(events.map((event) => event.templateCode).sort()).toEqual(['E-07', 'I-06']);
+    const customer = events.find((event) => event.templateCode === 'E-07')!;
+    const rendered = customer.renderedContent as { subject: string; preheader: string; text: string; html: string };
+    expect({ subject: rendered.subject, preheader: rendered.preheader, text: rendered.text, html: rendered.html }).toEqual({ subject: preview.subject, preheader: preview.preheader, text: preview.text, html: preview.html });
+    const customerEvents = (await prisma.notificationEvent.findMany({ where: { reservationId: reservation.id, channel: { in: ['email', 'whatsapp'] } } })).filter((event) => (event.renderedContent as { audience?: string } | null)?.audience === 'customer');
+    expect(JSON.stringify(customerEvents)).not.toMatch(/TEST-AUDIT|paiement simulé|instruction interne/);
+    expect(rendered.text).not.toMatch(/\d[\d .]*FCFA|remboursement de|sera rembours|à traiter/i);
+    const transition = await prisma.reservationTransition.findFirstOrThrow({ where: { reservationId: reservation.id, toStatus: ReservationStatus.REJECTED } });
+    expect(transition).toMatchObject({ internalReason: copyInput.internalReason, customerReasonCode: 'SLOT_UNAVAILABLE', customerLocale: 'fr', customerCopyVersion: '2026-08-20.1' });
   });
 
   it('queues E-20 only after engagement and E-21 only after proved finalization', async () => {
@@ -238,7 +251,8 @@ describe('NOTIF-01 durable financial workflow', () => {
       commandId: randomUUID(),
       expectedVersion: reservation.version,
       status: ReservationStatus.REJECTED,
-      reason: 'Annulation Studio',
+      internalReason: 'Annulation Studio',
+      customerReasonCode: 'SLOT_UNAVAILABLE',
       admin,
     });
     await queueReservationStatusNotification(reservation.id, rejected.value.status);

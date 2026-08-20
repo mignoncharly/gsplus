@@ -483,6 +483,11 @@ model ReservationTransition {
   fromStatus    String?
   toStatus      String
   reason        String?
+  internalReason      String?
+  customerReasonCode  String?
+  customerReasonText  String?
+  customerLocale      String?
+  customerCopyVersion String?
   actorType     String      @default("SYSTEM")
   adminUserId   String?
   oldStartAt    DateTime?
@@ -534,6 +539,11 @@ model PaymentTransition {
   fromStatus  String?
   toStatus    String
   reason      String?
+  internalReason      String?
+  customerReasonCode  String?
+  customerReasonText  String?
+  customerLocale      String?
+  customerCopyVersion String?
   actorType   String     @default("SYSTEM")
   adminUserId String?
   metadata    Json?
@@ -590,6 +600,11 @@ model ReservationRescheduleRequest {
   requestedEndAt              DateTime
   reason                      String
   decisionReason              String?
+  internalDecisionReason      String?
+  customerReasonCode          String?
+  customerReasonText          String?
+  customerLocale              String?
+  customerCopyVersion         String?
   requestedAt                 DateTime    @default(now())
   decidedAt                   DateTime?
   createdAt                   DateTime    @default(now())
@@ -623,6 +638,11 @@ model ReservationWithdrawalRequest {
   serviceStatus               String
   executionStartedAt          DateTime?
   decisionReason              String?
+  internalDecisionReason      String?
+  customerReasonCode          String?
+  customerReasonText          String?
+  customerLocale              String?
+  customerCopyVersion         String?
   decidedAt                   DateTime?
   createdAt                   DateTime    @default(now())
   updatedAt                   DateTime    @updatedAt

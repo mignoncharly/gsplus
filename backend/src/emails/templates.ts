@@ -195,8 +195,8 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
       'Bonjour [prenom_client],',
       'Votre demande [reference_courte] n’a pas pu être confirmée.',
       'Motif : [motif_refus_reservation]',
-      'Votre paiement de [montant_fcfa] FCFA avait déjà été vérifié. Le traitement financier suivant a été ouvert : [traitement_financier].',
-      'Vous recevrez une notification distincte lorsque l’opération financière aura effectivement été engagée ou finalisée.',
+      'Un paiement avait déjà été vérifié. La situation financière est en cours d’examen séparé ; ce message n’annonce ni montant à rembourser ni opération engagée.',
+      'Vous recevrez une notification distincte uniquement si une opération financière est effectivement engagée ou finalisée.',
       'Golden Studio Plus',
     ],
   ),
@@ -228,8 +228,8 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
   ]),
   'E-13': external('E-13', 'Annulation de votre réservation — [reference_courte]', 'Le Studio doit annuler votre créneau ; voici les prochaines étapes.', [
     'Bonjour [prenom_client],', 'Nous sommes désolés de vous informer que votre réservation [reference_courte], prévue le [date_seance] de [heure_debut] à [heure_fin], doit être annulée.',
-    'Motif : [motif_annulation_studio]', 'Traitement financier proposé : [traitement_financier].',
-    'Vous recevrez une notification distincte lorsque l’opération aura effectivement été engagée ou finalisée.', 'Golden Studio Plus',
+    'Motif : [motif_annulation_studio]', 'La situation financière est en cours d’examen séparé ; ce message n’annonce aucune opération.',
+    'Vous recevrez une notification distincte uniquement si une opération est effectivement engagée ou finalisée.', 'Golden Studio Plus',
   ]),
   'E-14': external('E-14', 'Votre demande de réservation a expiré — [reference_courte]', 'Le créneau n’est plus maintenu pour cette demande.', [
     'Bonjour [prenom_client],', 'Votre demande [reference_courte] a expiré, car [motif_expiration].',
@@ -381,7 +381,7 @@ const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDe
     'Hello [prenom_client],', 'We are sorry, but your request [reference_courte] could not be accepted.', 'Reason: [motif_refus_reservation]', 'No verified payment is associated with this decision. You may submit a new request for another available time slot.', 'Golden Studio Plus',
   ]),
   'E-07': external('E-07', 'Your booking could not be confirmed — [reference_courte]', 'Your payment is verified; the financial handling is managed separately.', [
-    'Hello [prenom_client],', 'Your request [reference_courte] could not be confirmed.', 'Reason: [motif_refus_reservation]', 'Your payment of [montant_fcfa] FCFA had already been verified. The following financial handling has been opened: [traitement_financier].', 'You will receive a separate notification when the financial operation has actually been initiated or completed.', 'Golden Studio Plus',
+    'Hello [prenom_client],', 'Your request [reference_courte] could not be confirmed.', 'Reason: [motif_refus_reservation]', 'A payment had already been verified. The financial situation is being reviewed separately; this message announces neither a refund amount nor an initiated operation.', 'You will receive a separate notification only if a financial operation is actually initiated or completed.', 'Golden Studio Plus',
   ]),
   'E-08': external('E-08', 'Your rescheduling request was received — [reference_courte]', 'The requested new time slot still needs to be checked.', [
     'Hello [prenom_client],', 'We received your change request for booking [reference_courte].', 'Current slot: [ancien_creneau]', 'Requested slot: [nouveau_creneau_demande]', 'The change is not yet confirmed. You will receive a decision in a separate message.', 'Golden Studio Plus',
@@ -399,7 +399,7 @@ const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDe
     'Hello [prenom_client],', 'The cancellation of your booking [reference_courte] has been recorded.', 'Cancelled slot: [date_seance], [heure_debut]–[heure_fin], Douala time.', 'As the request was received 48 hours or less before the session, no refund applies.', 'Golden Studio Plus',
   ]),
   'E-13': external('E-13', 'Your booking is cancelled — [reference_courte]', 'The Studio must cancel your time slot; here are the next steps.', [
-    'Hello [prenom_client],', 'We are sorry to inform you that your booking [reference_courte], scheduled for [date_seance] from [heure_debut] to [heure_fin], must be cancelled.', 'Reason: [motif_annulation_studio]', 'Proposed financial handling: [traitement_financier].', 'You will receive a separate notification when the operation has actually been initiated or completed.', 'Golden Studio Plus',
+    'Hello [prenom_client],', 'We are sorry to inform you that your booking [reference_courte], scheduled for [date_seance] from [heure_debut] to [heure_fin], must be cancelled.', 'Reason: [motif_annulation_studio]', 'The financial situation is being reviewed separately; this message does not announce an operation.', 'You will receive a separate notification only if an operation is actually initiated or completed.', 'Golden Studio Plus',
   ]),
   'E-14': external('E-14', 'Your booking request has expired — [reference_courte]', 'The time slot is no longer held for this request.', [
     'Hello [prenom_client],', 'Your request [reference_courte] has expired because [motif_expiration].', 'The requested time slot is no longer held. No verified payment should remain without handling.', 'You may make a new request according to the displayed availability.', 'Golden Studio Plus',

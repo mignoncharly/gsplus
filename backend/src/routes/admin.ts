@@ -12,6 +12,7 @@ import {
   queuePaymentStatusNotifications,
   queueReservationRescheduledNotification,
   queueReservationStatusNotification,
+  previewCustomerDecisionEmail,
   resolveNotificationEvent,
   retryNotificationEvent,
 } from '../emails/notifications.js';
@@ -83,6 +84,7 @@ import {
   validatePackageVersion,
 } from '../services/packages.js';
 import { transitionReservationStatus } from '../services/status-transitions.js';
+import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
 import {
   adminLoginSchema,
@@ -91,6 +93,7 @@ import {
   availabilityBlockUpdateSchema,
   dataRightsRequestCreateSchema,
   dataRightsRequestUpdateSchema,
+  customerDecisionPreviewSchema,
   idParamsSchema,
   leadUpdateSchema,
   listQuerySchema,
@@ -286,6 +289,19 @@ router.patch(
 );
 
 router.post(
+  '/communication-preview',
+  validate('body', customerDecisionPreviewSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    if (req.body.scope.startsWith('PAYMENT_')) assertAdminPermission(admin, 'PAYMENT_DECIDE');
+    else if (req.body.scope === 'RESCHEDULE_REJECTION') assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    else assertAdminPermission(admin, 'RESERVATION_REJECT');
+    const preview = await previewCustomerDecisionEmail(req.body);
+    res.json({ data: preview });
+  }),
+);
+
+router.post(
   '/reservations/:id/cancel',
   validate('params', idParamsSchema),
   validate('body', reservationCancellationSchema),
@@ -298,7 +314,9 @@ router.post(
       commandId: req.body.commandId,
       expectedVersion: req.body.expectedVersion,
       origin: req.body.origin,
-      reason: req.body.reason,
+      internalReason: req.body.internalReason,
+      customerReasonCode: req.body.customerReasonCode,
+      customerReasonText: req.body.customerReasonText,
       admin,
     });
     if (!outcome.replayed) {
@@ -468,6 +486,9 @@ router.patch(
         expectedVersion: req.body.expectedVersion,
         status: req.body.status,
         reason: req.body.reason,
+        internalReason: req.body.internalReason,
+        customerReasonCode: req.body.customerReasonCode,
+        customerReasonText: req.body.customerReasonText,
         admin,
       });
       reservation = outcome.value;
@@ -489,14 +510,18 @@ router.patch(
       }
 
       const outcome = await prisma.$transaction(async (tx) => {
-        const current = await tx.reservation.findUnique({ where: { id } });
+        const current = await tx.reservation.findUnique({ where: { id }, include: { snapshot: true } });
         if (!current) throw notFound('Reservation not found');
+        const customerCopy = req.body.status === ReservationStatus.EXPIRED
+          ? resolveCustomerDecisionCopy('RESERVATION_EXPIRATION', current.snapshot?.locale, { internalReason: req.body.internalReason, customerReasonCode: req.body.customerReasonCode as CustomerReasonCode, customerReasonText: req.body.customerReasonText })
+          : undefined;
         let updated =
           req.body.status && req.body.status !== current.status
             ? await transitionReservationStatus(tx, id, {
                 toStatus: req.body.status,
                 expectedVersion: req.body.expectedVersion,
-                reason: req.body.reason,
+                reason: customerCopy?.internalReason ?? req.body.reason,
+                customerCopy,
                 adminUserId,
                 actorType: 'ADMIN',
                 temporalOverride: req.body.temporalOverride,
@@ -695,7 +720,9 @@ router.patch(
       commandId: req.body.commandId,
       expectedVersion: req.body.expectedVersion,
       decision: req.body.decision,
-      reason: req.body.reason,
+      internalReason: req.body.internalReason,
+      customerReasonCode: req.body.customerReasonCode,
+      customerReasonText: req.body.customerReasonText,
       admin,
     });
     let calendarSync = null;
@@ -764,7 +791,9 @@ router.patch(
       commandId: req.body.commandId,
       expectedVersion: req.body.expectedVersion,
       decision: req.body.decision,
-      reason: req.body.reason,
+      internalReason: req.body.internalReason,
+      customerReasonCode: req.body.customerReasonCode,
+      customerReasonText: req.body.customerReasonText,
       admin,
     });
     res.json({
@@ -1075,6 +1104,9 @@ router.patch(
       expectedVersion: req.body.expectedVersion,
       status: req.body.status,
       reason: req.body.reason,
+      internalReason: req.body.internalReason,
+      customerReasonCode: req.body.customerReasonCode,
+      customerReasonText: req.body.customerReasonText,
       transactionRef,
       transactionRefNormalized:
         transactionRef === undefined ? undefined : normalizePaymentReference(transactionRef),

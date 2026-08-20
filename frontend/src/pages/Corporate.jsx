@@ -7,6 +7,7 @@ import { motion as Motion } from 'framer-motion';
 import { Briefcase, Users, Camera, Building2, CheckCircle2, Send } from 'lucide-react';
 import './Corporate.css';
 import { useLocale } from '../lib/i18n.js';
+import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
 
 const fadeIn = {
   initial: { opacity: 1, y: 0 },
@@ -247,10 +248,7 @@ const Corporate = () => {
                         </div>
                       </div>
 
-                      <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', marginBottom: '1.25rem', fontSize: '0.88rem' }}>
-                        <input name="whatsappConsent" type="checkbox" style={{ marginTop: '0.2rem', accentColor: 'var(--c-gold)' }} />
-                        <span>{t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')}</span>
-                      </label>
+                      <TransactionalWhatsAppConsent id="b2b-whatsapp-consent" label={t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')} help={t('Si cette option est cochée, le numéro de téléphone doit rester joignable sur WhatsApp.', 'If selected, the phone number must be reachable on WhatsApp.')} errorId={fieldErrors.phone ? 'b2b-phone-error' : undefined} />
 
                       {error && <p id="b2b-form-error" role="alert" style={{ color: '#FED7D7', marginBottom: '1.5rem', fontWeight: 700, textAlign: 'center' }}>{error}</p>}
                       

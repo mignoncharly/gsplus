@@ -1,0 +1,6 @@
+.admin-action-dialog-preview { margin-top: 1.25rem; padding: 1rem; border: 1px solid rgba(74,156,168,.6); border-radius: var(--radius-sm); background: rgba(42,123,136,.12); }
+.admin-action-dialog-preview__heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; margin-bottom: .75rem; color: #fff; }
+.admin-action-dialog-preview__heading span { color: #d7e2de; font-size: .82rem; }
+.admin-action-dialog-preview__content { margin-top: 1rem; }
+.admin-action-dialog-preview__content p { margin: .35rem 0; }
+.admin-action-dialog-preview__content pre { max-height: 18rem; overflow: auto; margin-top: .75rem; padding: .85rem; border-radius: var(--radius-sm); color: #f7faf9; background: rgba(0,0,0,.35); font: .82rem/1.5 var(--font-body); white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -155,7 +155,8 @@ describe('POST-01 I-03 payment decision cycles', () => {
       commandId: firstCommandId,
       expectedVersion: payment.version,
       status: PaymentStatus.VERIFICATION_BLOCKED,
-      reason: 'Contrôle opérateur temporairement bloqué',
+      internalReason: 'Contrôle opérateur temporairement bloqué',
+      customerReasonCode: 'PAYMENT_REVIEW_DELAYED',
       admin,
     };
     const first = await executePaymentDecision(firstInput);
@@ -205,7 +206,8 @@ describe('POST-01 I-03 payment decision cycles', () => {
       commandId: randomUUID(),
       expectedVersion: resumed.value.payment.version,
       status: PaymentStatus.VERIFICATION_BLOCKED,
-      reason: 'Nouveau blocage constaté',
+      internalReason: 'Nouveau blocage constaté',
+      customerReasonCode: 'PAYMENT_REVIEW_DELAYED',
       admin,
     });
     const secondNow = new Date('2026-08-09T11:00:00.000Z');
@@ -251,7 +253,8 @@ describe('POST-01 I-03 payment decision cycles', () => {
       commandId: randomUUID(),
       expectedVersion: payment.version,
       status: PaymentStatus.VERIFICATION_BLOCKED,
-      reason: 'Premier blocage',
+      internalReason: 'Premier blocage',
+      customerReasonCode: 'PAYMENT_REVIEW_DELAYED',
       admin,
     });
     const firstNow = new Date('2026-08-09T09:00:00.000Z');
@@ -273,7 +276,8 @@ describe('POST-01 I-03 payment decision cycles', () => {
       commandId: randomUUID(),
       expectedVersion: resumed.value.payment.version,
       status: PaymentStatus.VERIFICATION_BLOCKED,
-      reason: 'Blocage du nouveau cycle',
+      internalReason: 'Blocage du nouveau cycle',
+      customerReasonCode: 'PAYMENT_REVIEW_DELAYED',
       admin,
     });
     await queuePaymentStatusNotifications(reservation.id, second.value.payment.status, {
@@ -321,7 +325,8 @@ describe('POST-01 I-04 reschedule request identity', () => {
       commandId: randomUUID(),
       expectedVersion: first.value.request.version,
       decision: 'REJECTED',
-      reason: 'Premier créneau indisponible',
+      internalReason: 'Premier créneau indisponible',
+      customerReasonCode: 'RESCHEDULE_UNAVAILABLE',
       admin,
     });
     const second = await executeCreateRescheduleRequest({
@@ -367,7 +372,8 @@ describe('POST-01 I-05 cancellation decision identity', () => {
         commandId,
         expectedVersion: reservation.version,
         origin,
-        reason: origin === 'STUDIO' ? 'Incident technique Studio' : 'Demande confirmée du client',
+        internalReason: origin === 'STUDIO' ? 'TEST-AUDIT Incident technique Studio' : 'Demande confirmée du client',
+        ...(origin === 'STUDIO' ? { customerReasonCode: 'STUDIO_UNAVAILABLE' as const } : {}),
         admin,
         now: new Date(reservation.startAt.getTime() - leadTimeMs),
       };
@@ -393,7 +399,7 @@ describe('POST-01 I-05 cancellation decision identity', () => {
       reservationId: reservation.id,
       expectedVersion: reservation.version,
       origin: 'CUSTOMER' as const,
-      reason: 'Annulation concurrente contrôlée',
+      internalReason: 'Annulation concurrente contrôlée',
       admin,
       now: new Date(reservation.startAt.getTime() - 49 * HOUR),
     };
@@ -435,7 +441,8 @@ describe('POST-01 I-06 financial task lifecycle', () => {
       commandId,
       expectedVersion: reservation.version,
       status: ReservationStatus.REJECTED,
-      reason: 'Créneau indisponible après paiement',
+      internalReason: 'Créneau indisponible après paiement',
+      customerReasonCode: 'SLOT_UNAVAILABLE',
       admin,
     };
     const rejected = await executeReservationDecision(decisionInput);

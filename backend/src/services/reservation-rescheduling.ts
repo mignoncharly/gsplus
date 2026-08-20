@@ -7,6 +7,7 @@ import {
   type ReservationRescheduleRequest,
 } from '../generated/prisma/client.js';
 import { addMinutes, assertBookableSlot, lockBookingWindow } from './booking-slots.js';
+import { resolveCustomerDecisionCopy, type CustomerReasonCode } from './customer-decision-copy.js';
 import { runAdminCommand, type CommandOutcome } from './payment-reservation-commands.js';
 
 const RESCHEDULABLE_STATUSES = new Set<ReservationStatus>([
@@ -134,7 +135,9 @@ export type DecideRescheduleRequestInput = {
   commandId: string;
   expectedVersion: number;
   decision: 'ACCEPTED' | 'REJECTED';
-  reason: string;
+  internalReason: string;
+  customerReasonCode?: CustomerReasonCode;
+  customerReasonText?: string | null;
   admin: AdminUser;
   now?: Date;
 };
@@ -142,8 +145,8 @@ export type DecideRescheduleRequestInput = {
 export const executeRescheduleRequestDecision = async (
   input: DecideRescheduleRequestInput,
 ): Promise<CommandOutcome<RescheduleRequestValue>> => {
-  const reason = input.reason.trim();
-  if (!reason) {
+  const internalReason = input.internalReason.trim();
+  if (!internalReason) {
     throw new HttpError(400, 'RESCHEDULE_DECISION_REASON_REQUIRED', 'Le motif de la décision est obligatoire.');
   }
   const decidedAt = input.now ?? new Date();
@@ -155,12 +158,12 @@ export const executeRescheduleRequestDecision = async (
       : 'reservation.reschedule_request.reject',
     entityType: 'ReservationRescheduleRequest',
     entityId: input.requestId,
-    request: { expectedVersion: input.expectedVersion, decision: input.decision, reason },
+    request: { expectedVersion: input.expectedVersion, decision: input.decision, internalReason, customerReasonCode: input.customerReasonCode ?? null, customerReasonText: input.customerReasonText?.trim() || null },
     admin: input.admin,
     execute: async (tx) => {
       const current = await tx.reservationRescheduleRequest.findUnique({
         where: { id: input.requestId },
-        include: { reservation: { include: { package: true, packageVersion: true } } },
+        include: { reservation: { include: { package: true, packageVersion: true, snapshot: true } } },
       });
       if (!current) throw new HttpError(404, 'RESCHEDULE_REQUEST_NOT_FOUND', 'Demande de report introuvable.');
       if (current.version !== input.expectedVersion) {
@@ -170,6 +173,9 @@ export const executeRescheduleRequestDecision = async (
         throw new HttpError(409, 'RESCHEDULE_REQUEST_ALREADY_DECIDED', 'Cette demande a déjà reçu une décision.');
       }
 
+      const customerCopy = input.decision === 'REJECTED'
+        ? resolveCustomerDecisionCopy('RESCHEDULE_REJECTION', current.reservation.snapshot?.locale, { internalReason, customerReasonCode: input.customerReasonCode as CustomerReasonCode, customerReasonText: input.customerReasonText })
+        : undefined;
       let reservation: Reservation = current.reservation;
       if (input.decision === 'ACCEPTED') {
         const leadTimeMs = current.oldStartAt.getTime() - current.requestedAt.getTime();
@@ -221,7 +227,8 @@ export const executeRescheduleRequestDecision = async (
             reservationId: reservation.id,
             fromStatus: reservation.status,
             toStatus: reservation.status,
-            reason,
+            reason: internalReason,
+            internalReason,
             actorType: 'ADMIN',
             adminUserId: input.admin.id,
             oldStartAt: current.oldStartAt,
@@ -242,7 +249,12 @@ export const executeRescheduleRequestDecision = async (
         data: {
           status: input.decision,
           version: { increment: 1 },
-          decisionReason: reason,
+          decisionReason: internalReason,
+          internalDecisionReason: internalReason,
+          customerReasonCode: customerCopy?.customerReasonCode,
+          customerReasonText: customerCopy?.customerReasonText,
+          customerLocale: customerCopy?.customerLocale,
+          customerCopyVersion: customerCopy?.customerCopyVersion,
           decidedById: input.admin.id,
           decidedAt,
         },
@@ -260,7 +272,9 @@ export const executeRescheduleRequestDecision = async (
             reservationId: reservation.id,
             actorRole: input.admin.role,
             decision: input.decision,
-            reason,
+            internalReason,
+            customerReasonCode: customerCopy?.customerReasonCode ?? null,
+            customerCopyVersion: customerCopy?.customerCopyVersion ?? null,
             oldStartAt: current.oldStartAt,
             requestedStartAt: current.requestedStartAt,
             result: 'SUCCESS',

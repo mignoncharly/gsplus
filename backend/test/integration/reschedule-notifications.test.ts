@@ -147,7 +147,7 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: created.value.request.version,
       decision: 'ACCEPTED',
-      reason: 'Créneau disponible',
+      internalReason: 'Créneau disponible',
       admin,
     });
     await queueRescheduleRequestDecisionNotification(created.value.request.id);
@@ -180,7 +180,7 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: 1,
       decision: 'ACCEPTED',
-      reason: 'Ne doit pas passer',
+      internalReason: 'Ne doit pas passer',
       admin,
     })).rejects.toMatchObject({ code: 'RESCHEDULE_NOTICE_TOO_SHORT' });
     expect(await prisma.notificationEvent.count({
@@ -192,7 +192,8 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: 1,
       decision: 'REJECTED',
-      reason: 'Demande reçue à moins de 48 heures',
+      internalReason: 'Demande reçue à moins de 48 heures',
+      customerReasonCode: 'RESCHEDULE_UNAVAILABLE',
       admin,
     });
     await queueRescheduleRequestDecisionNotification(created.value.request.id);
@@ -219,7 +220,7 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: 1,
       decision: 'ACCEPTED',
-      reason: 'Premier report accordé',
+      internalReason: 'Premier report accordé',
       admin,
     });
     const second = await executeCreateRescheduleRequest({
@@ -236,7 +237,7 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: 1,
       decision: 'ACCEPTED',
-      reason: 'Ne doit pas être accordé',
+      internalReason: 'Ne doit pas être accordé',
       admin,
     })).rejects.toMatchObject({ code: 'RESCHEDULE_LIMIT_REACHED' });
     const rejected = await executeRescheduleRequestDecision({
@@ -244,7 +245,8 @@ describe('NOTIF-01 durable reschedule workflow', () => {
       commandId: randomUUID(),
       expectedVersion: 1,
       decision: 'REJECTED',
-      reason: 'Un report a déjà été accordé',
+      internalReason: 'Un report a déjà été accordé',
+      customerReasonCode: 'RESCHEDULE_UNAVAILABLE',
       admin,
     });
     expect(rejected.value.request.status).toBe('REJECTED');

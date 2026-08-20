@@ -425,7 +425,7 @@ describe('admin flow', () => {
         expectedVersion: initialPayment.version,
       })
       .expect(400);
-    expect(missingReason.body.error.code).toBe('PAYMENT_REASON_REQUIRED');
+    expect(missingReason.body.error.code).toBe('VALIDATION_ERROR');
 
     const rejected = await agent
       .patch(`/api/admin/payments/${paymentId}/verify`)
@@ -433,7 +433,8 @@ describe('admin flow', () => {
         status: PaymentStatus.REJECTED,
         commandId: randomUUID(),
         expectedVersion: initialPayment.version,
-        reason: 'Reference introuvable chez l operateur',
+        internalReason: 'TEST-AUDIT Reference introuvable chez l operateur',
+        customerReasonCode: 'PAYMENT_UNVERIFIED',
       })
       .expect(200);
     expect(rejected.body.data.status).toBe(PaymentStatus.REJECTED);
@@ -470,7 +471,7 @@ describe('admin flow', () => {
         commandId: randomUUID(),
         expectedVersion: 1,
         decision: 'ACCEPTED',
-        reason: 'Disponibilité confirmée',
+        internalReason: 'Disponibilité confirmée',
       })
       .expect(200);
 
@@ -506,7 +507,7 @@ describe('admin flow', () => {
     const audit = await prisma.auditLog.findFirstOrThrow({
       where: { action: 'reservation.reschedule_request.accept', entityId: requestResponse.body.data.request.id },
     });
-    expect(audit.metadata).toMatchObject({ reason: 'Disponibilité confirmée', decision: 'ACCEPTED' });
+    expect(audit.metadata).toMatchObject({ internalReason: 'Disponibilité confirmée', decision: 'ACCEPTED' });
   });
 
   it('rejects a reschedule collision without changing the original schedule', async () => {
@@ -537,7 +538,7 @@ describe('admin flow', () => {
         commandId: randomUUID(),
         expectedVersion: 1,
         decision: 'ACCEPTED',
-        reason: 'Tentative de validation',
+        internalReason: 'Tentative de validation',
       })
       .expect(409);
 
@@ -814,7 +815,7 @@ describe('admin flow', () => {
         commandId: randomUUID(),
         expectedVersion: confirmed.body.data.reservation.version,
         origin: 'CUSTOMER',
-        reason: 'Demande confirmée par téléphone',
+        internalReason: 'Demande confirmée par téléphone',
       })
       .expect(200);
 
@@ -1114,7 +1115,7 @@ describe('P0-04 payment and reservation decisions', () => {
         expectedVersion: first.payment.version,
       })
       .expect(400);
-    expect(missingReason.body.error.code).toBe('PAYMENT_REASON_REQUIRED');
+    expect(missingReason.body.error.code).toBe('VALIDATION_ERROR');
 
     const information = await agent
       .patch(`/api/admin/payments/${first.payment.id}/verify`)
@@ -1122,7 +1123,8 @@ describe('P0-04 payment and reservation decisions', () => {
         status: 'PAYMENT_INFO_REQUIRED',
         commandId: randomUUID(),
         expectedVersion: first.payment.version,
-        reason: 'Référence opérateur incomplète',
+        internalReason: 'TEST-AUDIT Référence opérateur incomplète',
+        customerReasonCode: 'PAYMENT_REFERENCE_REQUIRED',
       })
       .expect(200);
     expect(information.body.data.status).toBe('PAYMENT_INFO_REQUIRED');
@@ -1133,7 +1135,8 @@ describe('P0-04 payment and reservation decisions', () => {
         status: 'VERIFICATION_BLOCKED',
         commandId: randomUUID(),
         expectedVersion: second.payment.version,
-        reason: 'Service opérateur temporairement indisponible',
+        internalReason: 'TEST-AUDIT Service opérateur temporairement indisponible',
+        customerReasonCode: 'PAYMENT_REVIEW_DELAYED',
       })
       .expect(200);
     expect(blocked.body.data.status).toBe('VERIFICATION_BLOCKED');
@@ -1213,7 +1216,7 @@ describe('P0-04 payment and reservation decisions', () => {
         expectedVersion: reservation.version,
       })
       .expect(400);
-    expect(missingReason.body.error.code).toBe('RESERVATION_REASON_REQUIRED');
+    expect(missingReason.body.error.code).toBe('VALIDATION_ERROR');
 
     const commandId = randomUUID();
     const reason = 'Créneau refusé après contrôle administratif';
@@ -1221,7 +1224,8 @@ describe('P0-04 payment and reservation decisions', () => {
       .patch(`/api/admin/reservations/${reservation.id}`)
       .send({
         status: ReservationStatus.REJECTED,
-        reason,
+        internalReason: reason,
+        customerReasonCode: 'SLOT_UNAVAILABLE',
         commandId,
         expectedVersion: reservation.version,
       })
@@ -1240,7 +1244,7 @@ describe('P0-04 payment and reservation decisions', () => {
       commandId,
       oldReservationStatus: ReservationStatus.PENDING_CONFIRMATION,
       newReservationStatus: ReservationStatus.REJECTED,
-      reason,
+      internalReason: reason,
       result: 'SUCCESS',
     });
   });
@@ -1282,7 +1286,8 @@ describe('P0-04 payment and reservation decisions', () => {
       .patch(`/api/admin/reservations/${reservation.id}`)
       .send({
         status: ReservationStatus.REJECTED,
-        reason: 'Décision réservée au propriétaire',
+        internalReason: 'Décision réservée au propriétaire',
+        customerReasonCode: 'SLOT_UNAVAILABLE',
         commandId: randomUUID(),
         expectedVersion: reservation.version,
       })
@@ -1386,7 +1391,8 @@ describe('P0-04 payment and reservation decisions', () => {
       .patch(`/api/admin/reservations/${reservation.id}`)
       .send({
         status: ReservationStatus.REJECTED,
-        reason: 'Créneau retiré après vérification du paiement',
+        internalReason: 'Créneau retiré après vérification du paiement',
+        customerReasonCode: 'SLOT_UNAVAILABLE',
         commandId: randomUUID(),
         expectedVersion: reservation.version,
       })
@@ -2327,7 +2333,7 @@ describe('LEG-03 withdrawal request workflow', () => {
       commandId: decisionCommandId,
       expectedVersion: 1,
       decision: 'ACCEPTED',
-      reason: 'Demande reçue dans le délai; service non commencé; analyse propriétaire validée.',
+      internalReason: 'Demande reçue dans le délai; service non commencé; analyse propriétaire validée.',
     };
     const decision = await agent
       .patch(`/api/admin/withdrawal-requests/${first.body.data.request.id}/decision`)
@@ -2336,7 +2342,7 @@ describe('LEG-03 withdrawal request workflow', () => {
     expect(decision.body.data).toMatchObject({ replayed: false, request: {
       status: 'ACCEPTED',
       version: 2,
-      decisionReason: decisionPayload.reason,
+      decisionReason: decisionPayload.internalReason,
     } });
     const decisionReplay = await agent
       .patch(`/api/admin/withdrawal-requests/${first.body.data.request.id}/decision`)

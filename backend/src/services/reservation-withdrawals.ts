@@ -6,6 +6,7 @@ import {
   type ReservationWithdrawalRequest,
 } from '../generated/prisma/client.js';
 import { runAdminCommand, type CommandOutcome } from './payment-reservation-commands.js';
+import { resolveCustomerDecisionCopy, type CustomerReasonCode } from './customer-decision-copy.js';
 
 const LEGAL_WITHDRAWAL_WINDOW_MS = 15 * 24 * 60 * 60 * 1000;
 const FUTURE_CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
@@ -145,7 +146,9 @@ export type DecideWithdrawalRequestInput = {
   commandId: string;
   expectedVersion: number;
   decision: 'ACCEPTED' | 'REJECTED';
-  reason: string;
+  internalReason: string;
+  customerReasonCode?: CustomerReasonCode;
+  customerReasonText?: string | null;
   admin: AdminUser;
   now?: Date;
 };
@@ -153,8 +156,8 @@ export type DecideWithdrawalRequestInput = {
 export const executeWithdrawalRequestDecision = async (
   input: DecideWithdrawalRequestInput,
 ): Promise<CommandOutcome<WithdrawalValue>> => {
-  const reason = input.reason.trim();
-  if (!reason) {
+  const internalReason = input.internalReason.trim();
+  if (!internalReason) {
     throw new HttpError(400, 'WITHDRAWAL_DECISION_REASON_REQUIRED', 'Le motif de la décision est obligatoire.');
   }
   const action = input.decision === 'ACCEPTED'
@@ -166,10 +169,10 @@ export const executeWithdrawalRequestDecision = async (
     action,
     entityType: 'ReservationWithdrawalRequest',
     entityId: input.requestId,
-    request: { expectedVersion: input.expectedVersion, decision: input.decision, reason },
+    request: { expectedVersion: input.expectedVersion, decision: input.decision, internalReason, customerReasonCode: input.customerReasonCode ?? null, customerReasonText: input.customerReasonText?.trim() || null },
     admin: input.admin,
     execute: async (tx) => {
-      const current = await tx.reservationWithdrawalRequest.findUnique({ where: { id: input.requestId } });
+      const current = await tx.reservationWithdrawalRequest.findUnique({ where: { id: input.requestId }, include: { reservation: { include: { snapshot: true } } } });
       if (!current) throw new HttpError(404, 'WITHDRAWAL_REQUEST_NOT_FOUND', 'Demande de rétractation introuvable.');
       if (current.version !== input.expectedVersion) {
         throw new HttpError(409, 'WITHDRAWAL_VERSION_CONFLICT', 'La demande a été modifiée. Actualisez le dossier.');
@@ -177,12 +180,20 @@ export const executeWithdrawalRequestDecision = async (
       if (current.status !== 'PENDING') {
         throw new HttpError(409, 'WITHDRAWAL_ALREADY_DECIDED', 'Cette demande de rétractation a déjà été décidée.');
       }
+      const customerCopy = input.decision === 'REJECTED'
+        ? resolveCustomerDecisionCopy('WITHDRAWAL_REJECTION', current.reservation.snapshot?.locale, { internalReason, customerReasonCode: input.customerReasonCode as CustomerReasonCode, customerReasonText: input.customerReasonText })
+        : undefined;
       const updated = await tx.reservationWithdrawalRequest.updateMany({
         where: { id: current.id, version: current.version, status: 'PENDING' },
         data: {
           status: input.decision,
           version: { increment: 1 },
-          decisionReason: reason,
+          decisionReason: internalReason,
+          internalDecisionReason: internalReason,
+          customerReasonCode: customerCopy?.customerReasonCode,
+          customerReasonText: customerCopy?.customerReasonText,
+          customerLocale: customerCopy?.customerLocale,
+          customerCopyVersion: customerCopy?.customerCopyVersion,
           decidedById: input.admin.id,
           decidedAt: input.now ?? new Date(),
         },
@@ -204,7 +215,9 @@ export const executeWithdrawalRequestDecision = async (
             reservationReference: reservation.reference,
             actorRole: input.admin.role,
             decision: input.decision,
-            reason,
+            internalReason,
+            customerReasonCode: customerCopy?.customerReasonCode ?? null,
+            customerCopyVersion: customerCopy?.customerCopyVersion ?? null,
             automaticCancellation: false,
             automaticRefund: false,
             result: 'SUCCESS',

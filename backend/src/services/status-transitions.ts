@@ -6,6 +6,7 @@ import {
   type Payment,
   type Reservation,
 } from '../generated/prisma/client.js';
+import type { PersistedCustomerDecisionCopy } from './customer-decision-copy.js';
 
 import { paymentReferenceValidationMessage, type SupportedPaymentMethod } from '../utils/payment-reference.js';
 const RESERVATION_TRANSITIONS: Record<ReservationStatus, readonly ReservationStatus[]> = {
@@ -112,6 +113,7 @@ type ReservationTransitionInput = {
   toStatus: ReservationStatus;
   expectedVersion?: number;
   reason?: string | null;
+  customerCopy?: PersistedCustomerDecisionCopy;
   adminUserId?: string;
   actorType?: 'ADMIN' | 'CUSTOMER' | 'SYSTEM';
   metadata?: Prisma.InputJsonValue;
@@ -231,6 +233,11 @@ export const transitionReservationStatus = async (
       fromStatus: current.status,
       toStatus: input.toStatus,
       reason,
+      internalReason: reason,
+      customerReasonCode: input.customerCopy?.customerReasonCode,
+      customerReasonText: input.customerCopy?.customerReasonText,
+      customerLocale: input.customerCopy?.customerLocale,
+      customerCopyVersion: input.customerCopy?.customerCopyVersion,
       actorType: input.actorType ?? (input.adminUserId ? 'ADMIN' : 'SYSTEM'),
       adminUserId: input.adminUserId,
       oldStartAt: current.startAt,
@@ -268,6 +275,7 @@ type PaymentTransitionInput = {
   toStatus: PaymentStatus;
   expectedVersion?: number;
   reason?: string | null;
+  customerCopy?: PersistedCustomerDecisionCopy;
   adminUserId?: string;
   actorType?: 'ADMIN' | 'CUSTOMER' | 'SYSTEM';
   transactionRef?: string | null;
@@ -362,6 +370,11 @@ export const transitionPaymentStatus = async (
       fromStatus: current.status,
       toStatus: input.toStatus,
       reason,
+      internalReason: reason,
+      customerReasonCode: input.customerCopy?.customerReasonCode,
+      customerReasonText: input.customerCopy?.customerReasonText,
+      customerLocale: input.customerCopy?.customerLocale,
+      customerCopyVersion: input.customerCopy?.customerCopyVersion,
       actorType: input.actorType ?? (input.adminUserId ? 'ADMIN' : 'SYSTEM'),
       adminUserId: input.adminUserId,
       metadata: input.metadata,

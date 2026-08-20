@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { validationErrorsFromApi, validationSummaryForApiError } from '../lib/form-errors';
+import './AdminActionDialog.css';
 
 const focusableSelector = [
   'button:not([disabled])',
@@ -30,6 +31,9 @@ const AdminActionDialog = ({ config, onClose }) => {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [previewFingerprint, setPreviewFingerprint] = useState('');
 
   useEffect(() => {
     if (!config) return undefined;
@@ -76,6 +80,8 @@ const AdminActionDialog = ({ config, onClose }) => {
 
   if (!config) return null;
 
+  const previewRequired = Boolean(config.preview && (config.previewRequired?.(values) ?? true));
+
   const updateValue = (name, value) => {
     setValues((current) => ({ ...current, [name]: value }));
     setErrors((current) => {
@@ -85,6 +91,8 @@ const AdminActionDialog = ({ config, onClose }) => {
       return next;
     });
     setServerError('');
+    setPreview(null);
+    setPreviewFingerprint('');
   };
 
   const validate = () => {
@@ -102,9 +110,26 @@ const AdminActionDialog = ({ config, onClose }) => {
     return Object.keys(next).length === 0;
   };
 
+  const loadPreview = async () => {
+    if (!previewRequired || !validate()) return;
+    setPreviewing(true);
+    setServerError('');
+    try {
+      const result = await config.preview(values);
+      setPreview(result);
+      setPreviewFingerprint(JSON.stringify(values));
+    } catch (error) {
+      setServerError(validationSummaryForApiError(error) || 'L’aperçu n’a pas pu être généré.');
+    } finally { setPreviewing(false); }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (submittingRef.current || !validate()) return;
+    if (previewRequired && (!preview || previewFingerprint !== JSON.stringify(values))) {
+      setServerError('Générez et vérifiez l’aperçu client final avant de confirmer.');
+      return;
+    }
     submittingRef.current = true;
     setSubmitting(true);
     setServerError('');
@@ -183,10 +208,17 @@ const AdminActionDialog = ({ config, onClose }) => {
               );
             })}
           </div>
+          {previewRequired && (
+            <section className="admin-action-dialog-preview" aria-live="polite">
+              <div className="admin-action-dialog-preview__heading"><strong>Aperçu client final</strong><span>Seul cet aperçu quitte l’administration.</span></div>
+              <button type="button" className="btn btn-secondary" onClick={loadPreview} disabled={submitting || previewing}>{previewing ? 'Génération…' : preview ? 'Actualiser l’aperçu' : 'Générer l’aperçu'}</button>
+              {preview && <div className="admin-action-dialog-preview__content"><p><strong>Langue :</strong> {preview.locale.toUpperCase()} · <strong>Objet :</strong> {preview.subject}</p><p>{preview.preheader}</p><pre>{preview.text}</pre></div>}
+            </section>
+          )}
           {serverError && <p className="admin-action-dialog-error" role="alert">{serverError}</p>}
           <div className="admin-action-dialog-actions">
             <button type="button" className="btn btn-secondary" onClick={() => onClose(false)} disabled={submitting}>Annuler</button>
-            <button type="submit" className={config.destructive ? 'btn btn-secondary text-danger' : 'btn btn-primary'} disabled={submitting}>
+            <button type="submit" className={config.destructive ? 'btn btn-secondary text-danger' : 'btn btn-primary'} disabled={submitting || previewing}>
               {submitting ? 'Enregistrement…' : config.confirmLabel || 'Confirmer'}
             </button>
           </div>

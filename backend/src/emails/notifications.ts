@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 
 import { hasOwnerExplicitDeliveryLabel } from '../catalogue/delivery-labels.js';
@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { HttpError } from '../errors/http-error.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
+import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { resolveReservationNotificationEmail } from '../services/reservation-notification-overrides.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { LeadType, NotificationStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
@@ -184,6 +185,57 @@ const renderReservationEmail = (
   code: EmailTemplateCode,
   overrides: EmailTemplateVariables = {},
 ) => renderEmailTemplate(code, reservationEmailVariables(reservation, overrides), reservationContact(reservation).locale === 'en' ? 'en' : 'fr');
+
+export type CustomerDecisionPreviewInput = {
+  scope: 'RESERVATION_REJECTION' | 'STUDIO_CANCELLATION' | 'RESERVATION_EXPIRATION' | 'PAYMENT_REJECTION' | 'PAYMENT_INFORMATION_REQUEST' | 'PAYMENT_VERIFICATION_BLOCKAGE' | 'RESCHEDULE_REJECTION';
+  entityId: string;
+  internalReason: string;
+  customerReasonCode: CustomerReasonCode;
+  customerReasonText?: string | null;
+};
+
+export const previewCustomerDecisionEmail = async (input: CustomerDecisionPreviewInput) => {
+  let reservation: ReservationEmailSource | null = null;
+  let code: EmailTemplateCode;
+  let variables: EmailTemplateVariables = {};
+  let locale: string | undefined;
+  if (input.scope.startsWith('PAYMENT_')) {
+    const payment = await prisma.payment.findUnique({ where: { id: input.entityId }, include: { reservation: { include: { customer: true, snapshot: true, payments: { orderBy: { createdAt: 'desc' } } } } } });
+    if (!payment?.reservation.snapshot) throw new HttpError(404, 'PREVIEW_ENTITY_NOT_FOUND', 'Paiement ou snapshot introuvable.');
+    reservation = payment.reservation;
+    locale = payment.reservation.snapshot.locale;
+    code = input.scope === 'PAYMENT_REJECTION' ? 'E-04' : input.scope === 'PAYMENT_INFORMATION_REQUEST' ? 'E-04A' : 'E-04B';
+    const copy = resolveCustomerDecisionCopy(input.scope, locale, input);
+    variables = { motif_rejet_paiement: copy.customerReasonText, information_paiement_requise: copy.customerReasonText, instruction_regularisation: copy.customerLocale === 'en' ? 'provide a new reference or contact the Studio' : 'transmettre une nouvelle référence ou contacter le Studio', date_limite_regularisation: formatDateTime(payment.reservation.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000)) };
+  } else if (input.scope === 'RESCHEDULE_REJECTION') {
+    const request = await prisma.reservationRescheduleRequest.findUnique({ where: { id: input.entityId }, include: { reservation: { include: { customer: true, snapshot: true, payments: { orderBy: { createdAt: 'desc' } } } } } });
+    if (!request?.reservation.snapshot) throw new HttpError(404, 'PREVIEW_ENTITY_NOT_FOUND', 'Demande de report ou snapshot introuvable.');
+    reservation = request.reservation;
+    locale = request.reservation.snapshot.locale;
+    const copy = resolveCustomerDecisionCopy(input.scope, locale, input);
+    code = 'E-10';
+    variables = { motif_refus_report: copy.customerReasonText, ancien_creneau: rescheduleSlot(request.oldStartAt, request.oldEndAt) };
+  } else {
+    const found = await prisma.reservation.findUnique({ where: { id: input.entityId }, include: { customer: true, snapshot: true, packageVersion: true, payments: { orderBy: { createdAt: 'desc' } }, financialTasks: { where: { type: 'FULL_REFUND' }, orderBy: { createdAt: 'desc' }, take: 1 } } });
+    if (!found?.snapshot) throw new HttpError(404, 'PREVIEW_ENTITY_NOT_FOUND', 'Réservation ou snapshot introuvable.');
+    reservation = found;
+    locale = found.snapshot.locale;
+    const copy = resolveCustomerDecisionCopy(input.scope, locale, input);
+    if (input.scope === 'STUDIO_CANCELLATION') {
+      code = 'E-13';
+      variables = { motif_annulation_studio: copy.customerReasonText };
+    } else if (input.scope === 'RESERVATION_EXPIRATION') {
+      code = 'E-14';
+      variables = { motif_expiration: copy.customerReasonText };
+    } else {
+      const paid = found.payments.some((payment) => payment.status === PaymentStatus.VERIFIED || payment.status === PaymentStatus.PAID);
+      code = paid ? 'E-07' : 'E-06';
+      variables = { motif_refus_reservation: copy.customerReasonText };
+    }
+  }
+  const rendered = renderReservationEmail(reservation, code!, variables);
+  return { ...rendered, locale: locale === 'en' ? 'en' : 'fr', templateVersion: EMAIL_TEMPLATE_VERSION, previewHash: createHash('sha256').update(JSON.stringify(rendered)).digest('hex') };
+};
 
 const reservationLines = (reservation: ReservationForMessage) => {
   const contact = reservationContact(reservation);
@@ -919,6 +971,7 @@ export const queueReservationStatusNotification = async (
       snapshot: true,
       packageVersion: true,
       payments: { orderBy: { createdAt: 'desc' } },
+      transitions: { where: { toStatus: status }, orderBy: { createdAt: 'desc' }, take: 1 },
       financialTasks: { where: { type: 'FULL_REFUND' }, orderBy: { createdAt: 'desc' }, take: 1 },
     },
   });
@@ -979,11 +1032,11 @@ export const queueReservationStatusNotification = async (
     templateCode: code,
     ...(context.commandId ? { commandId: context.commandId } : {}),
   };
+  const customerReason = reservation.transitions[0]?.customerReasonText ?? (contact.locale === 'en' ? 'The request could not be maintained.' : 'La demande n’a pas pu être maintenue.');
   const variables: EmailTemplateVariables = {
-    motif_refus_reservation: reservation.statusReason ?? 'Créneau indisponible',
-    motif_expiration: reservation.statusReason ?? 'le délai de finalisation est dépassé',
-    montant_fcfa: formatAmount(financialTask?.amount ?? reservation.snapshot.amount),
-    traitement_financier: 'Remboursement intégral à traiter',
+    motif_refus_reservation: customerReason,
+    motif_expiration: customerReason,
+    traitement_financier: contact.locale === 'en' ? 'The financial situation is under review.' : 'La situation financière est en cours d’examen.',
     prochaine_etape: 'Sélection, traitement et préparation de vos livrables',
     delai_suivi: reservation.packageVersion.deliveryLabel?.trim() ?? 'Non applicable',
     canal_suivi: 'E-mail',
@@ -1108,10 +1161,8 @@ export const queueCancellationNotifications = async (
   };
   const variables: EmailTemplateVariables = {
     montant_remboursable_fcfa: formatAmount(policy.refundableAmount),
-    motif_annulation_studio: reservation.statusReason ?? 'Indisponibilité exceptionnelle du Studio',
-    traitement_financier: task
-      ? `Remboursement de ${formatAmount(task.amount)} FCFA à traiter`
-      : 'Aucun paiement vérifié à rembourser',
+    motif_annulation_studio: reservation.transitions[0]?.customerReasonText ?? (contact.locale === 'en' ? 'The Studio is exceptionally unavailable.' : 'Le Studio est exceptionnellement indisponible.'),
+    traitement_financier: contact.locale === 'en' ? 'The financial situation is under review.' : 'La situation financière est en cours d’examen.',
   };
   const jobs: Array<Promise<unknown>> = [];
   if (contact.email) {
@@ -1374,7 +1425,7 @@ export const queueRescheduleRequestDecisionNotification = async (
       ...(context.commandId ? { commandId: context.commandId } : {}),
     },
     variables: {
-      motif_refus_report: request.decisionReason ?? 'Le nouveau créneau n’est pas disponible',
+      motif_refus_report: request.customerReasonText ?? (contact.locale === 'en' ? 'The requested new time slot is not available.' : 'Le nouveau créneau demandé n’est pas disponible.'),
       ancien_creneau: rescheduleSlot(request.oldStartAt, request.oldEndAt),
     },
   });
@@ -1671,7 +1722,7 @@ export const queuePaymentStatusNotifications = async (
     include: {
       customer: true,
       snapshot: true,
-      payments: { where: { status }, orderBy: { updatedAt: 'desc' }, take: 1 },
+      payments: { where: { status }, orderBy: { updatedAt: 'desc' }, take: 1, include: { transitions: { where: { toStatus: status }, orderBy: { createdAt: 'desc' }, take: 1 } } },
     },
   });
   const payment = reservation?.payments[0];
@@ -1703,10 +1754,11 @@ export const queuePaymentStatusNotifications = async (
     expectedPaymentStatus: status,
     ...(context.commandId ? { commandId: context.commandId } : {}),
   };
+  const customerReason = payment.transitions[0]?.customerReasonText ?? (contact.locale === 'en' ? 'Additional review is required.' : 'Un contrôle complémentaire est nécessaire.');
   const variables: EmailTemplateVariables = {
-    motif_rejet_paiement: payment.statusReason ?? 'Paiement non validé',
-    instruction_regularisation: 'transmettre une nouvelle référence ou contacter le Studio',
-    information_paiement_requise: payment.statusReason ?? 'Information complémentaire requise',
+    motif_rejet_paiement: customerReason,
+    instruction_regularisation: contact.locale === 'en' ? 'provide a new reference or contact the Studio' : 'transmettre une nouvelle référence ou contacter le Studio',
+    information_paiement_requise: customerReason,
     date_limite_regularisation: formatDateTime(deadline),
   };
   const jobs: Array<Promise<unknown>> = [

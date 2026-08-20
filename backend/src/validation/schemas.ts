@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { PUBLIC_MEDIA_CATEGORIES } from '../constants/media.js';
 
 import { LeadStatus, PackageBookingMode, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
+import { CUSTOMER_REASON_CODES } from '../services/customer-decision-copy.js';
 import { paymentReferenceValidationMessage } from '../utils/payment-reference.js';
 import {
   isValidCameroonPhone,
@@ -16,6 +17,11 @@ const optionalString = z.string().trim().min(1).optional();
 const cuid = z.string().trim().min(1);
 const PHONE_INVALID_MESSAGE = 'Saisissez un numéro camerounais valide, par exemple 640 70 32 49.';
 const EMAIL_INVALID_MESSAGE = 'Saisissez une adresse e-mail valide.';
+const customerCopyFields = {
+  internalReason: z.string().trim().min(1).max(1000),
+  customerReasonCode: z.enum(CUSTOMER_REASON_CODES).optional(),
+  customerReasonText: z.string().trim().max(280).optional().nullable(),
+};
 const phone = z
   .string()
   .trim()
@@ -300,7 +306,11 @@ export const rescheduleRequestDecisionSchema = z.object({
   commandId: z.uuid(),
   expectedVersion: z.number().int().positive(),
   decision: z.enum(['ACCEPTED', 'REJECTED']),
-  reason: z.string().trim().min(1).max(1000),
+  ...customerCopyFields,
+}).superRefine((value, context) => {
+  if (value.decision === 'REJECTED' && !value.customerReasonCode) {
+    context.addIssue({ code: 'custom', path: ['customerReasonCode'], message: 'Le motif client est obligatoire pour un refus.' });
+  }
 });
 
 export const withdrawalRequestCreateSchema = z.object({
@@ -325,7 +335,13 @@ export const withdrawalRequestDecisionSchema = z.object({
   commandId: z.uuid(),
   expectedVersion: z.number().int().positive(),
   decision: z.enum(['ACCEPTED', 'REJECTED']),
-  reason: z.string().trim().min(1).max(4000),
+  internalReason: z.string().trim().min(1).max(4000),
+  customerReasonCode: z.enum(CUSTOMER_REASON_CODES).optional(),
+  customerReasonText: z.string().trim().max(280).optional().nullable(),
+}).superRefine((value, context) => {
+  if (value.decision === 'REJECTED' && !value.customerReasonCode) {
+    context.addIssue({ code: 'custom', path: ['customerReasonCode'], message: 'Le motif client est obligatoire pour un refus.' });
+  }
 });
 
 export const imageConsentEventCreateSchema = z.object({
@@ -431,17 +447,32 @@ export const qaNotificationOverrideSchema = z.object({
   reason: z.string().trim().min(10).max(1000),
 });
 
+export const customerDecisionPreviewSchema = z.object({
+  scope: z.enum(['RESERVATION_REJECTION', 'STUDIO_CANCELLATION', 'RESERVATION_EXPIRATION', 'PAYMENT_REJECTION', 'PAYMENT_INFORMATION_REQUEST', 'PAYMENT_VERIFICATION_BLOCKAGE', 'RESCHEDULE_REJECTION']),
+  entityId: z.string().trim().min(1),
+  internalReason: z.string().trim().min(1).max(1000),
+  customerReasonCode: z.enum(CUSTOMER_REASON_CODES),
+  customerReasonText: z.string().trim().max(280).optional().nullable(),
+});
+
 export const reservationCancellationSchema = z.object({
   commandId: z.uuid(),
   expectedVersion: z.number().int().positive(),
   origin: z.enum(['CUSTOMER', 'STUDIO']),
-  reason: z.string().trim().min(1).max(1000),
+  ...customerCopyFields,
+}).superRefine((value, context) => {
+  if (value.origin === 'STUDIO' && !value.customerReasonCode) {
+    context.addIssue({ code: 'custom', path: ['customerReasonCode'], message: 'Le motif client est obligatoire pour une annulation Studio.' });
+  }
 });
 
 export const reservationStatusUpdateSchema = z
   .object({
     status: z.enum(Object.values(ReservationStatus)).optional(),
     reason: z.string().trim().min(1).max(1000).optional().nullable(),
+    internalReason: z.string().trim().min(1).max(1000).optional(),
+    customerReasonCode: z.enum(CUSTOMER_REASON_CODES).optional(),
+    customerReasonText: z.string().trim().max(280).optional().nullable(),
     notes: z.string().trim().optional().nullable(),
     commandId: z.uuid().optional(),
     expectedVersion: z.number().int().positive().optional(),
@@ -467,6 +498,13 @@ export const reservationStatusUpdateSchema = z
     if (sensitiveDecision && value.expectedVersion === undefined) {
       context.addIssue({ code: 'custom', path: ['expectedVersion'], message: 'Version attendue obligatoire.' });
     }
+    const adverse = value.status === ReservationStatus.REJECTED || value.status === ReservationStatus.EXPIRED;
+    if (adverse && !value.internalReason) {
+      context.addIssue({ code: 'custom', path: ['internalReason'], message: 'Le motif interne est obligatoire.' });
+    }
+    if (adverse && !value.customerReasonCode) {
+      context.addIssue({ code: 'custom', path: ['customerReasonCode'], message: 'Le motif client est obligatoire.' });
+    }
   });
 
 export const leadUpdateSchema = z
@@ -488,6 +526,13 @@ export const paymentVerificationSchema = z.object({
   ]),
   transactionRef: optionalString,
   reason: z.string().trim().min(1).max(1000).optional(),
+  internalReason: z.string().trim().min(1).max(1000).optional(),
+  customerReasonCode: z.enum(CUSTOMER_REASON_CODES).optional(),
+  customerReasonText: z.string().trim().max(280).optional().nullable(),
+}).superRefine((value, context) => {
+  const adverse = new Set<PaymentStatus>([PaymentStatus.REJECTED, PaymentStatus.PAYMENT_INFO_REQUIRED, PaymentStatus.VERIFICATION_BLOCKED]).has(value.status);
+  if (adverse && !value.internalReason) context.addIssue({ code: 'custom', path: ['internalReason'], message: 'Le motif interne est obligatoire.' });
+  if (adverse && !value.customerReasonCode) context.addIssue({ code: 'custom', path: ['customerReasonCode'], message: 'Le motif client est obligatoire.' });
 });
 
 export const paymentAddSchema = z.object({

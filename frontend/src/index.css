@@ -12,6 +12,48 @@
   box-shadow: 0 0 0 1px rgba(255, 138, 138, 0.35);
 }
 
+.transactional-whatsapp-consent {
+  --consent-text: var(--c-consent-text-on-dark);
+  --consent-muted: var(--c-consent-muted-on-dark);
+  margin-block: 1rem 1.25rem;
+  color: var(--consent-text);
+}
+
+.transactional-whatsapp-consent__label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--c-consent-border-on-dark);
+  border-radius: var(--radius-sm);
+  background: var(--c-consent-bg-on-dark);
+  color: var(--consent-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.transactional-whatsapp-consent__label input {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #25d366;
+}
+
+.transactional-whatsapp-consent__label:has(input:focus-visible) {
+  outline: 3px solid var(--c-consent-focus-on-dark);
+  outline-offset: 3px;
+}
+
+.transactional-whatsapp-consent__help {
+  margin: 0.4rem 0 0;
+  color: var(--consent-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 :root {
   /* Golden Studio Plus Palette - Afro-Luxe Moderne */
   --c-gold: #C5923A;
@@ -33,6 +75,11 @@
   --c-text-main: #1C2321;
   --c-text-muted: #5C6B66;
   --c-text-on-dark: #E2E8F0;
+  --c-consent-text-on-dark: #F7FAF9;
+  --c-consent-muted-on-dark: #D7E2DE;
+  --c-consent-bg-on-dark: rgba(255, 255, 255, 0.08);
+  --c-consent-border-on-dark: rgba(255, 255, 255, 0.38);
+  --c-consent-focus-on-dark: #F4C86A;
 
   /* Typography */
   --font-heading: 'Playfair Display', serif;

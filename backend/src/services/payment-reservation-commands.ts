@@ -11,6 +11,7 @@ import {
   type Payment,
   type Reservation,
 } from '../generated/prisma/client.js';
+import { resolveCustomerDecisionCopy, type CustomerReasonCode, type PersistedCustomerDecisionCopy } from './customer-decision-copy.js';
 import { transitionPaymentStatus, transitionReservationStatus } from './status-transitions.js';
 import {
   normalizePaymentReference,
@@ -141,6 +142,9 @@ export type PaymentDecisionInput = {
   expectedVersion: number;
   status: PaymentStatus;
   reason?: string | null;
+  internalReason?: string | null;
+  customerReasonCode?: CustomerReasonCode;
+  customerReasonText?: string | null;
   transactionRef?: string | null;
   transactionRefNormalized?: string | null;
   admin: AdminUser;
@@ -290,16 +294,31 @@ export const executePaymentDecision = async (
       expectedVersion: input.expectedVersion,
       status: input.status,
       reason: input.reason?.trim() || null,
+      internalReason: input.internalReason?.trim() || null,
+      customerReasonCode: input.customerReasonCode ?? null,
+      customerReasonText: input.customerReasonText?.trim() || null,
       transactionRef: input.transactionRef ?? null,
     },
     admin: input.admin,
     execute: async (tx) => {
       const before = await tx.payment.findUnique({ where: { id: input.paymentId } });
       if (!before) throw new HttpError(404, 'PAYMENT_NOT_FOUND', 'Paiement introuvable.');
+      const reservationBefore = await tx.reservation.findUnique({ where: { id: before.reservationId }, include: { snapshot: true } });
+      if (!reservationBefore?.snapshot) throw new HttpError(409, 'RESERVATION_SNAPSHOT_REQUIRED', 'Le snapshot de réservation est absent.');
+      let customerCopy: PersistedCustomerDecisionCopy | undefined;
+      if (new Set<PaymentStatus>([PaymentStatus.REJECTED, PaymentStatus.PAYMENT_INFO_REQUIRED, PaymentStatus.VERIFICATION_BLOCKED]).has(input.status)) {
+        const context = input.status === PaymentStatus.REJECTED ? 'PAYMENT_REJECTION' : input.status === PaymentStatus.PAYMENT_INFO_REQUIRED ? 'PAYMENT_INFORMATION_REQUEST' : 'PAYMENT_VERIFICATION_BLOCKAGE';
+        customerCopy = resolveCustomerDecisionCopy(context, reservationBefore.snapshot.locale, {
+          internalReason: input.internalReason ?? '',
+          customerReasonCode: input.customerReasonCode as CustomerReasonCode,
+          customerReasonText: input.customerReasonText,
+        });
+      }
       const payment = await transitionPaymentStatus(tx, input.paymentId, {
         toStatus: input.status,
         expectedVersion: input.expectedVersion,
-        reason: input.reason,
+        reason: customerCopy?.internalReason ?? input.reason,
+        customerCopy,
         adminUserId: input.admin.id,
         actorType: 'ADMIN',
         transactionRef: input.transactionRef,
@@ -319,7 +338,7 @@ export const executePaymentDecision = async (
             oldPaymentStatus: before.status,
             newPaymentStatus: payment.status,
             reservationStatus: reservation.status,
-            reason: input.reason?.trim() || null,
+            internalReason: customerCopy?.internalReason ?? input.reason?.trim() ?? null,
             transactionReferenceUpdated: input.transactionRef !== undefined,
             result: 'SUCCESS',
           },
@@ -342,6 +361,9 @@ export type ReservationDecisionInput = {
   expectedVersion: number;
   status: typeof ReservationStatus.CONFIRMED | typeof ReservationStatus.REJECTED;
   reason?: string | null;
+  internalReason?: string | null;
+  customerReasonCode?: CustomerReasonCode;
+  customerReasonText?: string | null;
   admin: AdminUser;
 };
 
@@ -359,15 +381,22 @@ export const executeReservationDecision = async (
       expectedVersion: input.expectedVersion,
       status: input.status,
       reason: input.reason?.trim() || null,
+      internalReason: input.internalReason?.trim() || null,
+      customerReasonCode: input.customerReasonCode ?? null,
+      customerReasonText: input.customerReasonText?.trim() || null,
     },
     admin: input.admin,
     execute: async (tx) => {
-      const before = await tx.reservation.findUnique({ where: { id: input.reservationId } });
+      const before = await tx.reservation.findUnique({ where: { id: input.reservationId }, include: { snapshot: true } });
       if (!before) throw new HttpError(404, 'RESERVATION_NOT_FOUND', 'Réservation introuvable.');
+      const customerCopy = input.status === ReservationStatus.REJECTED
+        ? resolveCustomerDecisionCopy('RESERVATION_REJECTION', before.snapshot?.locale, { internalReason: input.internalReason ?? '', customerReasonCode: input.customerReasonCode as CustomerReasonCode, customerReasonText: input.customerReasonText })
+        : undefined;
       const reservation = await transitionReservationStatus(tx, input.reservationId, {
         toStatus: input.status,
         expectedVersion: input.expectedVersion,
-        reason: input.reason,
+        reason: customerCopy?.internalReason ?? input.reason,
+        customerCopy,
         adminUserId: input.admin.id,
         actorType: 'ADMIN',
         metadata: { commandId: input.commandId },
@@ -383,7 +412,7 @@ export const executeReservationDecision = async (
             actorRole: input.admin.role,
             oldReservationStatus: before.status,
             newReservationStatus: reservation.status,
-            reason: input.reason?.trim() || null,
+            internalReason: customerCopy?.internalReason ?? input.reason?.trim() ?? null,
             result: 'SUCCESS',
           },
         },
@@ -487,7 +516,9 @@ export type CancellationDecisionInput = {
   commandId: string;
   expectedVersion: number;
   origin: CancellationOrigin;
-  reason: string;
+  internalReason: string;
+  customerReasonCode?: CustomerReasonCode;
+  customerReasonText?: string | null;
   admin: AdminUser;
   now?: Date;
 };
@@ -502,8 +533,8 @@ const CANCELLATION_THRESHOLD_MS = 48 * 60 * 60 * 1000;
 export const executeCancellationDecision = async (
   input: CancellationDecisionInput,
 ): Promise<CommandOutcome<CancellationDecisionValue>> => {
-  const reason = input.reason.trim();
-  if (!reason) {
+  const internalReason = input.internalReason.trim();
+  if (!internalReason) {
     throw new HttpError(400, 'CANCELLATION_REASON_REQUIRED', 'Le motif de l’annulation est obligatoire.');
   }
   const requestedAt = input.now ?? new Date();
@@ -516,12 +547,17 @@ export const executeCancellationDecision = async (
     request: {
       expectedVersion: input.expectedVersion,
       origin: input.origin,
-      reason,
+      internalReason,
+      customerReasonCode: input.customerReasonCode ?? null,
+      customerReasonText: input.customerReasonText?.trim() || null,
     },
     admin: input.admin,
     execute: async (tx) => {
-      const before = await tx.reservation.findUnique({ where: { id: input.reservationId } });
+      const before = await tx.reservation.findUnique({ where: { id: input.reservationId }, include: { snapshot: true } });
       if (!before) throw new HttpError(404, 'RESERVATION_NOT_FOUND', 'Réservation introuvable.');
+      const customerCopy = input.origin === 'STUDIO'
+        ? resolveCustomerDecisionCopy('STUDIO_CANCELLATION', before.snapshot?.locale, { internalReason, customerReasonCode: input.customerReasonCode as CustomerReasonCode, customerReasonText: input.customerReasonText })
+        : undefined;
       const payment = await tx.payment.findFirst({
         where: {
           reservationId: before.id,
@@ -551,7 +587,8 @@ export const executeCancellationDecision = async (
       const reservation = await transitionReservationStatus(tx, input.reservationId, {
         toStatus: ReservationStatus.CANCELLED,
         expectedVersion: input.expectedVersion,
-        reason,
+        reason: internalReason,
+        customerCopy,
         adminUserId: input.admin.id,
         actorType: 'ADMIN',
         metadata: { commandId: input.commandId, cancellationPolicy: policy },
@@ -572,7 +609,7 @@ export const executeCancellationDecision = async (
               status: 'PENDING',
               amount: refundAmount,
               currency: 'XAF',
-              reason,
+              reason: internalReason,
               dueAt: new Date(requestedAt.getTime() + CANCELLATION_THRESHOLD_MS),
             },
           })
@@ -588,7 +625,9 @@ export const executeCancellationDecision = async (
             actorRole: input.admin.role,
             oldReservationStatus: before.status,
             newReservationStatus: reservation.status,
-            reason,
+            internalReason,
+            customerReasonCode: customerCopy?.customerReasonCode ?? null,
+            customerCopyVersion: customerCopy?.customerCopyVersion ?? null,
             cancellationPolicy: policy,
             financialTaskId: financialTask?.id ?? null,
             result: 'SUCCESS',

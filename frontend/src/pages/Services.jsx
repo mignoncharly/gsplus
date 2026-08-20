@@ -10,6 +10,7 @@ import { packageCtaLabel, packageView, shootingCategoriesForLocale } from '../li
 import { formatFcfa } from '../lib/display-formatters';
 import { cataloguePromotionsForLocale } from '../content/catalogue-promotions';
 import ServiceGallery from '../components/ServiceGallery';
+import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
 import { useLocale } from '../lib/i18n.js';
 import './Services.css';
 
@@ -176,10 +177,7 @@ const DevisForm = ({ context, options, formId }) => {
         <textarea id={`${formId}-message`} name="message" placeholder={t('Décrivez votre besoin en détail : formats, quantités, délais et budget indicatif.', 'Describe your needs in detail: formats, quantities, timeline and indicative budget.')} required minLength={10} rows="4" className="form-input devis-form-input" style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? `${formId}-message-error` : undefined}></textarea>
         {fieldErrors.message && <p id={`${formId}-message-error`} className="form-field-error" role="alert">{fieldErrors.message}</p>}
       </div>
-      <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', marginTop: '1rem', fontSize: '0.88rem' }}>
-        <input name="whatsappConsent" type="checkbox" style={{ marginTop: '0.2rem', accentColor: 'var(--c-gold)' }} />
-        <span>{t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')}</span>
-      </label>
+      <TransactionalWhatsAppConsent id={`${formId}-whatsapp-consent`} label={t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')} help={t('Si cette option est cochée, le numéro de téléphone doit rester joignable sur WhatsApp.', 'If selected, the phone number must be reachable on WhatsApp.')} errorId={fieldErrors.phone ? `${formId}-phone-error` : undefined} />
       {error && <p id={`${formId}-error`} role="alert" style={{ color: '#FED7D7', marginTop: '1rem', fontWeight: 700, textAlign: 'center' }}>{error}</p>}
       <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={submitting}>
         <Send size={18} />

@@ -169,6 +169,11 @@ export const getAdminReservation = async (id) => {
   return payload.data;
 };
 
+export const previewAdminCustomerDecision = async (data) => {
+  const payload = await apiFetch('/api/admin/communication-preview', { method: 'POST', body: JSON.stringify(data) });
+  return payload.data;
+};
+
 export const updateAdminReservation = async (id, data) => {
   const payload = await apiFetch(`/api/admin/reservations/${id}`, {
     method: 'PATCH',

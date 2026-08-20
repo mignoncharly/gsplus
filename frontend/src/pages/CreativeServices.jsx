@@ -7,6 +7,7 @@ import { validateContactFields, validationErrorsFromApi } from '../lib/contact-v
 import { validationSummaryForApiError } from '../lib/form-errors';
 import './CreativeServices.css';
 import { useLocale } from '../lib/i18n.js';
+import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
 
 const creativeServices = (locale) => locale === 'en' ? [
   { id: 1, title: 'Retouching & Restoration', desc: 'Restoration of old or altered photographs, advanced colour correction, cut-outs and removal of artistic imperfections.', icon: <ImageIcon size={32} color="var(--c-gold)" style={{ transition: 'all 0.3s ease' }} />, price: 'From 5,000 FCFA' },
@@ -213,10 +214,7 @@ const CreativeServices = () => {
                   {fieldErrors.message && <p id="creative-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                 </div>
                 
-                <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', margin: '1rem 0', fontSize: '0.88rem' }}>
-                  <input name="whatsappConsent" type="checkbox" style={{ marginTop: '0.2rem', accentColor: 'var(--c-gold)' }} />
-                  <span>{t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')}</span>
-                </label>
+                <TransactionalWhatsAppConsent id="creative-whatsapp-consent" label={t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')} help={t('Si cette option est cochée, le numéro de téléphone doit rester joignable sur WhatsApp.', 'If selected, the phone number must be reachable on WhatsApp.')} errorId={fieldErrors.phone ? 'creative-phone-error' : undefined} />
 
                 {error && (
                   <div id="creative-quote-error" role="alert" style={{ color: '#ff6b6b', background: 'rgba(255, 107, 107, 0.08)', border: '1px solid rgba(255, 107, 107, 0.25)', borderRadius: '4px', padding: '0.85rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

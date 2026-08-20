@@ -497,32 +497,34 @@ const AdminDashboard = () => {
     if (refreshReservationId) setSelectedRes(await getAdminReservation(refreshReservationId));
   };
 
-  const updateReservationStatus = (reservation, status, action = {}) => {
+  const updateReservationStatus = async (reservation, status, action = {}) => {
+    const scope = status === 'REJECTED' ? 'RESERVATION_REJECTION' : status === 'EXPIRED' ? 'RESERVATION_EXPIRATION' : status === 'CANCELLED' ? 'STUDIO_CANCELLATION' : null;
+    const decisionTools = scope ? await import('../lib/admin-customer-decision') : null;
     const needsReason = action.temporalOverride || action.requiresReason || ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(status);
     const fields = status === 'CANCELLED' ? [{
       name: 'origin', label: 'Origine de l’annulation', type: 'select', required: true, defaultValue: 'CUSTOMER',
       options: [{ value: 'CUSTOMER', label: 'Client' }, { value: 'STUDIO', label: 'Studio' }],
     }] : [];
-    if (needsReason) fields.push({ name: 'reason', label: 'Motif', type: 'textarea', required: true });
+    if (scope) fields.push(...decisionTools.customerDecisionFields(scope));
+    else if (needsReason) fields.push({ name: 'reason', label: 'Motif interne', type: 'textarea', required: true });
     const label = action.label || statusLabel(status);
     openActionDialog({
       title: action.temporalOverride ? 'Confirmer une dérogation temporelle' : 'Mettre à jour la réservation',
       summary: reservation.reference + ' · ' + statusLabel(reservation.status) + ' → ' + label,
-      consequence: action.temporalOverride ? 'La clôture anticipée et son motif seront audités.' : 'Le statut, le motif et l’auteur seront inscrits dans l’historique.',
+      consequence: scope ? 'La note interne reste privée. Seul le message prévisualisé sera transmis au client.' : action.temporalOverride ? 'La clôture anticipée et son motif seront audités.' : 'Le statut, le motif et l’auteur seront inscrits dans l’historique.',
       confirmLabel: label,
       destructive: Boolean(action.destructive || action.temporalOverride),
       fields,
+      ...(scope ? { preview: (values) => decisionTools.previewDecision(scope, reservation.id, values), previewRequired: status === 'CANCELLED' ? (values) => values.origin === 'STUDIO' : undefined } : {}),
       onConfirm: (values) => runDialogAction('Mise à jour de la réservation', async () => {
         if (status === 'CANCELLED') {
-          await cancelAdminReservation(reservation.id, {
-            commandId: window.crypto.randomUUID(), expectedVersion: reservation.version,
-            origin: values.origin, reason: values.reason.trim(),
-          });
+          await cancelAdminReservation(reservation.id, { commandId: window.crypto.randomUUID(), expectedVersion: reservation.version, origin: values.origin, internalReason: values.internalReason.trim(), customerReasonCode: values.customerReasonCode, customerReasonText: values.customerReasonText?.trim() || undefined });
           return;
         }
         const versioned = ['CONFIRMED', 'REJECTED', 'COMPLETED', 'NO_SHOW'].includes(status);
         await updateAdminReservation(reservation.id, {
-          status, reason: values.reason?.trim() || undefined,
+          status,
+          ...(scope ? { internalReason: values.internalReason.trim(), customerReasonCode: values.customerReasonCode, customerReasonText: values.customerReasonText?.trim() || undefined } : { reason: values.reason?.trim() || undefined }),
           ...(versioned ? { commandId: window.crypto.randomUUID(), expectedVersion: reservation.version } : {}),
           ...(action.temporalOverride ? { temporalOverride: true, overrideConfirmed: true } : {}),
         });
@@ -530,23 +532,24 @@ const AdminDashboard = () => {
     });
   };
 
-  const updateFirstPayment = (reservation, action) => {
+  const updateFirstPayment = async (reservation, action) => {
     const payment = reservation.payments?.[0];
-    if (!payment) {
-      setFeedback({ tab: 'reservations', type: 'error', message: 'Aucun paiement associé à cette réservation.' });
-      return;
-    }
+    if (!payment) { setFeedback({ tab: 'reservations', type: 'error', message: 'Aucun paiement associé à cette réservation.' }); return; }
+    const scope = action.status === 'REJECTED' ? 'PAYMENT_REJECTION' : action.status === 'PAYMENT_INFO_REQUIRED' ? 'PAYMENT_INFORMATION_REQUEST' : action.status === 'VERIFICATION_BLOCKED' ? 'PAYMENT_VERIFICATION_BLOCKAGE' : null;
+    const decisionTools = scope ? await import('../lib/admin-customer-decision') : null;
     const fields = [];
     if (action.requiresTransactionReference) fields.push({ name: 'transactionRef', label: 'Référence de transaction', required: true, defaultValue: payment.transactionRef || '' });
-    if (action.requiresReason) fields.push({ name: 'reason', label: 'Motif', type: 'textarea', required: true });
+    if (scope) fields.push(...decisionTools.customerDecisionFields(scope));
+    else if (action.requiresReason) fields.push({ name: 'reason', label: 'Motif interne', type: 'textarea', required: true });
     openActionDialog({
       title: 'Décision de paiement', summary: reservation.reference + ' · ' + action.label,
-      consequence: 'La décision sera versionnée et auditée.', confirmLabel: action.label,
+      consequence: scope ? 'La note interne reste privée. Seul le message prévisualisé sera transmis au client.' : 'La décision sera versionnée et auditée.', confirmLabel: action.label,
       destructive: Boolean(action.destructive), fields,
+      ...(scope ? { preview: (values) => decisionTools.previewDecision(scope, payment.id, values) } : {}),
       onConfirm: (values) => runDialogAction('Décision de paiement', () => verifyAdminPayment(payment.id, {
-        status: action.status, reason: values.reason?.trim() || undefined,
-        transactionRef: values.transactionRef?.trim() || undefined,
-        commandId: window.crypto.randomUUID(), expectedVersion: payment.version,
+        status: action.status,
+        ...(scope ? { internalReason: values.internalReason.trim(), customerReasonCode: values.customerReasonCode, customerReasonText: values.customerReasonText?.trim() || undefined } : { reason: values.reason?.trim() || undefined }),
+        transactionRef: values.transactionRef?.trim() || undefined, commandId: window.crypto.randomUUID(), expectedVersion: payment.version,
       }), reservation.id),
     });
   };
@@ -632,17 +635,19 @@ const AdminDashboard = () => {
     },
   });
 
-  const decideRescheduleRequest = (reservation, request, decision) => {
+  const decideRescheduleRequest = async (reservation, request, decision) => {
     const accepted = decision === 'ACCEPTED';
+    const decisionTools = !accepted ? await import('../lib/admin-customer-decision') : null;
     openActionDialog({
       title: accepted ? 'Accepter la demande de report' : 'Refuser la demande de report',
       summary: reservation.reference + ' · ' + dateTime(request.oldStartAt) + ' → ' + dateTime(request.requestedStartAt),
       consequence: accepted ? 'Le créneau sera déplacé après revalidation.' : 'Le créneau initial restera inchangé.',
       confirmLabel: accepted ? 'Accepter le report' : 'Refuser le report', destructive: !accepted,
-      fields: [{ name: 'reason', label: 'Motif de la décision', type: 'textarea', required: true }],
+      fields: accepted ? [{ name: 'internalReason', label: 'Note interne privée', type: 'textarea', required: true }] : decisionTools.customerDecisionFields('RESCHEDULE_REJECTION'),
+      ...(!accepted ? { preview: (values) => decisionTools.previewDecision('RESCHEDULE_REJECTION', request.id, values) } : {}),
       onConfirm: (values) => runDialogAction('Décision de report', () => decideAdminRescheduleRequest(request.id, {
-        commandId: window.crypto.randomUUID(), expectedVersion: request.version,
-        decision, reason: values.reason.trim(),
+        commandId: window.crypto.randomUUID(), expectedVersion: request.version, decision, internalReason: values.internalReason.trim(),
+        ...(!accepted ? { customerReasonCode: values.customerReasonCode, customerReasonText: values.customerReasonText?.trim() || undefined } : {}),
       }), reservation.id),
     });
   };
@@ -701,20 +706,19 @@ const AdminDashboard = () => {
     },
   });
 
-  const decideWithdrawalRequest = (reservation, request, decision) => {
+  const decideWithdrawalRequest = async (reservation, request, decision) => {
     const accepted = decision === 'ACCEPTED';
+    const decisionTools = !accepted ? await import('../lib/admin-customer-decision') : null;
     openActionDialog({
       title: accepted ? 'Accepter la demande de rétractation' : 'Refuser la demande de rétractation',
       summary: reservation.reference + ' · reçue ' + dateTime(request.receivedAt),
       consequence: 'La décision motivée sera auditée. L’annulation et tout remboursement restent des opérations séparées.',
       confirmLabel: accepted ? 'Accepter la rétractation' : 'Refuser la rétractation',
       destructive: !accepted,
-      fields: [{ name: 'reason', label: 'Analyse et motif de la décision', type: 'textarea', required: true }],
+      fields: accepted ? [{ name: 'internalReason', label: 'Analyse interne privée', type: 'textarea', required: true }] : decisionTools.customerDecisionFields('WITHDRAWAL_REJECTION', 4000),
       onConfirm: (values) => runDialogAction('Décision de rétractation', () => decideAdminWithdrawalRequest(request.id, {
-        commandId: window.crypto.randomUUID(),
-        expectedVersion: request.version,
-        decision,
-        reason: values.reason.trim(),
+        commandId: window.crypto.randomUUID(), expectedVersion: request.version, decision, internalReason: values.internalReason.trim(),
+        ...(!accepted ? { customerReasonCode: values.customerReasonCode, customerReasonText: values.customerReasonText?.trim() || undefined } : {}),
       }), reservation.id),
     });
   };
