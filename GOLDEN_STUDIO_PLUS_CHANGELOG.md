@@ -1,4 +1,14 @@
 # Changelog — Golden Studio Plus
+## 20 août 2026 — Phase 1 communication et consentement déployée
+
+- Révision runtime `2794a08bd9da173899cdc08a67056eaaa8f50d8e` poussée sur `codex/phase1-communication-20260820`, sans inclure les suppressions documentaires ni les binaires non suivis préexistants.
+- Frontière stricte déployée entre note interne privée et motif client FR/EN versionné; aperçu authentifié généré par le même renderer que l'outbox et exigé avant les décisions client concernées.
+- Messages d'annulation Studio et de rejet payé rendus financièrement neutres; E-20/E-21 restent réservés aux états et preuves persistés appropriés.
+- Consentement WhatsApp transactionnel partagé et accessible sur Services, Corporate, Contact et Services créatifs.
+- Sauvegarde PostgreSQL chiffrée vérifiée avant migration (`dadd5e35…d9f7d2`, catalogue 312 entrées); migration Phase 1 appliquée, production à 33/33.
+- Validation : backend 176/176 et build; frontend 98/98, lint/build/budgets/audit; matrice locale puis production FR/EN × desktop/mobile × Chromium/WebKit, 8/8 chacune.
+- Backend redémarré à `2026-08-20 12:46:46 UTC`; santé HTTPS 200, frontend `index-DKrVNJJc.js` servi. Les preuves de réception humaine e-mail et Meta/WhatsApp restent explicitement hors clôture.
+
 ## 20 août 2026 — Phase 0 figée, poussée et déployée
 
 - Révision applicative `c3888fa5606fc9a159f12a8e5c5ace04bd06fcfd` créée sur la branche isolée `codex/phase0-release-20260820` et poussée vers `origin` sans inclure les dix suppressions documentaires préexistantes ni les sources binaires non validées.
