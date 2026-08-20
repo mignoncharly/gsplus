@@ -1,4 +1,5 @@
 import { deliveryLabelOrigin } from '../catalogue/delivery-labels.js';
+import { taxonomyKeyForCategory } from '../catalogue/catalogue-model.js';
 import { HttpError } from '../errors/http-error.js';
 import {
   PackageVersionStatus,
@@ -14,6 +15,8 @@ const versionActors = {
   createdBy: { select: actorSelect },
   validatedBy: { select: actorSelect },
   publishedBy: { select: actorSelect },
+  taxonomy: { include: { locales: true } },
+  locales: { orderBy: { locale: 'asc' as const } },
 } satisfies Prisma.PackageVersionInclude;
 
 const adminPackageInclude = {
@@ -35,6 +38,8 @@ const legacyVersionData = (pack: Package, createdById?: string) => ({
   version: pack.publishedVersion ?? pack.version,
   name: pack.name,
   category: pack.category,
+  taxonomyKey: taxonomyKeyForCategory(pack.category),
+  englishEnabled: false,
   description: pack.description,
   content: pack.description ?? pack.name,
   inclusions: jsonValue(pack.options),
@@ -90,6 +95,10 @@ const versionProjection = (version: VersionWithActors | PackageVersion) => ({
   version: version.version,
   name: version.name,
   category: version.category,
+  taxonomyKey: version.taxonomyKey,
+  englishEnabled: version.englishEnabled,
+  taxonomy: 'taxonomy' in version ? version.taxonomy : null,
+  locales: 'locales' in version ? version.locales : [],
   description: version.description,
   content: version.content,
   inclusions: version.inclusions,
@@ -150,6 +159,10 @@ export const listPublishedPackages = async () => {
         where: { status: PackageVersionStatus.PUBLISHED },
         orderBy: { version: 'desc' },
         take: 1,
+        include: {
+          taxonomy: { include: { locales: true } },
+          locales: { where: { isEnabled: true }, orderBy: { locale: 'asc' } },
+        },
       },
     },
   });
@@ -163,6 +176,9 @@ export type PackageUpdate = {
   slug?: string;
   name?: string;
   category?: string;
+  taxonomyKey?: string;
+  englishEnabled?: boolean;
+  locales?: PackageLocaleUpdate[];
   description?: string | null;
   content?: string | null;
   inclusions?: string[] | null;
@@ -180,8 +196,41 @@ export type PackageUpdate = {
   sortOrder?: number;
 };
 
-export type PackageCreate = Required<Pick<PackageUpdate, 'slug' | 'name' | 'category' | 'price'>> &
-  PackageUpdate;
+export type PackageLocaleUpdate = {
+  locale: 'fr' | 'en';
+  name: string;
+  description?: string | null;
+  content: string;
+  inclusions: string[];
+  conditions: string;
+  deliveryLabel: string;
+  mandatoryWording: string;
+  options?: Prisma.InputJsonValue | null;
+  sourceReference: string;
+  approvedAt?: Date | null;
+  isEnabled?: boolean;
+};
+
+export type PackageCreate = Required<Pick<PackageUpdate, 'slug' | 'name' | 'category' | 'price'>> & PackageUpdate;
+
+const frenchLocaleFromCore = (input: { name: string; description?: string | null; content?: string | null; inclusions?: unknown; conditions?: string | null; deliveryLabel?: string | null; legalText?: string | null; options?: unknown }): PackageLocaleUpdate => ({
+  locale: 'fr', name: input.name, description: input.description ?? null, content: input.content ?? '', inclusions: Array.isArray(input.inclusions) ? input.inclusions.filter((item): item is string => typeof item === 'string') : [], conditions: input.conditions ?? '', deliveryLabel: input.deliveryLabel ?? '', mandatoryWording: input.legalText ?? '', options: input.options as Prisma.InputJsonValue ?? null, sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true,
+});
+
+const localeCreateData = (locale: PackageLocaleUpdate) => ({
+  locale: locale.locale,
+  name: locale.name,
+  description: locale.description ?? null,
+  content: locale.content,
+  inclusions: jsonValue(locale.inclusions),
+  conditions: locale.conditions,
+  deliveryLabel: locale.deliveryLabel,
+  mandatoryWording: locale.mandatoryWording,
+  options: jsonValue(locale.options),
+  sourceReference: locale.sourceReference,
+  approvedAt: locale.approvedAt ?? null,
+  isEnabled: locale.isEnabled ?? true,
+});
 
 const assertBookingConfiguration = (bookingMode: PackageBookingMode, durationMin: number | null) => {
   if (bookingMode === PackageBookingMode.DIRECT && durationMin === null) {
@@ -194,6 +243,8 @@ const draftData = (input: PackageCreate, packageId: string, version: number, cre
   version,
   name: input.name,
   category: input.category,
+  taxonomyKey: input.taxonomyKey ?? taxonomyKeyForCategory(input.category),
+  englishEnabled: input.englishEnabled ?? false,
   description: input.description ?? null,
   content: input.content ?? null,
   inclusions: jsonValue(input.inclusions),
@@ -240,7 +291,9 @@ export const createPackageWithVersion = async (input: PackageCreate, adminUserId
         sortOrder: input.sortOrder ?? 0,
       },
     });
-    await tx.packageVersion.create({ data: draftData(input, created.id, 1, adminUserId) });
+    const version = await tx.packageVersion.create({ data: draftData(input, created.id, 1, adminUserId) });
+    const locales = input.locales?.length ? input.locales : [frenchLocaleFromCore(input)];
+    await tx.packageVersionLocale.createMany({ data: locales.map((locale) => ({ packageVersionId: version.id, ...localeCreateData(locale) })) });
     return created.id;
   });
   return loadAdminPackage(packageId);
@@ -254,7 +307,7 @@ export const duplicatePackageWithVersion = async (
   const createdId = await prisma.$transaction(async (tx) => {
     const source = await tx.package.findUnique({
       where: { id: packageId },
-      include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
+      include: { versions: { orderBy: { version: 'desc' }, take: 1, include: { locales: true } } },
     });
     if (!source) throw new HttpError(404, 'PACKAGE_NOT_FOUND', 'Formule introuvable.');
     const version = source.versions[0] ?? await ensurePublishedPackageVersion(tx, source);
@@ -292,12 +345,14 @@ export const duplicatePackageWithVersion = async (
         sortOrder: source.sortOrder + 1,
       },
     });
-    await tx.packageVersion.create({
+    const duplicatedVersion = await tx.packageVersion.create({
       data: {
         packageId: created.id,
         version: 1,
         name: input.name ?? `${version.name} — copie`,
         category: version.category,
+        taxonomyKey: version.taxonomyKey,
+        englishEnabled: version.englishEnabled,
         description: version.description,
         content: version.content,
         inclusions: jsonValue(version.inclusions),
@@ -315,6 +370,9 @@ export const duplicatePackageWithVersion = async (
         createdById: adminUserId,
       },
     });
+    if (version.locales.length) {
+      await tx.packageVersionLocale.createMany({ data: version.locales.map((locale) => ({ packageVersionId: duplicatedVersion.id, ...localeCreateData(locale as PackageLocaleUpdate), approvedAt: null })) });
+    }
     return created.id;
   });
   return loadAdminPackage(createdId);
@@ -323,6 +381,8 @@ export const duplicatePackageWithVersion = async (
 const mergedDraft = (version: PackageVersion, input: PackageUpdate) => ({
   name: input.name ?? version.name,
   category: input.category ?? version.category,
+  taxonomyKey: input.taxonomyKey ?? (input.category ? taxonomyKeyForCategory(input.category) : version.taxonomyKey),
+  englishEnabled: input.englishEnabled ?? version.englishEnabled,
   description: input.description === undefined ? version.description : input.description,
   content: input.content === undefined ? version.content : input.content,
   inclusions: input.inclusions === undefined ? jsonValue(version.inclusions) : jsonValue(input.inclusions),
@@ -349,7 +409,7 @@ export const updatePackageWithVersion = async (
   await prisma.$transaction(async (tx) => {
     let pack = await tx.package.findUnique({
       where: { id: packageId },
-      include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
+      include: { versions: { orderBy: { version: 'desc' }, take: 1, include: { locales: true, taxonomy: true } } },
     });
     if (!pack) throw new HttpError(404, 'PACKAGE_NOT_FOUND', 'Formule introuvable.');
 
@@ -358,7 +418,7 @@ export const updatePackageWithVersion = async (
     }
 
     const versionFields: (keyof PackageUpdate)[] = [
-      'name', 'category', 'description', 'content', 'inclusions', 'conditions', 'price',
+      'name', 'category', 'taxonomyKey', 'englishEnabled', 'locales', 'description', 'content', 'inclusions', 'conditions', 'price',
       'currency', 'durationMin', 'bookingMode', 'deliveryLabel', 'options', 'legalText', 'effectiveAt',
     ];
     if (!versionFields.some((field) => input[field] !== undefined)) {
@@ -376,8 +436,8 @@ export const updatePackageWithVersion = async (
 
     let current = pack.versions[0];
     if (!current) {
-      current = await ensurePublishedPackageVersion(tx, pack);
-      pack = { ...pack, publishedVersion: current.version, versions: [current] };
+      await ensurePublishedPackageVersion(tx, pack);
+      current = await tx.packageVersion.findFirstOrThrow({ where: { packageId }, orderBy: { version: 'desc' }, include: { locales: true, taxonomy: true } });
     }
     const values = mergedDraft(current, input);
     assertBookingConfiguration(values.bookingMode, values.durationMin);
@@ -385,11 +445,30 @@ export const updatePackageWithVersion = async (
 
     if (current.status === PackageVersionStatus.DRAFT || current.status === PackageVersionStatus.VALIDATED) {
       await tx.packageVersion.update({ where: { id: current.id }, data: values });
+      if (input.locales) {
+        await tx.packageVersionLocale.deleteMany({ where: { packageVersionId: current.id } });
+        await tx.packageVersionLocale.createMany({ data: input.locales.map((locale) => ({ packageVersionId: current.id, ...localeCreateData(locale) })) });
+      } else {
+        const french = frenchLocaleFromCore(values);
+        await tx.packageVersionLocale.upsert({ where: { packageVersionId_locale: { packageVersionId: current.id, locale: 'fr' } }, update: localeCreateData(french), create: { packageVersionId: current.id, ...localeCreateData(french) } });
+      }
     } else {
       nextVersion = Math.max(pack.version, current.version) + 1;
-      await tx.packageVersion.create({
+      const createdVersion = await tx.packageVersion.create({
         data: { packageId, version: nextVersion, ...values, createdById: adminUserId },
       });
+      const locales = input.locales ?? await tx.packageVersionLocale.findMany({ where: { packageVersionId: current.id } });
+      if (locales.length) {
+        await tx.packageVersionLocale.createMany({ data: locales.map((locale) => ({
+          packageVersionId: createdVersion.id,
+          ...localeCreateData(locale as PackageLocaleUpdate),
+          approvedAt: input.locales ? locale.approvedAt : null,
+        })) });
+      }
+      if (!input.locales) {
+        const french = frenchLocaleFromCore(values);
+        await tx.packageVersionLocale.upsert({ where: { packageVersionId_locale: { packageVersionId: createdVersion.id, locale: 'fr' } }, update: localeCreateData(french), create: { packageVersionId: createdVersion.id, ...localeCreateData(french) } });
+      }
     }
 
     const hasPublished = pack.publishedVersion !== null;
@@ -427,17 +506,25 @@ const requireCurrentVersion = async (
 ) => {
   const pack = await tx.package.findUnique({
     where: { id: packageId },
-    include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
+    include: { versions: { orderBy: { version: 'desc' }, take: 1, include: { locales: true, taxonomy: true } } },
   });
   if (!pack) throw new HttpError(404, 'PACKAGE_NOT_FOUND', 'Formule introuvable.');
-  const current = pack.versions[0] ?? await ensurePublishedPackageVersion(tx, pack);
+  if (!pack.versions[0]) {
+    await ensurePublishedPackageVersion(tx, pack);
+    const current = await tx.packageVersion.findFirstOrThrow({ where: { packageId }, orderBy: { version: 'desc' }, include: { locales: true, taxonomy: true } });
+    if (current.version !== expectedVersion) throw new HttpError(409, 'PACKAGE_VERSION_CONFLICT', 'La formule a été modifiée. Actualisez avant de continuer.');
+    return { pack, current };
+  }
+  const current = pack.versions[0];
   if (current.version !== expectedVersion) {
     throw new HttpError(409, 'PACKAGE_VERSION_CONFLICT', 'La formule a été modifiée. Actualisez avant de continuer.');
   }
   return { pack, current };
 };
 
-const assertPublishable = (version: PackageVersion) => {
+type PublishableVersion = PackageVersion & { locales: Array<{ locale: string; name: string; content: string; inclusions: Prisma.JsonValue; conditions: string; deliveryLabel: string; mandatoryWording: string; isEnabled: boolean }>; taxonomy: { isActive: boolean } | null };
+
+export const assertPublishable = (version: PublishableVersion) => {
   const missing: string[] = [];
   if (!version.name.trim()) missing.push('name');
   if (version.price < 0) missing.push('price');
@@ -450,6 +537,14 @@ const assertPublishable = (version: PackageVersion) => {
   if (!version.legalText?.trim()) missing.push('legalText');
   if (!version.deliveryLabel?.trim()) missing.push('deliveryLabel');
   if (!version.effectiveAt) missing.push('effectiveAt');
+  if (!version.taxonomyKey || !version.taxonomy?.isActive) missing.push('taxonomyKey');
+  const requiredLocales = version.englishEnabled ? ['fr', 'en'] : ['fr'];
+  for (const locale of requiredLocales) {
+    const localized = version.locales.find((item) => item.locale === locale && item.isEnabled);
+    if (!localized || !localized.name.trim() || !localized.content.trim() || !Array.isArray(localized.inclusions) || localized.inclusions.length === 0 || !localized.conditions.trim() || !localized.deliveryLabel.trim() || !localized.mandatoryWording.trim()) {
+      missing.push(`locales.${locale}`);
+    }
+  }
   if (missing.length > 0) {
     throw new HttpError(409, 'PACKAGE_PUBLICATION_FIELDS_REQUIRED', 'Complétez tous les champs obligatoires avant validation.', { fields: missing });
   }

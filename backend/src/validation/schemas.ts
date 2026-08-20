@@ -221,10 +221,28 @@ const packageSlug = z
   .max(100)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Utilisez uniquement des minuscules, chiffres et tirets.');
 
+const packageLocaleSchema = z.object({
+  locale: z.enum(['fr', 'en']),
+  name: requiredString,
+  description: z.string().trim().nullable().optional(),
+  content: z.string().trim().min(10),
+  inclusions: z.array(z.string().trim().min(1).max(500)).min(1).max(50),
+  conditions: z.string().trim().min(10),
+  deliveryLabel: requiredString,
+  mandatoryWording: z.string().trim().min(10),
+  options: z.json().nullable().optional(),
+  sourceReference: requiredString,
+  approvedAt: z.coerce.date().nullable().optional(),
+  isEnabled: z.boolean().optional(),
+});
+
 const packageFieldsSchema = z.object({
   slug: packageSlug,
   name: requiredString,
   category: requiredString,
+  taxonomyKey: z.enum(['portraits-identite', 'couples-familles-groupes', 'maternite-bebe-enfant', 'anniversaires', 'fiancailles-pre-mariage', 'evenements', 'createurs-entreprises', 'privileges-golden-promotion']),
+  englishEnabled: z.boolean(),
+  locales: z.array(packageLocaleSchema).min(1).max(2).refine((items) => new Set(items.map((item) => item.locale)).size === items.length, { message: 'Chaque langue doit être unique.' }),
   description: z.string().trim().nullable(),
   content: z.string().trim().min(10).nullable(),
   inclusions: z.array(z.string().trim().min(1).max(500)).min(1).max(50).nullable(),
@@ -244,6 +262,9 @@ const packageFieldsSchema = z.object({
 });
 
 export const packageCreateSchema = packageFieldsSchema.extend({
+  taxonomyKey: packageFieldsSchema.shape.taxonomyKey.optional(),
+  englishEnabled: packageFieldsSchema.shape.englishEnabled.optional().default(false),
+  locales: packageFieldsSchema.shape.locales.optional(),
   description: packageFieldsSchema.shape.description.optional().default(null),
   content: packageFieldsSchema.shape.content.optional().default(null),
   inclusions: packageFieldsSchema.shape.inclusions.optional().default(null),
@@ -290,6 +311,26 @@ export const packageValidationSchema = z.object({
 export const packageVersionCommandSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
 });
+
+export const catalogueTaxonomyUpdateSchema = z.object({
+  sortOrder: z.coerce.number().int().min(0),
+  isActive: z.boolean(),
+  labels: z.object({ fr: requiredString, en: requiredString }),
+});
+const catalogueBenefitLocaleSchema = z.object({
+  locale: z.enum(['fr', 'en']), name: requiredString, advantage: requiredString,
+  conditions: z.string().trim().min(10), applicationLabel: requiredString,
+  mandatoryWording: z.string().trim().min(10), sourceReference: requiredString,
+  approvedAt: z.coerce.date().nullable().optional(), isEnabled: z.boolean().optional(),
+});
+export const catalogueBenefitCreateSchema = z.object({
+  code: z.string().trim().min(2).max(50).regex(/^[A-Z0-9_]+$/),
+  taxonomyKey: packageFieldsSchema.shape.taxonomyKey,
+  applicationMode: z.string().trim().min(2).max(50), sortOrder: z.coerce.number().int().min(0),
+  effectiveAt: z.coerce.date().nullable(), locales: z.array(catalogueBenefitLocaleSchema).length(2),
+});
+export const catalogueBenefitUpdateSchema = catalogueBenefitCreateSchema.omit({ code: true }).extend({ expectedVersion: z.coerce.number().int().positive() });
+
 
 export const reservationRescheduleSchema = z.object({
   startAt: z.coerce.date(),

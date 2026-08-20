@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Camera, Palette, Printer, Image as ImageIcon, FileText, LayoutTemplate, Shirt, BookOpen, Frame, CheckCircle2, Clock3, Images, MessageCircle, Sparkles, Send } from 'lucide-react';
-import { getPackages, submitQuoteRequest } from '../lib/api';
+import { getCatalogue, submitQuoteRequest } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
 import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
 import { validationSummaryForApiError } from '../lib/form-errors';
-import { packageCtaLabel, packageView, shootingCategoriesForLocale } from '../lib/packages';
+import { catalogueBenefitView, packageCtaLabel, packageView, shootingCategoriesForLocale } from '../lib/packages';
 import { formatFcfa } from '../lib/display-formatters';
-import { cataloguePromotionsForLocale } from '../content/catalogue-promotions';
 import ServiceGallery from '../components/ServiceGallery';
 import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
 import { useLocale } from '../lib/i18n.js';
@@ -193,15 +192,20 @@ const Services = () => {
   const [activeTab, setActiveTab] = useState('shooting');
   const [shootingFilter, setShootingFilter] = useState('all');
   const [packages, setPackages] = useState([]);
+  const [taxonomy, setTaxonomy] = useState([]);
+  const [benefits, setBenefits] = useState([]);
   const [packagesError, setPackagesError] = useState('');
   const [packagesLoading, setPackagesLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    getPackages()
-      .then((items) => {
-        if (isMounted) setPackages(items.map((item) => packageView(item, locale)));
+    getCatalogue()
+      .then((catalogue) => {
+        if (!isMounted) return;
+        setPackages(catalogue.packages.map((item) => packageView(item, locale)));
+        setTaxonomy(catalogue.taxonomy);
+        setBenefits(catalogue.benefits.map((item) => catalogueBenefitView(item, locale)));
       })
       .catch(() => {
         if (isMounted) setPackagesError(locale === 'en' ? 'Unable to load pricing from the server.' : 'Impossible de charger les tarifs depuis le serveur.');
@@ -298,7 +302,7 @@ const Services = () => {
               {activeTab === 'shooting' && (
                 <div>
                   <div className="flex justify-center gap-4 mb-8" style={{ flexWrap: 'wrap' }}>
-                    {shootingCategoriesForLocale(locale).map(cat => (
+                    {shootingCategoriesForLocale(taxonomy, locale).map(cat => (
                       <button
                         key={cat.key}
                         className={`btn ${shootingFilter === cat.key ? 'btn-primary' : 'btn-secondary glass'}`}
@@ -323,7 +327,7 @@ const Services = () => {
                         {pack.isPromo && <div className="promo-badge">PROMO</div>}
                         
                         <span className="category-label">
-                          {shootingCategoriesForLocale(locale).find(c => c.key === pack.cat)?.label}
+                          {shootingCategoriesForLocale(taxonomy, locale).find(c => c.key === pack.cat)?.label}
                         </span>
                         
                         <h3>{pack.name}</h3>
@@ -386,10 +390,10 @@ const Services = () => {
                       {t('Ces avantages sont vérifiés et appliqués avec l’équipe lors de votre échange.', 'These benefits are confirmed and applied with the team during your conversation.')}
                     </p>
                     <div className="pack-grid">
-                      {cataloguePromotionsForLocale(locale).map((promotion) => (
+                      {benefits.map((promotion) => (
                         <article key={promotion.code} className="pack-card-premium">
                           <div className="promo-badge">PROMO</div>
-                          <span className="category-label">{t('Privilèges Golden', 'Golden privileges')}</span>
+                          <span className="category-label">{promotion.categoryLabel}</span>
                           <h3>{promotion.name}</h3>
                           <p className="price">{promotion.advantage}</p>
                           <p>{promotion.conditions}</p>

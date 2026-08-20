@@ -26,7 +26,8 @@
     "legal:owner:publish": "tsx scripts/publish-owner-legal-documents.ts",
     "email:zoho-smtp-logs:check": "tsx scripts/check-zoho-mail-smtp-logs.ts",
     "qa:phase17": "node scripts/run-phase17-production-qa.mjs",
-    "qa:phase17-reconcile": "node scripts/reconcile-phase17-production-qa.mjs"
+    "qa:phase17-reconcile": "node scripts/reconcile-phase17-production-qa.mjs",
+    "catalogue:phase3": "tsx scripts/reconcile-phase3-catalogue.ts"
   },
   "keywords": [],
   "author": "",

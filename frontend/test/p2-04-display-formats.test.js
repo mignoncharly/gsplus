@@ -4,10 +4,7 @@ import test from 'node:test';
 
 import { formatBusinessDateKey, formatBusinessDateTime } from '../src/lib/business-time.js';
 import { formatFcfa } from '../src/lib/display-formatters.js';
-import {
-  normalizeFrenchPackageName,
-  PACKAGE_CATEGORY_LABELS,
-} from '../src/lib/packages.js';
+import { normalizeFrenchPackageName } from '../src/lib/packages.js';
 import { STATUS_LABELS, statusLabel } from '../src/lib/status-labels.js';
 
 test('P2-04 centralise les statuts et les termes français affichés', () => {
@@ -18,8 +15,6 @@ test('P2-04 centralise les statuts et les termes français affichés', () => {
   assert.equal(statusLabel(''), '—');
   assert.equal(Object.isFrozen(STATUS_LABELS), true);
 
-  assert.equal(PACKAGE_CATEGORY_LABELS.maternite, 'Maternité');
-  assert.equal(PACKAGE_CATEGORY_LABELS.fiancailles, 'Fiançailles & Pré-mariage');
   assert.equal(
     normalizeFrenchPackageName('Maternite Bebe Fiancailles Pre-mariage Decouverte'),
     'Maternité Bébé Fiançailles Pré-mariage Découverte',

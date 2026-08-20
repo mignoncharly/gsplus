@@ -1,6 +1,7 @@
 import { PackageVersionStatus } from '../src/generated/prisma/client.js';
 import { OFFICIAL_CATALOGUE_OFFERS, assertOfficialCatalogue } from '../src/catalogue/golden-studio-plus-2026-08-04.js';
 import { prisma } from '../src/db/prisma.js';
+import { packageLocalesForOffer, taxonomyKeyForCategory } from '../src/catalogue/catalogue-model.js';
 
 const normalizeJson = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(normalizeJson);
@@ -28,6 +29,7 @@ const main = async () => {
         where: { status: PackageVersionStatus.DRAFT },
         orderBy: { version: 'desc' },
         take: 1,
+        include: { locales: true },
       },
     },
   });
@@ -42,6 +44,9 @@ const main = async () => {
     if (!draft) fields.push('draft');
     if (pack && draft) {
       const scalarChecks = {
+        taxonomyKey: draft.taxonomyKey === taxonomyKeyForCategory(offer.category),
+        englishEnabled: draft.englishEnabled,
+        locales: packageLocalesForOffer(offer).every((locale) => draft.locales.some((item) => item.locale === locale.locale && item.name === locale.name && item.content === locale.content && equalJson(item.inclusions, locale.inclusions) && item.conditions === locale.conditions && item.deliveryLabel === locale.deliveryLabel && item.mandatoryWording === locale.mandatoryWording)),
         name: draft.name === offer.name,
         category: draft.category === offer.category,
         description: draft.description === offer.description,

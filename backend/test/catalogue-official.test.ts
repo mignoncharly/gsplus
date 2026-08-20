@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PackageBookingMode } from '../src/generated/prisma/client.js';
+import { PackageBookingMode, PackageVersionStatus } from '../src/generated/prisma/client.js';
 import {
   MANUAL_CATALOGUE_PROMOTIONS,
   OFFICIAL_CATALOGUE_OFFERS,
@@ -8,7 +8,9 @@ import {
   OWNER_CATALOGUE_AMENDMENTS,
   assertOfficialCatalogue,
 } from '../src/catalogue/golden-studio-plus-2026-08-04.js';
+import { CATALOGUE_BENEFITS, CATALOGUE_TAXONOMY, packageLocalesForOffer, taxonomyKeyForCategory } from '../src/catalogue/catalogue-model.js';
 import { assertBookableSlot, packageBookingRules } from '../src/services/booking-slots.js';
+import { assertPublishable } from '../src/services/packages.js';
 import { addBusinessDays, businessDayOfWeek, businessLocalToInstant } from '../src/utils/business-time.js';
 
 const GENERIC_DELIVERY = 'Pour connaître les modalités et délais de livraison de cette offre, veuillez nous contacter.';
@@ -98,4 +100,42 @@ describe('catalogue officiel français du 4 août 2026', () => {
       'MANUAL_CONTACT',
     ]);
   });
+
+
+  it('définit exactement huit sections stables avec libellés FR et EN et une seule section par offre', () => {
+    expect(CATALOGUE_TAXONOMY).toHaveLength(8);
+    expect(new Set(CATALOGUE_TAXONOMY.map((item) => item.key)).size).toBe(8);
+    expect(CATALOGUE_TAXONOMY.map((item) => item.labels.fr)).toEqual([
+      'Portraits & identité', 'Couples, familles & groupes', 'Maternité, bébé & enfant', 'Anniversaires',
+      'Fiançailles & pré-mariage', 'Événements', 'Créateurs & entreprises', 'Privilèges Golden — Promotion',
+    ]);
+    expect(CATALOGUE_TAXONOMY.every((item) => item.labels.fr && item.labels.en)).toBe(true);
+    expect(OFFICIAL_CATALOGUE_OFFERS.map((offer) => taxonomyKeyForCategory(offer.category))).toHaveLength(35);
+  });
+
+  it('versionne les contenus FR/EN complets et les deux avantages catalogue', () => {
+    for (const offer of OFFICIAL_CATALOGUE_OFFERS) {
+      const locales = packageLocalesForOffer(offer);
+      expect(locales.map((item) => item.locale)).toEqual(['fr', 'en']);
+      expect(locales.every((item) => item.name && item.content && item.inclusions.length && item.conditions && item.deliveryLabel && item.mandatoryWording)).toBe(true);
+    }
+    expect(CATALOGUE_BENEFITS.map((benefit) => benefit.code)).toEqual(['STUDENT', 'REFERRAL']);
+    expect(CATALOGUE_BENEFITS.every((benefit) => benefit.locales.fr && benefit.locales.en)).toBe(true);
+  });
+
+  it('bloque la publication sans taxonomie connue ou avec une langue activée incomplète', () => {
+    const base = {
+      id: 'version', packageId: 'package', version: 1, name: 'Test', category: 'Tests', taxonomyKey: 'portraits-identite',
+      englishEnabled: true, description: 'Description complète', content: 'Contenu complet', inclusions: ['Séance'], conditions: 'Conditions complètes',
+      price: 10_000, currency: 'XAF', durationMin: 30, bookingMode: PackageBookingMode.DIRECT, deliveryLabel: 'Livraison',
+      options: null, legalText: 'Mentions obligatoires', legalApprovedAt: null, status: PackageVersionStatus.DRAFT,
+      effectiveAt: new Date('2026-08-20T00:00:00Z'), validatedAt: null, validatedById: null, publishedAt: null, publishedById: null,
+      archivedAt: null, createdById: null, createdAt: new Date(), taxonomy: { isActive: true },
+      locales: ['fr', 'en'].map((locale) => ({ locale, name: 'Name', content: 'Content', inclusions: ['Item'], conditions: 'Conditions', deliveryLabel: 'Delivery', mandatoryWording: 'Terms', isEnabled: true })),
+    };
+    expect(() => assertPublishable(base as never)).not.toThrow();
+    expect(() => assertPublishable({ ...base, taxonomy: null } as never)).toThrowError(expect.objectContaining({ code: 'PACKAGE_PUBLICATION_FIELDS_REQUIRED' }));
+    expect(() => assertPublishable({ ...base, locales: base.locales.filter((item) => item.locale === 'fr') } as never)).toThrowError(expect.objectContaining({ code: 'PACKAGE_PUBLICATION_FIELDS_REQUIRED' }));
+  });
+
 });

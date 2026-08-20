@@ -35,12 +35,14 @@ test('le parcours de réservation expose les trois documents et sépare les cons
 
 test('package display normalizes approved accents without mutating source data', () => {
   const original = {
-    id: 'p1', slug: 'pre-mariage-decouverte', name: 'Pre-mariage Decouverte',
-    category: 'Fiancailles & Pre-mariage', price: 40000, durationMin: 480, isRange: true,
+    id: 'p1', slug: 'legacy', name: 'Pre-mariage Decouverte', category: 'Fiancailles & Pre-mariage', taxonomyKey: 'fiancailles-pre-mariage',
+    taxonomy: { key: 'fiancailles-pre-mariage', locales: [{ locale: 'fr', label: 'Fiançailles & pré-mariage' }] },
+    locales: [{ locale: 'fr', isEnabled: true, name: 'Pré-mariage Découverte', description: null, content: 'Contenu approuvé', inclusions: ['Séance'], conditions: 'Conditions approuvées', deliveryLabel: 'Sur échange', mandatoryWording: 'CGV applicables' }],
+    price: 40000, durationMin: 480, isRange: true,
   };
   const displayed = packageView(original);
   assert.equal(displayed.name, 'Pré-mariage Découverte');
-  assert.equal(displayed.categoryLabel, 'Fiançailles & Pré-mariage');
+  assert.equal(displayed.categoryLabel, 'Fiançailles & pré-mariage');
   assert.equal(displayed.priceLabel, 'À partir de 40 000 FCFA');
   assert.equal(displayed.durationLabel, '8h');
   assert.equal(original.name, 'Pre-mariage Decouverte');

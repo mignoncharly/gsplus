@@ -13,6 +13,7 @@ import { createLeadSubmission } from '../services/leads.js';
 import { createOrRefreshReservationIntent } from '../services/reservation-intents.js';
 import { createReservation } from '../services/reservations.js';
 import { listPublishedPackages } from '../services/packages.js';
+import { listPublicCatalogue } from '../services/catalogue.js';
 import { publicMediaRightsWhere } from '../services/media-rights.js';
 import {
   availabilityQuerySchema,
@@ -24,6 +25,13 @@ import {
 } from '../validation/schemas.js';
 
 const router = Router();
+router.get(
+  '/catalogue',
+  asyncHandler(async (_req, res) => {
+    res.json({ data: await listPublicCatalogue() });
+  }),
+);
+
 router.get(
   '/packages',
   asyncHandler(async (_req, res) => {

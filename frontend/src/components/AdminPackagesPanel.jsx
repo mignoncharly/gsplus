@@ -48,10 +48,12 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
   });
 
   const inclusionsText = (pack) => Array.isArray(pack?.inclusions) ? pack.inclusions.join('\n') : '';
+  const taxonomyOptions = Array.from(new Map(packs.map((pack) => { const taxonomy = pack.currentVersion?.taxonomy; const label = taxonomy?.locales?.find((item) => item.locale === 'fr')?.label || pack.category; return [pack.taxonomyKey, { value: pack.taxonomyKey, label }]; }).filter(([key]) => key)).values());
+  const localized = (pack, locale) => pack?.currentVersion?.locales?.find((item) => item.locale === locale) || pack?.locales?.find((item) => item.locale === locale);
   const fields = (pack = {}) => [
     { name: 'name', label: 'Nom', required: true, defaultValue: pack.name || '' },
     { name: 'slug', label: 'Identifiant URL', required: true, defaultValue: pack.slug || '', validate: (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value)) ? '' : 'Utilisez uniquement minuscules, chiffres et tirets.' },
-    { name: 'category', label: 'Catégorie', required: true, defaultValue: pack.category || '' },
+    { name: 'taxonomyKey', label: 'Section publique', type: 'select', required: true, defaultValue: pack.taxonomyKey || taxonomyOptions[0]?.value || '', options: taxonomyOptions },
     { name: 'price', label: 'Montant', type: 'number', required: true, defaultValue: String(pack.price ?? 0), min: '0', validate: (value) => Number(value) >= 0 ? '' : 'Le montant doit être positif ou nul.' },
     { name: 'currency', label: 'Devise', type: 'select', required: true, defaultValue: pack.currency || 'XAF', options: [{ value: 'XAF', label: 'XAF — franc CFA' }] },
     { name: 'bookingMode', label: 'Mode de réservation', type: 'select', required: true, defaultValue: pack.bookingMode || 'DIRECT', options: [{ value: 'DIRECT', label: 'Réservation directe' }, { value: 'CONTACT', label: 'Prise de contact' }] },
@@ -64,6 +66,14 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     { name: 'effectiveAt', label: 'Date d’effet à Douala', type: 'datetime-local', required: true, defaultValue: pack.effectiveAt ? businessDateTimeLocalValue(pack.effectiveAt) : businessDateTimeLocalValue(new Date()) },
     { name: 'deliveryLabel', label: 'Délai de livraison', required: true, defaultValue: pack.deliveryLabel || '' },
     { name: 'sortOrder', label: 'Ordre d’affichage', type: 'number', required: true, defaultValue: String(pack.sortOrder ?? 0), min: '0' },
+    { name: 'englishEnabled', label: 'Catalogue anglais', type: 'select', required: true, defaultValue: String(pack.englishEnabled ?? true), options: [{ value: 'true', label: 'Activé' }, { value: 'false', label: 'Désactivé' }] },
+    { name: 'englishName', label: 'Nom anglais', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.name || '' },
+    { name: 'englishDescription', label: 'Résumé anglais', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.description || '' },
+    { name: 'englishContent', label: 'Contenu anglais', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.content || '' },
+    { name: 'englishInclusions', label: 'Inclusions anglaises — une par ligne', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: Array.isArray(localized(pack, 'en')?.inclusions) ? localized(pack, 'en').inclusions.join('\n') : '' },
+    { name: 'englishConditions', label: 'Conditions anglaises', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.conditions || '' },
+    { name: 'englishDeliveryLabel', label: 'Délai de livraison anglais', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.deliveryLabel || '' },
+    { name: 'englishMandatoryWording', label: 'Mentions obligatoires anglaises', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.mandatoryWording || '' },
   ];
   const draftPayload = (values) => {
     let effectiveAt;
@@ -72,10 +82,19 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     if (values.bookingMode === 'DIRECT' && values.durationMin === '') {
       throw new Error('La durée est obligatoire pour une réservation directe.');
     }
+    const englishEnabled = values.englishEnabled === 'true';
+    const taxonomy = taxonomyOptions.find((item) => item.value === values.taxonomyKey);
+    if (!taxonomy) throw new Error('Sélectionnez une section publique valide.');
+    const frenchLocale = { locale: 'fr', name: values.name.trim(), description: values.description.trim() || null, content: values.content.trim(), inclusions: values.inclusions.split('\n').map((line) => line.trim()).filter(Boolean), conditions: values.conditions.trim(), deliveryLabel: values.deliveryLabel.trim(), mandatoryWording: values.legalText.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
+    const englishLocale = { locale: 'en', name: values.englishName.trim(), description: values.englishDescription.trim() || null, content: values.englishContent.trim(), inclusions: values.englishInclusions.split('\n').map((line) => line.trim()).filter(Boolean), conditions: values.englishConditions.trim(), deliveryLabel: values.englishDeliveryLabel.trim(), mandatoryWording: values.englishMandatoryWording.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
+    if (englishEnabled && (!englishLocale.name || !englishLocale.content || !englishLocale.inclusions.length || !englishLocale.conditions || !englishLocale.deliveryLabel || !englishLocale.mandatoryWording)) throw new Error('Complétez tous les contenus anglais avant activation.');
     return {
       name: values.name.trim(),
       slug: values.slug.trim(),
-      category: values.category.trim(),
+      category: taxonomy.label,
+      taxonomyKey: values.taxonomyKey,
+      englishEnabled,
+      locales: englishEnabled ? [frenchLocale, englishLocale] : [frenchLocale],
       price: Number(values.price),
       currency: values.currency,
       durationMin: values.durationMin === '' ? null : Number(values.durationMin),

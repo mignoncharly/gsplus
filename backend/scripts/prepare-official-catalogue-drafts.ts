@@ -10,6 +10,7 @@ import {
   type OfficialCatalogueOffer,
 } from '../src/catalogue/golden-studio-plus-2026-08-04.js';
 import { prisma } from '../src/db/prisma.js';
+import { packageLocalesForOffer, taxonomyKeyForCategory } from '../src/catalogue/catalogue-model.js';
 import { createPackageWithVersion, updatePackageWithVersion } from '../src/services/packages.js';
 
 const apply = process.argv.includes('--apply');
@@ -27,7 +28,7 @@ const loadExisting = () => prisma.package.findMany({
     isPromo: true,
     isRange: true,
     sortOrder: true,
-    versions: { orderBy: { version: 'desc' }, take: 1 },
+    versions: { orderBy: { version: 'desc' }, take: 1, include: { locales: true } },
   },
 });
 
@@ -49,6 +50,9 @@ const equalJson = (left: unknown, right: unknown) =>
 const isCurrentOfficial = (pack: ExistingPackage, offer: OfficialCatalogueOffer) => {
   const version = pack.versions[0];
   return Boolean(version
+    && version.taxonomyKey === taxonomyKeyForCategory(offer.category)
+    && version.englishEnabled
+    && packageLocalesForOffer(offer).every((locale) => version.locales.some((item) => item.locale === locale.locale && item.name === locale.name && item.content === locale.content && equalJson(item.inclusions, locale.inclusions) && item.conditions === locale.conditions && item.deliveryLabel === locale.deliveryLabel && item.mandatoryWording === locale.mandatoryWording))
     && version.name === offer.name
     && version.category === offer.category
     && version.description === offer.description
@@ -108,9 +112,9 @@ const main = async () => {
     const pack = packagesBySlug.get(offer.slug);
     if (pack && isCurrentOfficial(pack, offer)) continue;
     if (pack) {
-      await updatePackageWithVersion(pack.id, offer, owner.id);
+      await updatePackageWithVersion(pack.id, { ...offer, taxonomyKey: taxonomyKeyForCategory(offer.category), englishEnabled: true, locales: packageLocalesForOffer(offer) }, owner.id);
     } else {
-      await createPackageWithVersion(offer, owner.id);
+      await createPackageWithVersion({ ...offer, taxonomyKey: taxonomyKeyForCategory(offer.category), englishEnabled: true, locales: packageLocalesForOffer(offer) }, owner.id);
     }
   }
 

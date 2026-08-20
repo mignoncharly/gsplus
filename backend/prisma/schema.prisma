@@ -78,34 +78,37 @@ enum ReservationScheduleKind {
 }
 
 model AdminUser {
-  id                               String                            @id @default(cuid())
-  email                            String                            @unique
-  passwordHash                     String
-  name                             String
-  role                             AdminRole                         @default(STAFF)
-  isActive                         Boolean                           @default(true)
-  sessionVersion                   Int                               @default(0)
-  createdAt                        DateTime                          @default(now())
-  updatedAt                        DateTime                          @updatedAt
-  auditLogs                        AuditLog[]
-  packageVersions                  PackageVersion[]                  @relation("PackageVersionCreatedBy")
-  validatedPackageVersions         PackageVersion[]                  @relation("PackageVersionValidatedBy")
-  publishedPackageVersions         PackageVersion[]                  @relation("PackageVersionPublishedBy")
-  paymentTransitions               PaymentTransition[]
-  reservationTransitions           ReservationTransition[]
-  verifiedPayments                 Payment[]                         @relation("PaymentVerifiedBy")
-  adminCommands                    AdminCommand[]
-  financialTasks                   FinancialTask[]
-  rescheduleRequestsRecorded       ReservationRescheduleRequest[]    @relation("RescheduleRequestedBy")
-  rescheduleRequestsDecided        ReservationRescheduleRequest[]    @relation("RescheduleDecidedBy")
-  withdrawalRequestsRecorded       ReservationWithdrawalRequest[]    @relation("WithdrawalRequestedBy")
-  withdrawalRequestsDecided        ReservationWithdrawalRequest[]    @relation("WithdrawalDecidedBy")
-  reservationDeliveries            ReservationDelivery[]
-  imageConsentEvents               ImageConsentEvent[]
-  mediaConsentUsagesPublished      MediaConsentUsage[]               @relation("MediaConsentUsagePublishedBy")
-  dataRightsRequestsCreated        DataRightsRequest[]               @relation("DataRightsRequestCreatedBy")
-  dataRightsRequestEvents          DataRightsRequestEvent[]
-  reservationNotificationOverrides ReservationNotificationOverride[]
+  id                                String                            @id @default(cuid())
+  email                             String                            @unique
+  passwordHash                      String
+  name                              String
+  role                              AdminRole                         @default(STAFF)
+  isActive                          Boolean                           @default(true)
+  sessionVersion                    Int                               @default(0)
+  createdAt                         DateTime                          @default(now())
+  updatedAt                         DateTime                          @updatedAt
+  auditLogs                         AuditLog[]
+  packageVersions                   PackageVersion[]                  @relation("PackageVersionCreatedBy")
+  validatedPackageVersions          PackageVersion[]                  @relation("PackageVersionValidatedBy")
+  publishedPackageVersions          PackageVersion[]                  @relation("PackageVersionPublishedBy")
+  createdCatalogueBenefitVersions   CatalogueBenefitVersion[]         @relation("CatalogueBenefitVersionCreatedBy")
+  validatedCatalogueBenefitVersions CatalogueBenefitVersion[]         @relation("CatalogueBenefitVersionValidatedBy")
+  publishedCatalogueBenefitVersions CatalogueBenefitVersion[]         @relation("CatalogueBenefitVersionPublishedBy")
+  paymentTransitions                PaymentTransition[]
+  reservationTransitions            ReservationTransition[]
+  verifiedPayments                  Payment[]                         @relation("PaymentVerifiedBy")
+  adminCommands                     AdminCommand[]
+  financialTasks                    FinancialTask[]
+  rescheduleRequestsRecorded        ReservationRescheduleRequest[]    @relation("RescheduleRequestedBy")
+  rescheduleRequestsDecided         ReservationRescheduleRequest[]    @relation("RescheduleDecidedBy")
+  withdrawalRequestsRecorded        ReservationWithdrawalRequest[]    @relation("WithdrawalRequestedBy")
+  withdrawalRequestsDecided         ReservationWithdrawalRequest[]    @relation("WithdrawalDecidedBy")
+  reservationDeliveries             ReservationDelivery[]
+  imageConsentEvents                ImageConsentEvent[]
+  mediaConsentUsagesPublished       MediaConsentUsage[]               @relation("MediaConsentUsagePublishedBy")
+  dataRightsRequestsCreated         DataRightsRequest[]               @relation("DataRightsRequestCreatedBy")
+  dataRightsRequestEvents           DataRightsRequestEvent[]
+  reservationNotificationOverrides  ReservationNotificationOverride[]
 }
 
 model Customer {
@@ -158,24 +161,26 @@ model Package {
 }
 
 model PackageVersion {
-  id                 String               @id @default(cuid())
+  id                 String                 @id @default(cuid())
   packageId          String
   version            Int
   name               String
   category           String
+  taxonomyKey        String?
+  englishEnabled     Boolean                @default(true)
   description        String?
   content            String?
   inclusions         Json?
   conditions         String?
   price              Int
-  currency           String               @default("XAF")
+  currency           String                 @default("XAF")
   durationMin        Int?
-  bookingMode        PackageBookingMode   @default(DIRECT)
+  bookingMode        PackageBookingMode     @default(DIRECT)
   deliveryLabel      String?
   options            Json?
   legalText          String?
   legalApprovedAt    DateTime?
-  status             PackageVersionStatus @default(DRAFT)
+  status             PackageVersionStatus   @default(DRAFT)
   effectiveAt        DateTime?
   validatedAt        DateTime?
   validatedById      String?
@@ -183,11 +188,13 @@ model PackageVersion {
   publishedById      String?
   archivedAt         DateTime?
   createdById        String?
-  createdAt          DateTime             @default(now())
-  package            Package              @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  createdBy          AdminUser?           @relation("PackageVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  validatedBy        AdminUser?           @relation("PackageVersionValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
-  publishedBy        AdminUser?           @relation("PackageVersionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime               @default(now())
+  package            Package                @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdBy          AdminUser?             @relation("PackageVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  validatedBy        AdminUser?             @relation("PackageVersionValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  publishedBy        AdminUser?             @relation("PackageVersionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  taxonomy           CatalogueTaxonomy?     @relation(fields: [taxonomyKey], references: [key], onDelete: Restrict)
+  locales            PackageVersionLocale[]
   reservations       Reservation[]
   reservationIntents ReservationIntent[]
 
@@ -197,6 +204,109 @@ model PackageVersion {
   @@index([createdById])
   @@index([validatedById])
   @@index([publishedById])
+  @@index([taxonomyKey])
+}
+
+model CatalogueTaxonomy {
+  key             String                    @id
+  sortOrder       Int
+  isActive        Boolean                   @default(true)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  locales         CatalogueTaxonomyLocale[]
+  packageVersions PackageVersion[]
+  benefits        CatalogueBenefitVersion[]
+
+  @@unique([sortOrder])
+  @@index([isActive, sortOrder])
+}
+
+model CatalogueTaxonomyLocale {
+  id          String            @id @default(cuid())
+  taxonomyKey String
+  locale      String
+  label       String
+  taxonomy    CatalogueTaxonomy @relation(fields: [taxonomyKey], references: [key], onDelete: Cascade)
+
+  @@unique([taxonomyKey, locale])
+  @@index([locale])
+}
+
+model PackageVersionLocale {
+  id               String         @id @default(cuid())
+  packageVersionId String
+  locale           String
+  name             String
+  description      String?
+  content          String
+  inclusions       Json
+  conditions       String
+  deliveryLabel    String
+  mandatoryWording String
+  options          Json?
+  sourceReference  String
+  approvedAt       DateTime?
+  isEnabled        Boolean        @default(true)
+  packageVersion   PackageVersion @relation(fields: [packageVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([packageVersionId, locale])
+  @@index([locale, isEnabled])
+}
+
+model CatalogueBenefit {
+  id               String                    @id @default(cuid())
+  code             String                    @unique
+  publishedVersion Int?
+  isActive         Boolean                   @default(false)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  versions         CatalogueBenefitVersion[]
+}
+
+model CatalogueBenefitVersion {
+  id              String                          @id @default(cuid())
+  benefitId       String
+  version         Int
+  taxonomyKey     String
+  applicationMode String
+  sortOrder       Int
+  status          PackageVersionStatus            @default(DRAFT)
+  effectiveAt     DateTime?
+  validatedAt     DateTime?
+  validatedById   String?
+  publishedAt     DateTime?
+  publishedById   String?
+  archivedAt      DateTime?
+  createdById     String?
+  createdAt       DateTime                        @default(now())
+  benefit         CatalogueBenefit                @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  taxonomy        CatalogueTaxonomy               @relation(fields: [taxonomyKey], references: [key], onDelete: Restrict)
+  locales         CatalogueBenefitVersionLocale[]
+  createdBy       AdminUser?                      @relation("CatalogueBenefitVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  validatedBy     AdminUser?                      @relation("CatalogueBenefitVersionValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  publishedBy     AdminUser?                      @relation("CatalogueBenefitVersionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([benefitId, version])
+  @@index([benefitId, status, version])
+  @@index([taxonomyKey, sortOrder])
+}
+
+model CatalogueBenefitVersionLocale {
+  id               String                  @id @default(cuid())
+  benefitVersionId String
+  locale           String
+  name             String
+  advantage        String
+  conditions       String
+  applicationLabel String
+  mandatoryWording String
+  sourceReference  String
+  approvedAt       DateTime?
+  isEnabled        Boolean                 @default(true)
+  benefitVersion   CatalogueBenefitVersion @relation(fields: [benefitVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([benefitVersionId, locale])
+  @@index([locale, isEnabled])
 }
 
 model Reservation {

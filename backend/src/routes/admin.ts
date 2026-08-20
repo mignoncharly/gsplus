@@ -83,6 +83,7 @@ import {
   updatePackageWithVersion,
   validatePackageVersion,
 } from '../services/packages.js';
+import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { transitionReservationStatus } from '../services/status-transitions.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
@@ -101,6 +102,9 @@ import {
   mediaUploadSchema,
   mediaUploadFieldsSchema,
   notificationResolutionSchema,
+  catalogueBenefitCreateSchema,
+  catalogueBenefitUpdateSchema,
+  catalogueTaxonomyUpdateSchema,
   packageCreateSchema,
   packageDuplicateSchema,
   packageUpdateSchema,
@@ -865,6 +869,42 @@ router.patch(
 
     res.json({ data: lead });
   }),
+);
+
+router.get(
+  '/catalogue-taxonomy',
+  asyncHandler(async (_req, res) => {
+    const data = await prisma.catalogueTaxonomy.findMany({ orderBy: { sortOrder: 'asc' }, include: { locales: { orderBy: { locale: 'asc' } } } });
+    res.json({ data });
+  }),
+);
+router.patch(
+  '/catalogue-taxonomy/:key',
+  validate('body', catalogueTaxonomyUpdateSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    const key = routeParam(req.params.key);
+    const data = await updateCatalogueTaxonomy(key, req.body);
+    await writeAuditLog(res.locals.admin!.id, 'catalogue.taxonomy.update', 'CatalogueTaxonomy', key, req.body);
+    res.json({ data });
+  }),
+);
+router.get('/catalogue-benefits', asyncHandler(async (_req, res) => res.json({ data: await listAdminCatalogueBenefits() })));
+router.post(
+  '/catalogue-benefits', validate('body', catalogueBenefitCreateSchema),
+  asyncHandler(async (req, res) => { assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH'); const data = await createCatalogueBenefitDraft(req.body, res.locals.admin!.id); await writeAuditLog(res.locals.admin!.id, 'catalogue.benefit.create', 'CatalogueBenefit', data.id, req.body); res.status(201).json({ data }); }),
+);
+router.patch(
+  '/catalogue-benefits/:id', validate('params', idParamsSchema), validate('body', catalogueBenefitUpdateSchema),
+  asyncHandler(async (req, res) => { assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH'); const id=routeParam(req.params.id); const { expectedVersion, ...input }=req.body; const data=await updateCatalogueBenefitDraft(id, expectedVersion, input, res.locals.admin!.id); await writeAuditLog(res.locals.admin!.id, 'catalogue.benefit.update', 'CatalogueBenefit', id, { expectedVersion, ...input }); res.json({ data }); }),
+);
+router.post(
+  '/catalogue-benefits/:id/validate', validate('params', idParamsSchema), validate('body', packageVersionCommandSchema),
+  asyncHandler(async (req, res) => { assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH'); const id=routeParam(req.params.id); await validateCatalogueBenefitVersion(id, req.body.expectedVersion, res.locals.admin!.id); await writeAuditLog(res.locals.admin!.id, 'catalogue.benefit.validate', 'CatalogueBenefit', id, req.body); res.json({ data: await listAdminCatalogueBenefits() }); }),
+);
+router.post(
+  '/catalogue-benefits/:id/publish', validate('params', idParamsSchema), validate('body', packageVersionCommandSchema),
+  asyncHandler(async (req, res) => { assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH'); const id=routeParam(req.params.id); const data=await publishCatalogueBenefitVersion(id, req.body.expectedVersion, res.locals.admin!.id); await writeAuditLog(res.locals.admin!.id, 'catalogue.benefit.publish', 'CatalogueBenefit', id, req.body); res.json({ data }); }),
 );
 
 router.get(

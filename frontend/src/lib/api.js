@@ -39,6 +39,11 @@ export const getPackages = async () => {
   return payload.data;
 };
 
+export const getCatalogue = async () => {
+  const payload = await apiFetch('/api/catalogue');
+  return payload.data;
+};
+
 export const getAvailability = async ({ from, to, packageId }) => {
   const params = new URLSearchParams({ from, to, packageId });
   const payload = await apiFetch(`/api/availability?${params.toString()}`);
