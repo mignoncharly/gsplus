@@ -35,7 +35,7 @@ const installRuntimeAuditRoutes = async (page) => {
   });
 };
 
-test('LEG-06 inventorie le réseau public sans cookie ni stockage navigateur', async ({ page, context, baseURL }) => {
+test('LEG-06 inventorie le réseau public et limite le stockage à la préférence de langue', async ({ page, context, baseURL }) => {
   const firstPartyOrigin = new URL(baseURL).origin;
   const externalOrigins = new Set();
   page.on('request', (request) => {
@@ -49,23 +49,21 @@ test('LEG-06 inventorie le réseau public sans cookie ni stockage navigateur', a
     await page.evaluate(() => document.fonts.ready);
     const storage = await page.evaluate(() => ({
       localStorage: Object.keys(window.localStorage),
+      locale: window.localStorage.getItem('gsp.locale'),
       sessionStorage: Object.keys(window.sessionStorage),
       documentCookie: document.cookie,
     }));
-    expect(storage).toEqual({ localStorage: [], sessionStorage: [], documentCookie: '' });
+    expect(storage).toEqual({ localStorage: ['gsp.locale'], locale: 'fr', sessionStorage: [], documentCookie: '' });
     expect((await context.cookies()).filter((cookie) => cookie.domain.includes(new URL(firstPartyOrigin).hostname))).toEqual([]);
   }
 
   expect([...externalOrigins].sort()).toEqual([...ALLOWED_EXTERNAL_ORIGINS].sort());
 });
 
-test('LEG-06 publie l’inventaire et n’affiche aucune fausse préférence facultative', async ({ page }) => {
+test('LEG-06 publie la source OWNER et n’affiche aucune fausse préférence facultative', async ({ page }) => {
   await installRuntimeAuditRoutes(page);
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: 'Inventaire opérationnel vérifié' })).toBeVisible();
-  await expect(page.getByText('Aucun traceur facultatif actif.')).toBeVisible();
-  await expect(page.getByRole('row', { name: /__Host-gsp_admin_session/ })).toBeVisible();
-  await expect(page.getByRole('row', { name: /Google Fonts/ })).toBeVisible();
-  await expect(page.getByText(/aucune bannière de consentement n’est affichée/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: '7. Cookies, traceurs et mesure d’audience' })).toBeVisible();
+  await expect(page.getByText(/Les traceurs strictement nécessaires peuvent être utilisés sans consentement préalable/)).toBeVisible();
   await expect(page.getByRole('button', { name: /Tout accepter|Accepter tous|Tout refuser|Refuser tous|Modifier mes préférences/i })).toHaveCount(0);
 });

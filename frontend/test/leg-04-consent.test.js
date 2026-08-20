@@ -28,17 +28,23 @@ test('LEG-04 conserve un registre publié des versions juridiques', () => {
   }
   assert.match(reservations, /resolvePublishedLegalVersions/);
   assert.match(reservations, /acceptedPrivacy/);
+  assert.match(schema, /whatsappMarketingConsent/);
+  assert.match(reservations, /whatsappMarketingConsentAt/);
 });
 
 test('LEG-04 sépare les choix publics et ne pré-coche aucun consentement facultatif', () => {
   const publicConsentSources = reservationPage + reservationConsent;
   assert.match(reservationPage, /acceptPrivacy: false/);
   assert.match(reservationPage, /acceptedPrivacy: formData\.acceptPrivacy/);
-  assert.match(publicConsentSources, /name="acceptedPrivacy"/);
   assert.match(publicConsentSources, /name="consentImage"/);
-  assert.match(publicConsentSources, /Site web, Instagram et TikTok/);
-  assert.match(publicConsentSources, /Portfolio et promotion du Studio/);
-  assert.doesNotMatch(reservationPage, /consent: true|whatsappConsent: true|acceptPrivacy: true/);
+  assert.match(publicConsentSources, /name="whatsappMarketingConsent"/);
+  assert.match(publicConsentSources, /id="booking-legal-acceptance"/);
+  assert.match(publicConsentSources, /J’autorise l’utilisation des images de la séance à des fins promotionnelles\./);
+  assert.match(publicConsentSources, /J’accepte de recevoir les informations liées à ma réservation sur WhatsApp\./);
+  assert.match(publicConsentSources, /J’accepte de recevoir occasionnellement sur WhatsApp les offres, actualités et communications promotionnelles de Golden Studio Plus\./);
+  assert.match(publicConsentSources, /Je reconnais avoir pris connaissance de la/);
+  assert.match(publicConsentSources, /Conditions générales de vente/);
+  assert.doesNotMatch(reservationPage, /consent: true|whatsappConsent: true|whatsappMarketingConsent: true|acceptPrivacy: true/);
 });
 
 test('LEG-04 journalise accord, refus et retrait prospectif sans effacer les preuves', () => {

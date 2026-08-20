@@ -160,7 +160,8 @@ export const transitionReservationStatus = async (
       : null;
 
   if (input.toStatus === ReservationStatus.CONFIRMED) {
-    if (!authorizedPayment) {
+    const isQuoteWithoutPayment = current.paymentChoice === 'quote';
+    if (!authorizedPayment && !isQuoteWithoutPayment) {
       throw new HttpError(
         409,
         'PAYMENT_NOT_VERIFIED',

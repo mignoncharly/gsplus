@@ -1,4 +1,78 @@
 # Changelog — Golden Studio Plus
+## 12 août 2026 — POST-06 clôture après preuves POST-04
+
+- QA-A-R1 est passée normalement de `CONFIRMED` à `NO_SHOW` après sa fin réelle : un seul E-17, fournisseur `delivered`, puis réception humaine confirmée par l’OWNER.
+- QA-B-R1 est passée normalement de `CONFIRMED` à `COMPLETED` après sa fin réelle : un seul E-18 portant exactement le délai OWNER « Livraison sous 10 jours ouvrés après validation de la sélection. », fournisseur `delivered`, puis réception humaine confirmée.
+- Le seul livrable QA de QA-B-R1 a été publié par la commande OWNER normale après vérification HTTPS publique 200 et expiration future. Il a produit un seul E-19, désormais fournisseur `delivered`, avec réception humaine confirmée.
+- Les rejeux idempotents ont conservé une seule transition terminale par dossier, une livraison et un E-19 pour QA-B-R1, ainsi qu’un E-17 et un E-18 uniques. Aucun paiement, lead, réservation, WhatsApp externe ou rejeu E-01/E-05/E-16 n’a été créé.
+- Revalidation : backend 174/174, frontend 94/94, ESLint, builds, prerender, budgets et audit traceurs verts; axe production 2/2. Les deux scénarios WebKit touchés pendant l’exécution concurrente passent isolément 4/4; le worker E2E production isolé termine sans artefact d’échec, tandis que son parent Playwright est resté bloqué au nettoyage.
+- Postflight : santé HTTPS 200/HSTS, schéma 32/32, 35 offres et 35 versions publiées, 17 réservations/17 snapshots, 15 paiements, 9 leads, une livraison et 89 notifications. Les quatre notifications restantes en attente sont du canal Meta/WhatsApp différé, non du flux POST-04.
+- Score recalculé : 58/59 exigences actives et 58/61 globales `VALIDÉ-PROD`. I-09 contrôlé, P1-01 et I-08 Meta restent explicitement différés. Aucun commit final n’a été créé.
+## 11 août 2026 — POST-06 PRE-CLOSURE
+
+- Pré-clôture exécutée sans transition POST-04 ni écriture métier de production.
+- Backend 174/174, frontend 94/94, lint et builds verts.
+- E2E local 132/134 puis reprises isolées vertes; production READ-ONLY 116/118 puis reprise 4/4; axe production 2/2. Les écarts initiaux restants sont des crashes WebKit d'endurance.
+- Production : service actif, santé 200, schéma 30/30, catalogue public 35/35 et documents OWNER du 11 août rendus sur Chromium/WebKit.
+- Score frais : 55/59 exigences actives et 55/61 globales `VALIDÉ-PROD`.
+- E-17/E-18/E-19 restent soumis aux gates du 12 août; I-09 contrôlé reste différé; P1-01/I-08 restent différés Meta.
+- Aucun secret ajouté; `docs/values.txt` et les `.env` restent ignorés. Aucun commit final avant POST-04.
+
+## 11 août 2026 — QA-A-R1 synchronisée dans Cal.com
+
+- Après autorisation OWNER, l’option 15 minutes a été ajoutée à `lengthInMinutesOptions` de l’Event Type Cal.com `5733625`.
+- La durée par défaut reste 60 minutes et toutes les options préexistantes 30, 45, 60, 90, 120, 180, 240, 360 et 480 sont conservées.
+- L’API slots retourne des disponibilités de 15 minutes et le créneau exact de QA-A-R1 était disponible avant synchronisation.
+- QA-A-R1 `cmsonjleb0007zzuuk0s3mju9` est désormais `SYNCED / accepted` avec exactement un booking Cal.com de 15 minutes.
+- Le rejeu idempotent retourne le même log et le même identifiant externe; aucun doublon n’a été créé.
+- Le fingerprint immuable GSPLUS est identique avant/après. Aucune réservation, snapshot, PackageVersion, transition ou notification existante n’a été modifiée.
+
+## 11 août 2026 — Réceptions POST-05 confirmées et cause Cal.com QA-A-R1 isolée
+
+- L’OWNER confirme la réception humaine de E-22, I-12 et I-11; aucun rejeu ou nouveau lead n’est requis.
+- Statut : `POST-05 I-12 COMPLETE — OWNER RECEIPT CONFIRMED`.
+- I-09 reste `TECHNICALLY OBSERVED`; le test contrôlé reste différé sans nouveau bounce.
+- QA-A-R1 a échoué trois fois sans booking Cal.com : sa durée de 15 minutes n’est pas autorisée par l’unique type configuré, dont les options commencent à 30 minutes. Une décision OWNER Cal.com est requise avant reprise.
+
+## 11 août 2026 — Prompt de clôture consolidé et sources périmées retirées
+
+- `GSPLUS_NEXT_PHASES_PROMPT.md` devient l’unique prompt d’exécution pour terminer POST-04, POST-05 et POST-06.
+- Les anciens prompts, audits/conditions remplacés, aperçus catalogue obsolètes et l’instantané POST-06 du 9 août ont été retirés du worktree; ils restent récupérables via l’historique Git jusqu’au commit.
+- Les trois textes juridiques OWNER du 11 août, la bibliothèque normative d’e-mails, le catalogue OWNER, les runbooks actifs et les preuves de déviation sont conservés.
+- Les journaux historiques portent désormais un avertissement imposant un preflight de production frais.
+
+## 9 août 2026 — Poller Zoho SMTP Logs activé en production
+
+### Activé et vérifié
+
+- Sauvegarde chiffrée/restaurable vérifiée avant activation; configuration précédente conservée mode 0600.
+- Backfill Zoho 14 jours : 18 rapports réels `DELIVERED`, dont les 8 I-11 existants; rejeu immédiat sans doublon.
+- Worker actif toutes les cinq minutes sur les endpoints EU; backend `active/running`, santé 200 et aucune erreur Zoho.
+- 55 notifications inchangées, zéro I-09/I-12, zéro e-mail en attente ou traitement et aucun e-mail de test envoyé.
+
+### Restant
+
+- Un Message-ID sans confirmation exploitable; 16 statuts génériques `failure` volontairement non classés.
+- Hard bounce contrôlé I-09 et soumission QA I-12 toujours requis avant clôture POST-05.
+
+## 9 août 2026 — Synchronisation Zoho SMTP Logs implémentée, non activée
+
+### Prouvé en lecture seule
+
+- Refresh OAuth EU, organisation correspondante et SMTP Logs HTTP 200.
+- Accès SMTP Logs disponible sur l'organisation Zoho Mail Free; deux transactions livrées observées sur 24 heures avec sortie entièrement expurgée.
+
+### Implémenté
+
+- Poller borné avec cache de token en mémoire, validation d'organisation, pagination, rapprochement Message-ID/destinataire et identités fournisseur hachées.
+- Mapping livré/4xx/5xx vers le registre existant; reprise 4xx laissée à Zoho sans double envoi; protection contre les rapports retardés et les courses de déduplication.
+- Worker serveur protégé par `ZOHO_MAIL_SMTP_LOGS_SYNC_ENABLED=false` par défaut; aucune migration, aucun cron ni timer systemd.
+- Tests ciblés 11/11, backend complet 165/165 et build TypeScript verts, sans réseau fournisseur.
+
+### Restant
+
+- Activation supervisée, preuve I-11 réelle, hard bounce QA I-09 et soumission QA I-12. Aucun e-mail réel ni rapport production n'a été créé pendant cette étape.
+
 
 ## 9 août 2026 — Catalogue officiel français publié
 
@@ -105,7 +179,7 @@
 ### Corrigé
 
 - Les trois DOCX ont été relus intégralement : 1 064 lignes e-mails, 509 lignes audit et 125 lignes juridiques. L'inventaire initial assimilait à tort 88 champs vides en base à 88 nouveaux textes à rédiger.
-- `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` est remplacé par une matrice de récupération : CGV communes, grille de délais existante et trois listes d'inclusions récupérées; descriptions/contenus et 19 listes restent sans source locale.
+- L’ancien inventaire POST-03, supprimé du worktree le 11 août, avait été remplacé par une matrice de récupération : CGV communes, grille de délais existante et trois listes d'inclusions récupérées.
 - Le frontend respecte désormais le futur `deliveryLabel` versionné OWNER au lieu de l'écraser systématiquement par le fallback calculé; les versions historiques conservent leur affichage actuel.
 
 ### Prouvé
@@ -126,7 +200,7 @@ Cette entrée conserve la trace du premier préflight; ses conclusions « 88 tex
 
 ### Ajouté
 
-- Version initiale de `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md`, remplacée le même jour par la matrice de récupération après lecture intégrale des DOCX.
+- Version initiale de l’ancien inventaire POST-03, remplacée le même jour puis supprimée du worktree le 11 août.
 - Baseline non personnelle des 13 snapshots/liaisons tarifaires, empreinte SHA-256 `30c8b4efc31b89abe8081a1e1d7b33576bb5e4002afc025d4932bb824a968be1`.
 
 ### En attente

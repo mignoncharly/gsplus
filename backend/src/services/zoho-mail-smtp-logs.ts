@@ -1,4 +1,4 @@
-const ZOHO_MAIL_API_ORIGINS = new Set([
+export const ZOHO_MAIL_API_ORIGINS = new Set([
   'https://mail.zoho.com',
   'https://mail.zoho.eu',
   'https://mail.zoho.in',
@@ -35,7 +35,7 @@ export type ZohoMailSmtpLogsProbeResult = {
 
 const probeError = (code: string) => new Error(`ZOHO_SMTP_LOGS_PROBE_${code}`);
 
-const validatedOrigin = (raw: string) => {
+export const validatedZohoMailApiOrigin = (raw: string) => {
   let url: URL;
   try {
     url = new URL(raw);
@@ -89,7 +89,7 @@ export const probeZohoMailSmtpLogs = async (
   if (accessToken.length < 10 || /\s/.test(accessToken)) throw probeError('ACCESS_TOKEN_INVALID');
   if (!messageId || messageId.length > 500 || /[\r\n]/.test(messageId)) throw probeError('MESSAGE_ID_INVALID');
 
-  const apiBaseUrl = validatedOrigin(input.apiBaseUrl ?? 'https://mail.zoho.com');
+  const apiBaseUrl = validatedZohoMailApiOrigin(input.apiBaseUrl ?? 'https://mail.zoho.com');
   const now = input.now ?? new Date();
   const lookbackMs = input.lookbackMs ?? 14 * DAY_MS;
   if (!Number.isFinite(now.getTime())) throw probeError('NOW_INVALID');

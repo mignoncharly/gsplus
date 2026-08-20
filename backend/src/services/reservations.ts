@@ -14,6 +14,7 @@ import {
 type ReservationCreateInput = {
   intentId: string;
   idempotencyKey: string;
+  locale: 'fr' | 'en';
   customer: {
     firstName: string;
     lastName: string;
@@ -26,6 +27,7 @@ type ReservationCreateInput = {
   };
   consentImage: boolean;
   whatsappConsent: boolean;
+  whatsappMarketingConsent: boolean;
   acceptedTerms: true;
   acceptedPrivacy: true;
   paymentChoice?: 'base' | 'quote';
@@ -149,6 +151,7 @@ export const createReservation = async (input: ReservationCreateInput) => {
               snapshot: {
                 create: {
                   firstName: input.customer.firstName,
+                  locale: input.locale,
                   lastName: input.customer.lastName,
                   phoneRaw: input.customer.phoneRaw,
                   phoneE164: input.customer.phone,
@@ -178,6 +181,8 @@ export const createReservation = async (input: ReservationCreateInput) => {
                   privacyAcceptedAt: capturedAt,
                   whatsappConsent: input.whatsappConsent,
                   whatsappConsentAt: input.whatsappConsent ? capturedAt : null,
+                  whatsappMarketingConsent: input.whatsappMarketingConsent,
+                  whatsappMarketingConsentAt: input.whatsappMarketingConsent ? capturedAt : null,
                   imageConsent: input.consentImage,
                   imageAuthorizationVersion: legalVersions.imageAuthorization.version,
                   imageConsentAt: input.consentImage ? capturedAt : null,

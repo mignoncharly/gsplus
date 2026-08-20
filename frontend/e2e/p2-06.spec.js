@@ -135,3 +135,28 @@ test('P2-06 admin remains responsive at 390, 768, 992 and 1280 pixels', async ({
     }
   }
 });
+
+test('public content does not depend on viewport animation callbacks', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApi(page);
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.home-service-card')).toHaveCount(3);
+  await expect(page.locator('.home-pack-card')).toHaveCount(3);
+  await expect(page.locator('.home-service-card').first()).toBeVisible();
+  await expect(page.locator('.home-pack-card').first()).toBeVisible();
+
+  for (const [route, selectors] of [
+    ['/a-propos', ['.history-content', '.history-image-wrap', '.value-card']],
+    ['/contact', ['.contact-info-card', '.contact-form-wrap']],
+    ['/corporate', ['.feature-card', '.devis-section']],
+  ]) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    for (const selector of selectors) {
+      const content = page.locator(selector).first();
+      await content.scrollIntoViewIfNeeded();
+      await expect(content).toBeVisible();
+      await expect(content).not.toHaveCSS('opacity', '0');
+    }
+  }
+});

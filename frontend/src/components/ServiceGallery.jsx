@@ -1,13 +1,15 @@
 import { groupServiceMedia } from '../content/service-media';
+import { useLocale } from '../lib/i18n.js';
 
 const ServiceGallery = ({ section, title, description }) => {
-  const groups = groupServiceMedia(section);
+  const { locale } = useLocale();
+  const groups = groupServiceMedia(section, locale);
   const headingId = `${section}-realisations-title`;
 
   return (
     <section className="service-realizations" aria-labelledby={headingId}>
       <div className="service-realizations__header">
-        <p className="home-section-label">Réalisations</p>
+        <p className="home-section-label">{locale === 'en' ? 'Selected work' : 'Réalisations'}</p>
         <h2 id={headingId}>{title}</h2>
         <p>{description}</p>
       </div>
@@ -19,16 +21,7 @@ const ServiceGallery = ({ section, title, description }) => {
             <div className="service-realizations__grid">
               {group.items.map((item) => (
                 <figure key={item.slug} className="service-realizations__item">
-                  <img
-                    src={item.src}
-                    srcSet={item.srcSet}
-                    sizes={item.sizes}
-                    width={item.width}
-                    height={item.height}
-                    alt={item.alt}
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  <img src={item.src} srcSet={item.srcSet} sizes={item.sizes} width={item.width} height={item.height} alt={item.alt} loading="lazy" decoding="async" />
                   <figcaption>{item.title}</figcaption>
                 </figure>
               ))}

@@ -1,10 +1,22 @@
 import { PackageBookingMode, type Prisma } from '../generated/prisma/client.js';
+import { GENERIC_DELIVERY_CONTACT } from './delivery-labels.js';
 
 export const OFFICIAL_CATALOGUE_SOURCE = Object.freeze({
   file: 'docs/Golden_Studio_Plus_Catalogue.docx',
   sha256: '002bd52c30c7e3fcef8aebc71f82111780320ba8c9500c4e55d746164cd54696',
   version: '4 août 2026',
   language: 'fr',
+});
+
+export const OWNER_CATALOGUE_AMENDMENTS = Object.freeze({
+  classicPropre: {
+    source: 'OWNER_EXPLICIT',
+    receivedAt: '2026-08-11',
+    fields: [
+      'name', 'price', 'durationMin', 'content', 'inclusions', 'conditions',
+      'deliveryLabel', 'options.makeupOption', 'options.additionalInformation',
+    ],
+  },
 });
 
 export type OfficialCatalogueOffer = {
@@ -28,11 +40,11 @@ export type OfficialCatalogueOffer = {
   sortOrder: number;
 };
 
-const DEFAULT_DELIVERY = 'Délai communiqué lors de l’échange WhatsApp.';
-const DEFAULT_CONDITIONS = 'Conditions confirmées lors de l’échange WhatsApp. CGV Golden Studio Plus du 31 juillet 2026 applicables.';
-const CONTACT_CONDITIONS = 'Disponible sur demande auprès de Golden Studio Plus. Les modalités sont confirmées lors de l’échange WhatsApp. CGV du 31 juillet 2026 applicables.';
-const LEGAL_TEXT = 'CGV Golden Studio Plus — version du 31 juillet 2026.';
-const EFFECTIVE_AT = new Date('2026-08-09T00:00:00.000Z');
+const DEFAULT_DELIVERY = GENERIC_DELIVERY_CONTACT;
+const DEFAULT_CONDITIONS = 'Besoin de plus d’informations sur cette formule ? Nous sommes à votre disposition. Contactez-nous !';
+const CONTACT_CONDITIONS = 'Disponible sur demande auprès de Golden Studio Plus. Les modalités sont confirmées lors de l’échange. Conditions générales de vente en vigueur applicables.';
+const LEGAL_TEXT = 'Les Conditions générales de vente publiées et acceptées lors de la réservation sont applicables.';
+const EFFECTIVE_AT = new Date('2026-08-11T00:00:00.000Z');
 
 const inclusionsFrom = (description: string) => description
   .split(' · ')
@@ -88,7 +100,20 @@ export const OFFICIAL_CATALOGUE_OFFERS: OfficialCatalogueOffer[] = [
   offer('flash-social', 'Flash Social', 'Portraits & identité', 5_000, 15, '15 min · 1 fond · 1 tenue · 1 photo HD.', 10),
   contactOffer('identite-standard', 'Identité Standard', 'Portraits & identité', 3_000, '1 tirage papier comprenant les cartes.', 20),
   offer('pack-decouverte', 'Portrait Découverte', 'Portraits & identité', 10_000, 30, '30 min · 1 fond · 1 tenue · 5 photos HD.', 30),
-  offer('classic-propre', 'Classic Propre', 'Portraits & identité', 18_000, 60, '1 h · 2 fonds · 2 tenues · 8 photos HD.', 40),
+  offer('classic-propre', 'Classic Propre', 'Portraits & identité', 18_000, 60, '1 heure de séance · 2 fonds · 2 tenues · 8 photos HD, dont 4 retouchées.', 40, {
+    content: '1 heure de séance · 2 fonds · 2 tenues · 8 photos HD, dont 4 retouchées.',
+    inclusions: ['1 heure de séance', '2 fonds', '2 tenues', '8 photos HD, dont 4 retouchées'],
+    conditions: 'La réservation est confirmée après vérification des disponibilités et paiement intégral.',
+    deliveryLabel: 'Livraison sous 48 à 72 heures',
+    options: {
+      makeupOption: {
+        label: 'Maquillage au studio',
+        price: 6_000,
+        currency: 'XAF',
+      },
+      additionalInformation: 'Pour plus de détails sur cette offre, veuillez nous contacter.',
+    },
+  }),
   offer('pack-signature', 'Signature', 'Portraits & identité', 32_000, 90, '1 h 30 · 3 fonds · 3 tenues · 15 photos HD.', 50),
   offer('corporate-linkedin', 'Corporate LinkedIn', 'Portraits & identité', 25_000, 45, '45 min · fond neutre · direction de pose · 6 photos HD.', 60),
 

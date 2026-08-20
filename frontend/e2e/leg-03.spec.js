@@ -73,10 +73,10 @@ const openAdminReservation = async (page) => {
   await page.getByRole('button', { name: 'Détails' }).click();
 };
 
-test('LEG-03 publie les huit sections et la date du 31 juillet 2026', async ({ page }) => {
+test('LEG-03 publie les huit sections et la date du 11 août 2026', async ({ page }) => {
   await page.goto('/cgv', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 11 août 2026')).toBeVisible();
   await expect(page.locator('.legal-content-wrap > .legal-section > h2')).toHaveText([
     '1. Réservation, prix et paiement',
     '2. Retards, annulations et report',
@@ -97,7 +97,7 @@ test('LEG-03 reste lisible à 320 pixels et relie les documents associés', asyn
   await page.goto('/cgv', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('link', { name: 'mentions légales' })).toHaveAttribute('href', '/mentions-legales');
-  await expect(page.getByRole('link', { name: 'politique de confidentialité' }).last()).toHaveAttribute('href', '/confidentialite');
+  await expect(page.getByRole('link', { name: 'Confidentialité' }).last()).toHaveAttribute('href', '/confidentialite');
   await expect(page.getByText(/fichiers bruts, essais, réglages et autres éléments de travail intermédiaires/)).toBeVisible();
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,

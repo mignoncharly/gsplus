@@ -27,6 +27,7 @@ export type RenderedEmailTemplate = {
   version: typeof EMAIL_TEMPLATE_VERSION;
   audience: EmailTemplateAudience;
   subject: string;
+  locale: EmailLocale;
   preheader: string;
   text: string;
   html: string;
@@ -350,6 +351,88 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
   ]),
 };
 
+export type EmailLocale = 'fr' | 'en';
+
+const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDefinition>> = {
+  'E-01': external('E-01', 'We received your booking request — [reference_courte]', 'Your requested time slot is not yet confirmed.', [
+    'Hello [prenom_client],', 'We received your booking request for [nom_prestation].',
+    'Your request is for [date_seance], from [heure_debut] to [heure_fin], Douala time. It is awaiting payment verification and booking approval.',
+    'Your booking is not yet finally confirmed. We will send you another message when a decision has been made.', 'Reference: [reference_courte]', 'Amount: [montant_fcfa] FCFA', 'Payment: [statut_paiement_libelle]', 'Booking: awaiting confirmation', 'Please keep this reference for all correspondence about your request.', 'Thank you for choosing us,', 'Golden Studio Plus',
+  ]),
+  'E-02': external('E-02', 'Your payment is being verified — [reference_courte]', 'Your payment reference has been recorded and will be checked manually.', [
+    'Hello [prenom_client],', 'We recorded the payment reference provided for your request [reference_courte].', 'The payment must now be manually verified. This acknowledgement is neither payment approval nor final booking confirmation.', 'Declared amount: [montant_fcfa] FCFA', 'Operator: [operateur_paiement]', 'Reference provided: [reference_paiement_masquee]', 'We will send you another message after verification.', 'Golden Studio Plus',
+  ]),
+  'E-03': external('E-03', 'Payment verified — booking awaiting approval — [reference_courte]', 'Your payment is approved; the booking decision is still pending.', [
+    'Hello [prenom_client],', 'The payment associated with your request [reference_courte] has been manually verified.', 'The booking is still awaiting approval. Payment verification does not automatically confirm the time slot.', 'Service: [nom_prestation]', 'Requested slot: [date_seance], [heure_debut]–[heure_fin]', 'Verified amount: [montant_fcfa] FCFA', 'You will receive a confirmation or another decision in a separate message.', 'Golden Studio Plus',
+  ]),
+  'E-04': external('E-04', 'Your payment could not be approved — [reference_courte]', 'The payment provided was declined after manual verification.', [
+    'Hello [prenom_client],', 'After manual verification, we could not approve the payment associated with your request [reference_courte].', 'Reason: [motif_rejet_paiement]', 'The booking is not confirmed. To continue, please [instruction_regularisation] before [date_limite_regularisation], Douala time.', 'Expected amount: [montant_fcfa] FCFA', 'Declared operator: [operateur_paiement]', 'Checked reference: [reference_paiement_masquee]', 'Golden Studio Plus',
+  ]),
+  'E-04A': external('E-04A', 'Information needed to verify your payment — [reference_courte]', 'An item is missing before we can complete manual payment verification.', [
+    'Hello [prenom_client],', 'We need additional information to verify the payment associated with your request [reference_courte].', 'Information needed: [information_paiement_requise]', 'Please provide it before [date_limite_regularisation], Douala time. The booking is not yet confirmed.', 'Expected amount: [montant_fcfa] FCFA', 'Declared operator: [operateur_paiement]', 'Reference provided: [reference_paiement_masquee]', 'Golden Studio Plus',
+  ]),
+  'E-04B': external('E-04B', 'Your payment verification is in progress — [reference_courte]', 'A temporary incident is delaying verification; it is not a payment rejection.', [
+    'Hello [prenom_client],', 'Verification of the payment associated with your request [reference_courte] is temporarily delayed.', 'This is not a payment rejection. No action is required from you at this time.', 'The booking remains awaiting confirmation. We will inform you once verification has been completed.', 'Golden Studio Plus',
+  ]),
+  'E-05': external('E-05', 'Your booking is confirmed — [reference_courte]', 'Your session is confirmed. Find the time slot and useful details here.', [
+    'Hello [prenom_client],', 'Your booking [reference_courte] is confirmed.', 'Service: [nom_prestation]', 'Date: [date_seance]', 'Time: [heure_debut]–[heure_fin], Douala time', 'Paid and verified amount: [montant_fcfa] FCFA', 'Location: [adresse_ou_instruction_acces]', 'Please arrive at the agreed time. Any client-caused delay beyond five minutes reduces the remaining session time, without extension or compensation.', 'One date change may be requested free of charge at least 48 hours before the original slot, subject to availability.', 'Golden Studio Plus',
+  ]),
+  'E-06': external('E-06', 'Your booking request could not be accepted — [reference_courte]', 'The requested time slot cannot be confirmed.', [
+    'Hello [prenom_client],', 'We are sorry, but your request [reference_courte] could not be accepted.', 'Reason: [motif_refus_reservation]', 'No verified payment is associated with this decision. You may submit a new request for another available time slot.', 'Golden Studio Plus',
+  ]),
+  'E-07': external('E-07', 'Your booking could not be confirmed — [reference_courte]', 'Your payment is verified; the financial handling is managed separately.', [
+    'Hello [prenom_client],', 'Your request [reference_courte] could not be confirmed.', 'Reason: [motif_refus_reservation]', 'Your payment of [montant_fcfa] FCFA had already been verified. The following financial handling has been opened: [traitement_financier].', 'You will receive a separate notification when the financial operation has actually been initiated or completed.', 'Golden Studio Plus',
+  ]),
+  'E-08': external('E-08', 'Your rescheduling request was received — [reference_courte]', 'The requested new time slot still needs to be checked.', [
+    'Hello [prenom_client],', 'We received your change request for booking [reference_courte].', 'Current slot: [ancien_creneau]', 'Requested slot: [nouveau_creneau_demande]', 'The change is not yet confirmed. You will receive a decision in a separate message.', 'Golden Studio Plus',
+  ]),
+  'E-09': external('E-09', 'New time slot confirmed — [reference_courte]', 'Your booking has been moved to the new time slot.', [
+    'Hello [prenom_client],', 'The requested change for booking [reference_courte] is confirmed.', 'Previous slot: [ancien_creneau]', 'New confirmed slot: [nouveau_creneau_confirme], Douala time', 'All other terms remain unchanged unless otherwise stated: [modifications_complementaires].', 'Please use only the new time slot. An updated calendar invitation replaces the previous one.', 'Golden Studio Plus',
+  ]),
+  'E-10': external('E-10', 'The requested change is not available — [reference_courte]', 'Your original time slot remains unchanged.', [
+    'Hello [prenom_client],', 'We could not accept the requested change for booking [reference_courte].', 'Reason: [motif_refus_report]', 'Your original confirmed slot remains: [ancien_creneau].', 'Golden Studio Plus',
+  ]),
+  'E-11': external('E-11', 'Cancellation recorded — [reference_courte]', 'Your booking is cancelled and a partial refund must be processed.', [
+    'Hello [prenom_client],', 'The cancellation of your booking [reference_courte] has been recorded.', 'Cancelled slot: [date_seance], [heure_debut]–[heure_fin], Douala time.', 'As the request was received more than 48 hours before the session, 50% of the amount paid, [montant_remboursable_fcfa] FCFA, is refundable.', 'You will receive a separate message when the refund has actually been initiated and completed.', 'Golden Studio Plus',
+  ]),
+  'E-12': external('E-12', 'Cancellation recorded — [reference_courte]', 'Your booking is cancelled; no refund applies.', [
+    'Hello [prenom_client],', 'The cancellation of your booking [reference_courte] has been recorded.', 'Cancelled slot: [date_seance], [heure_debut]–[heure_fin], Douala time.', 'As the request was received 48 hours or less before the session, no refund applies.', 'Golden Studio Plus',
+  ]),
+  'E-13': external('E-13', 'Your booking is cancelled — [reference_courte]', 'The Studio must cancel your time slot; here are the next steps.', [
+    'Hello [prenom_client],', 'We are sorry to inform you that your booking [reference_courte], scheduled for [date_seance] from [heure_debut] to [heure_fin], must be cancelled.', 'Reason: [motif_annulation_studio]', 'Proposed financial handling: [traitement_financier].', 'You will receive a separate notification when the operation has actually been initiated or completed.', 'Golden Studio Plus',
+  ]),
+  'E-14': external('E-14', 'Your booking request has expired — [reference_courte]', 'The time slot is no longer held for this request.', [
+    'Hello [prenom_client],', 'Your request [reference_courte] has expired because [motif_expiration].', 'The requested time slot is no longer held. No verified payment should remain without handling.', 'You may make a new request according to the displayed availability.', 'Golden Studio Plus',
+  ]),
+  'E-15': external('E-15', 'Your session is approaching — [reference_courte]', 'Check your time slot before the applicable change deadline.', [
+    'Hello [prenom_client],', 'Your session [reference_courte] is scheduled for [date_seance] from [heure_debut] to [heure_fin], Douala time.', 'A change may be requested at least 48 hours before the slot, subject to availability.', 'A cancellation more than 48 hours before is eligible for a 50% refund; at 48 hours or less, no refund is made.', 'Golden Studio Plus',
+  ]),
+  'E-16': external('E-16', 'Reminder: your session is tomorrow — [reference_courte]', 'Find the time and useful details for your session.', [
+    'Hello [prenom_client],', 'This is a reminder that your session [reference_courte] is scheduled for [date_seance] from [heure_debut] to [heure_fin], Douala time.', 'Service: [nom_prestation]', 'Location: [adresse_ou_instruction_acces]', 'Useful contact: [contact_studio]', 'Please arrive on time.', 'Golden Studio Plus',
+  ]),
+  'E-17': external('E-17', 'Absence recorded for your session — [reference_courte]', 'Your booking was closed as an unreported absence.', [
+    'Hello [prenom_client],', 'Your booking [reference_courte], scheduled for [date_seance] from [heure_debut] to [heure_fin], was closed as an unreported absence.', 'Under the accepted terms, no refund is made in case of an unreported absence.', 'If this information is incorrect, please contact the Studio.', 'Golden Studio Plus',
+  ]),
+  'E-18': external('E-18', 'Thank you for your session — [reference_courte]', 'Here are the next steps related to your service.', [
+    'Hello [prenom_client],', 'Thank you for your session [reference_courte] completed on [date_seance].', 'Next step: [prochaine_etape]', 'Indicative timeframe: [delai_suivi]', 'Delivery or follow-up channel: [canal_suivi]', 'You will be informed separately when the items are actually available.', 'Golden Studio Plus',
+  ]),
+  'E-19': external('E-19', 'Your deliverables are available — [reference_courte]', 'Access the items related to your service.', [
+    'Hello [prenom_client],', 'The items related to your service [reference_courte] are available.', 'Access: [lien_livraison]', 'Access code or instructions: [instruction_acces]', 'Access deadline: [date_limite_acces]', 'Do not share your access information with third parties.', 'Golden Studio Plus',
+  ]),
+  'E-20': external('E-20', 'Your refund is in progress — [reference_courte]', 'The operation has been initiated; please keep the tracking reference.', [
+    'Hello [prenom_client],', 'The refund for booking [reference_courte] has been initiated.', 'Amount: [montant_remboursement_fcfa] FCFA', 'Channel: [canal_remboursement]', 'Tracking reference: [reference_remboursement_masquee]', 'Initiated on: [date_engagement]', 'A new message will be sent when the operation is complete.', 'Golden Studio Plus',
+  ]),
+  'E-21': external('E-21', 'Your refund has been completed — [reference_courte]', 'The refund operation is complete.', [
+    'Hello [prenom_client],', 'The refund for booking [reference_courte] has been completed.', 'Amount: [montant_remboursement_fcfa] FCFA', 'Channel: [canal_remboursement]', 'Reference: [reference_remboursement_masquee]', 'Completed on: [date_finalisation]', 'Golden Studio Plus',
+  ]),
+  'E-22': external('E-22', 'We received your message — [reference_contact]', 'Your request has been recorded and will be reviewed.', [
+    'Hello [prenom_contact],', 'We received your message.', 'Subject: [objet_demande]', 'Reference: [reference_contact]', 'Received on: [date_reception], Douala time', 'To provide further details, reply to this email and keep the reference in the subject line.', 'Golden Studio Plus',
+  ]),
+  'E-23': external('E-23', 'We received your business enquiry — [reference_b2b]', 'The information you submitted has been recorded for review.', [
+    'Hello [nom_contact],', 'We received your business enquiry on behalf of [organisation].', 'Subject: [objet_demande]', 'Reference: [reference_b2b]', 'Received on: [date_reception], Douala time', 'This acknowledgement is not yet a commercial acceptance or availability confirmation.', 'Golden Studio Plus',
+  ]),
+};
+
 const escapeHtml = (value: string) => value
   .replaceAll('&', '&amp;')
   .replaceAll('<', '&lt;')
@@ -363,8 +446,9 @@ const replaceVariables = (value: string, variables: Record<string, string>) =>
 export const renderEmailTemplate = (
   code: EmailTemplateCode,
   input: EmailTemplateVariables,
+  locale: EmailLocale = 'fr',
 ): RenderedEmailTemplate => {
-  const template = emailTemplateRegistry[code];
+  const template = locale === 'en' ? englishTemplateRegistry[code] ?? emailTemplateRegistry[code] : emailTemplateRegistry[code];
   const variables = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value)]));
   for (const required of template.requiredVariables) {
     if (!variables[required]?.trim()) throw new Error(`EMAIL_TEMPLATE_VARIABLE_MISSING:${code}:${required}`);
@@ -379,5 +463,5 @@ export const renderEmailTemplate = (
     ...body.map((line) => `<p>${escapeHtml(line)}</p>`),
   ].join('');
 
-  return { code, version: template.version, audience: template.audience, subject, preheader, text, html, variables };
+  return { code, version: template.version, audience: template.audience, locale, subject, preheader, text, html, variables };
 };

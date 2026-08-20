@@ -1,0 +1,104 @@
+This policy supplements the information provided at the time of booking and applies to requests sent through the website, bookings, payments, communications and service follow-up.
+
+1. Data controller and contact
+Golden Studio Plus determines the purposes and means of the processing described below. For any question or request concerning your data, write to info@gsplus.vip. Identity verification may be requested where necessary to protect the data concerned.
+
+2. Data collected
+Depending on the service used, your relationship with the Studio and the information you freely provide, Golden Studio Plus may process the following categories in particular:
+
+Identity and contact: last name, first name, telephone number and email address.
+Session preferences: optional date of birth, gender, discovery channel, package, time slot, duration, notes, special requests and booking status.
+Choices and evidence: acceptance of terms, image-rights authorisation and consent to WhatsApp notifications, together with their dates.
+Manual payment verification: selected mobile-payment method, number used, transaction reference, any supporting document supplied, amount, status and any refund. The website collects neither bank-card numbers nor security codes.
+General, creative and B2B requests: subject, message, company, RCCM or NIU supplied, type of service, source of the request and information entered freely.
+Service images and files: photographs and materials needed for retouching and delivery and, only with the required authorisation, for Studio promotion.
+Technical data: IP address, date and time, requested resource, browser, anti-abuse results and security, synchronisation or error logs.
+Administration: authorised-user accounts, actions, decisions, internal comments and notification or synchronisation history.
+This list describes the principal categories of data that may be processed. It may be supplemented where other data is necessary to provide a service, operate or secure the website, comply with a legal or regulatory obligation, or defend the Studio’s rights. Any additional data remains processed in accordance with the purposes and principles in this policy.
+
+Do not enter sensitive or unnecessary data in free-text fields.
+
+3. Purposes and legal bases of processing
+Golden Studio Plus processes personal data to the extent necessary to provide its services, administer its activity and protect its interests, including to:
+
+receive, identify, assess and process requests for information, quotes, bookings, collaboration or services;
+assess feasibility, prepare an offer, collect customer instructions and take necessary pre-contractual steps;
+create, organise, confirm, perform, modify, reschedule, cancel, close and follow up bookings and services;
+manage availability, time slots, durations, delays, absences, special requests and resulting operational or financial consequences;
+manually verify payments, reconcile transaction references, detect errors, inconsistencies, duplicates or attempted fraud, track amounts due and handle applicable cancellations, credits or refunds;
+manage customer communications, confirmations, reminders, notifications, email or WhatsApp exchanges, calendar synchronisation and evidence of transmission or delivery;
+prepare, produce, retouch, temporarily retain, secure and deliver photographs, files or other materials needed to perform and follow up the service;
+administer, maintain and improve the website, forms, accounts, booking tools and related services, and assess their operation, reliability and use;
+protect the website, accounts, systems, data and Studio activities, prevent abuse, fraud, unauthorised access and incidents, perform necessary checks and retain technical, security or error logs;
+retain evidence of requests, instructions, consent, authorisations, accepted terms, communications, payments, administrative decisions, notifications and completed operations;
+establish, exercise, preserve or defend the Studio’s rights and interests, including in complaints, disputes, unpaid amounts, refund requests, and judicial or administrative proceedings;
+comply with applicable accounting, tax, contractual, regulatory and legal obligations and valid requests from a competent authority;
+use a customer’s image for Studio communications or promotion only where the required authorisation has been obtained and within its limits.
+Depending on the purpose and stage of the relationship, processing is based, under conditions recognised by applicable regulations, on pre-contractual measures requested by the person concerned, performance of a contract or booking, compliance with a legal or regulatory obligation, protection and administration of the service, establishment, exercise or defence of rights, or consent where required.
+
+The Studio’s interests include organising and continuing its activity, managing customer and partner relationships, securing its services and revenue, preventing fraud and abuse, improving its tools, retaining evidence, and establishing, exercising and defending its rights.
+
+A single category of data may be used for several separate and compatible purposes. Where regulations require it, any later use incompatible with the purposes originally announced will be subject to additional information or authorisation.
+
+Where certain data is needed to assess a request, conclude or perform a booking, verify payment or comply with an obligation, its absence or obvious inaccuracy may prevent Golden Studio Plus from processing the request, confirming the booking, performing the service or following it up.
+
+Where processing is based on consent, refusal or withdrawal may make the relevant feature or use unavailable. Withdrawal takes effect for the future and does not affect processing already carried out or retention that remains necessary on another authorised basis.
+
+4. Recipients, providers and transfers
+Within the limits of their duties, data is accessible to authorised Golden Studio Plus personnel and to providers, partners or advisers whose involvement is necessary or useful for operating the website; managing requests, bookings, calendars, forms, communications, notifications, payments, backups, files, digital processing, deliveries and accounting operations; or carrying out security and rights-defence activities.
+
+Where necessary, data may also be disclosed to payment operators, financial institutions, insurers, legal or accounting professionals, debt-collection providers, administrative or judicial authorities and other authorised persons to comply with an obligation, respond to a valid request, prevent fraud, or establish, exercise or defend a right.
+
+Golden Studio Plus may select, replace, add or remove a provider, solution or integration provided that the service category, intended purposes and expected safeguards remain compatible with this policy. Where useful or required, a separate notice or list may provide more detailed and regularly updated technical information.
+
+Some providers may process data from another country depending on their infrastructure. In that case, the Studio limits transferred data to what is necessary and, where required by law, completes the applicable formalities, authorisations or safeguards. Providers acting for their own purposes remain responsible for their processing. Data is not sold as a standalone commercial activity.
+
+5. Digital image processing
+Files may be processed using professional software or cloud services dedicated to retouching and optimisation. Access is limited to the persons and providers needed to perform the service.
+
+6. Retention periods and archiving
+Data is actively retained for the period needed for the purpose for which it was collected. It may then be deleted, anonymised or placed in a restricted-access intermediate archive where it remains necessary to comply with an obligation, maintain security or operational continuity, or establish, exercise or defend the rights of the Studio or third parties.
+
+The applicable period depends in particular on the nature of the data, the stage of the request, the existence of a booking, payment, service, delivery or dispute, and applicable accounting, tax, contractual, regulatory, evidential or limitation periods.
+
+requests, bookings, services, communications, confirmations and delivery materials may be retained during the relationship and then archived for as long as needed as evidence and to defend rights;
+payment, verification, cancellation and refund data is retained in accordance with applicable financial, accounting, tax and evidential obligations;
+acceptance of terms, consent, authorisations, withdrawals and other evidence may be retained for as long as a use, dispute or liability remains possible;
+images, working files and deliverables are retained according to agreed production, delivery, security and archiving needs; permanent retention or restoration is not guaranteed unless otherwise agreed in writing;
+technical, anti-abuse and security logs are retained for a period proportionate to detection, analysis, investigation and evidential needs;
+backups may temporarily retain residual copies until normal rotation, without incompatible active reuse.
+A complaint, incident, suspected fraud, investigation, unpaid amount, proceeding or dispute may extend retention until final closure plus applicable appeal or limitation periods. A deletion request does not require deletion of data whose retention remains necessary or legally authorised; the Studio may instead restrict its access and use.
+
+Any minimum or maximum period imposed in the future by law, a competent authority or a mandatory standard automatically replaces the period previously applied without requiring this entire policy to be rewritten.
+
+7. Cookies, trackers and audience measurement
+The website may use cookies and similar technologies, including pixels, tags, identifiers, local-storage areas, logs or comparable mechanisms. These tools may support operation, navigation, security, preference management, abuse prevention, form continuity, session evidence, audience measurement, analysis of performance, errors and user journeys, campaign evaluation, website improvement or integration of third-party functions.
+
+Strictly necessary trackers may be used without prior consent where permitted by law. Optional trackers are subject to the user’s choice where that choice is required. Refusing or blocking certain tools may reduce personalisation, prevent preferences from being remembered or impair certain functions.
+
+Tools, providers, technical durations and settings may change. Current information and choices may be presented in a preference module or separate notice. Withdrawal of consent takes effect only for the future and does not erase previous lawful processing, aggregated or anonymised statistics, or data whose retention remains necessary for security or evidence.
+
+8. Security
+Golden Studio Plus implements reasonable and proportionate technical and organisational measures to protect data confidentiality, integrity, availability and traceability. These may include HTTPS, access controls, protected administration sessions, request limiting, logging of sensitive actions and private storage of master files.
+
+Because no system can guarantee absolute security, the Studio does not guarantee that no incident outside its control will occur. Users remain responsible for the security of their devices, accounts and communication methods and must promptly report any error or compromise that may affect their data or the service.
+
+9. Your rights and how to exercise them
+In accordance with Law No. 2024/017 of 23 December 2024 on the protection of personal data in Cameroon, you may, subject to the conditions and limits in applicable regulations:
+
+request access to data concerning you;
+request correction, updating or, where the conditions are met, deletion;
+request restriction of processing or object to processing under the conditions provided by law;
+request data portability where that right applies;
+withdraw consent for the future without affecting processing already lawfully carried out;
+lodge a complaint with the competent data-protection authority.
+Send a written request to info@gsplus.vip stating its purpose and information identifying the data concerned. Proportionate proof of identity or further details may be requested to prevent fraudulent disclosure or deletion.
+
+The scope of a right is assessed in light of the data’s nature, the basis for processing, legal obligations, third-party rights and the Studio’s need to establish, exercise or defend its rights. A request may be limited, adapted or deferred as permitted by law to protect the rights of others, confidentiality, security, trade secrets, intellectual property, anti-abuse methods or evidential needs.
+
+The right to deletion is not absolute. Data may be retained where necessary to perform or prove a contract, for accounting or tax purposes, to process a payment or refund, prevent fraud, maintain security, comply with an obligation, protect third parties or defend the Studio. Deleting visible data does not necessarily cause immediate disappearance from backups, logs, evidence or restricted-access archives.
+
+Withdrawal of image-rights authorisation is handled separately from requests to delete other personal data. It takes effect only for the future and does not affect uses previously made by the Studio in accordance with the original authorisation. It does not require recall or destruction of materials already produced or distributed, does not cancel completed campaigns and does not prevent retention of non-public copies needed as evidence. New uses cease after a technically reasonable period and sufficiently precise identification of the relevant content, subject to legal obligations, backups and third-party rights.
+
+10. Related documents
+Please also read the Terms of Sale and Legal Notice.

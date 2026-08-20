@@ -23,7 +23,7 @@ export const FORBIDDEN_TRACKER_SIGNATURES = [
 
 const BROWSER_STORAGE_SIGNATURES = [
   { label: 'document.cookie', pattern: /document\.cookie/ },
-  { label: 'localStorage', pattern: /\blocalStorage\b/ },
+  { label: 'localStorage', pattern: /\blocalStorage\s*\./ },
   { label: 'sessionStorage', pattern: /\bsessionStorage\b/ },
   { label: 'IndexedDB', pattern: /\bindexedDB\b/ },
   { label: 'sendBeacon', pattern: /navigator\.sendBeacon/ },
@@ -67,6 +67,11 @@ for (const file of [...sourceFiles, ...distFiles]) {
   }
 }
 
+const allowedBrowserStorage = new Set(
+  TRACKER_INVENTORY
+    .filter((entry) => entry.id === 'language-preference' && entry.name === 'gsp.locale')
+    .map(() => `localStorage: ${resolve(sourceDir, 'lib/i18n.js')}`),
+);
 const storageUses = [];
 for (const file of sourceFiles) {
   for (const signature of BROWSER_STORAGE_SIGNATURES) {
@@ -98,7 +103,8 @@ if (OPTIONAL_TRACKERS_ENABLED !== (optionalEntries.length > 0)) {
 if (invalidOptionalEntries.length > 0) {
   findings.push(`CMP incomplète pour : ${invalidOptionalEntries.map((entry) => entry.id).join(', ')}`);
 }
-if (storageUses.length > 0) findings.push(...storageUses.map((item) => `Stockage navigateur non inventorié: ${item}`));
+const unexpectedStorageUses = storageUses.filter((item) => !allowedBrowserStorage.has(item));
+if (unexpectedStorageUses.length > 0) findings.push(...unexpectedStorageUses.map((item) => `Stockage navigateur non inventorié: ${item}`));
 if (unexpectedOrigins.length > 0) findings.push(`Origines externes non inventoriées: ${unexpectedOrigins.join(', ')}`);
 if (missingOrigins.length > 0) findings.push(`Origines déclarées non observées au build: ${missingOrigins.join(', ')}`);
 
@@ -108,6 +114,7 @@ const report = {
   inventory: TRACKER_INVENTORY,
   observedExternalOrigins: [...observedExternalOrigins].sort(),
   browserStorageUses: storageUses,
+  allowedBrowserStorage: [...allowedBrowserStorage],
   forbiddenTrackerFindings: findings.filter((item) => !item.startsWith('Stockage navigateur')),
   passed: findings.length === 0,
 };

@@ -1,3 +1,4 @@
+import { deliveryLabelOrigin } from '../catalogue/delivery-labels.js';
 import { HttpError } from '../errors/http-error.js';
 import {
   PackageVersionStatus,
@@ -98,6 +99,7 @@ const versionProjection = (version: VersionWithActors | PackageVersion) => ({
   durationMin: version.durationMin,
   bookingMode: version.bookingMode,
   deliveryLabel: version.deliveryLabel,
+  deliveryLabelOrigin: deliveryLabelOrigin(version.deliveryLabel),
   options: version.options,
   legalText: version.legalText,
   legalApprovedAt: version.legalApprovedAt,

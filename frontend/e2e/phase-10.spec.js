@@ -74,6 +74,7 @@ test('admin and missing routes are noindex and admin stays out of public route r
 test('reduced-motion preference removes smooth scrolling and backdrop blur', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.header')).toBeVisible();
 
   const styles = await page.evaluate(() => {
     const header = document.querySelector('.header');

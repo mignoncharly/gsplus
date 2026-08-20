@@ -181,7 +181,7 @@ test('free proposal reports closed, occupied, duration and server-error states e
 
   await date.fill('2027-08-06');
   await verify.click();
-  await expect(page.getByText(/n'est pas proposé pour la durée choisie/)).toBeVisible();
+  await expect(page.getByText(/n[’']est pas proposé pour la durée choisie/)).toBeVisible();
 
   await date.fill('2027-08-07');
   await verify.click();

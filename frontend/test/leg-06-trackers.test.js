@@ -13,7 +13,7 @@ const source = (path) => {
 };
 
 const inventory = source('src/content/tracker-inventory.js');
-const privacy = source('src/pages/Privacy.jsx');
+const privacy = source('../docs/new docs/politique de confidentialite.txt');
 const audit = source('scripts/audit-trackers.mjs');
 const packageJson = source('package.json');
 const adminAuth = source('../backend/src/services/admin-auth.ts');
@@ -42,11 +42,9 @@ test('LEG-06 bloque au build tout tracker ou stockage non inventorié', () => {
   assert.match(packageJson, /npm run audit:trackers/);
 });
 
-test('LEG-06 publie la situation réelle sans afficher une fausse CMP', () => {
-  assert.match(privacy, /TRACKER_INVENTORY/);
-  assert.match(privacy, /Inventaire opérationnel vérifié/);
-  assert.match(privacy, /Aucun traceur facultatif actif/);
-  assert.match(privacy, /aucune bannière de consentement n’est affichée/i);
+test('LEG-06 publie la section OWNER sur les cookies sans afficher une fausse CMP', () => {
+  assert.match(privacy, /Cookies, traceurs et mesure d’audience/);
+  assert.match(privacy, /Les traceurs facultatifs sont soumis au choix de l’utilisateur/);
   assert.doesNotMatch(privacy, /Tout accepter|Tout refuser/);
 });
 

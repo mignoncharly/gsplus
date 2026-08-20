@@ -1,42 +1,25 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const source = (path) => readFileSync(`${root}${path}`, 'utf8');
-const legalPage = source('src/pages/Legal.jsx');
-const legalContent = source('src/content/legal.js');
-const legalLayout = source('src/components/LegalPageLayout.jsx');
+const mentions = source('../docs/new docs/mentions legales.txt');
 
-test('LEG-01 publie fidèlement les quatre sections normatives du 31 juillet 2026', () => {
-  assert.match(legalContent, /LEGAL_MENTIONS_LAST_UPDATED = '31 juillet 2026'/);
-  assert.match(legalLayout, /lastUpdated/);
-
-  for (const heading of [
-    '1. Éditeur et propriété intellectuelle',
-    '2. Responsabilité',
-    '3. Droit applicable et différends',
-    '4. Documents associés',
-  ]) {
-    assert.match(legalPage, new RegExp(heading.replace('.', '\\.')));
+test('LEG-01 publie la source OWNER du 11 août 2026 sans réécriture', () => {
+  assert.equal(createHash('sha256').update(mentions).digest('hex'), '45f0f15aa26b2a9f25e071ed2795e47eec3b4a9c5082f470ec4f6f0281593f71');
+  for (const heading of ['1. Éditeur et propriété intellectuelle', '2. Responsabilité', '3. Droit applicable et différends', '4. Documents associés']) {
+    assert.match(mentions, new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-
-  assert.match(legalPage, /L’accès au site n’emporte aucune cession de droits/);
-  assert.match(legalPage, /l’extraction automatisée ou répétée des contenus/);
-  assert.match(legalPage, /entraîner, tester ou alimenter un système automatisé ou d’intelligence artificielle/);
-  assert.match(legalPage, /compétence exclusive des tribunaux matériellement compétents du ressort de Douala/);
+  assert.match(source('src/content/owner-legal-documents.js'), /mentions legales\.txt\?raw/);
+  assert.match(source('src/pages/Legal.jsx'), /OWNER_LEGAL_DOCUMENTS\.legalNotice/);
+  assert.match(source('src/content/legal.js'), /LEGAL_MENTIONS_LAST_UPDATED = '11 août 2026'/);
 });
 
-test('LEG-01 conserve les informations vérifiées et signale les mentions officielles absentes', () => {
-  for (const verified of [
-    'Cité des Palmiers, Douala, Cameroun',
-    '+237 673 026 654',
-    'info@gsplus.vip',
-    'HOSTING_PROVIDER',
-  ]) {
-    assert.match(legalPage, new RegExp(verified.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+test('LEG-01 n’invente aucune mention officielle absente de la nouvelle source', () => {
+  for (const absent of ['forme juridique', 'capital social', 'RCCM', 'NIU', 'directeur de publication', 'directrice de publication']) {
+    assert.doesNotMatch(mentions, new RegExp(absent, 'i'));
   }
-  assert.match(legalPage, /PENDING_LEGAL_PARTICULARS/);
-  assert.match(legalPage, /Aucun numéro, nom ou renseignement juridique non vérifié n’est publié/);
 });

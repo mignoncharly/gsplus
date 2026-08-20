@@ -4,11 +4,11 @@ import { expect, test } from '@playwright/test';
 const productionOrigin = process.env.PLAYWRIGHT_BASE_URL;
 test.skip(!productionOrigin, 'Production smoke runs only when PLAYWRIGHT_BASE_URL is explicitly provided.');
 
-test('production publishes the July 2026 legal set and complete privacy disclosures', async ({ page }) => {
+test('production publie les sources juridiques OWNER du 11 août 2026', async ({ page }) => {
   for (const [route, lastUpdated] of [
-    ['/confidentialite', '31 juillet 2026'],
-    ['/mentions-legales', '31 juillet 2026'],
-    ['/cgv', '31 juillet 2026'],
+    ['/confidentialite', '11 août 2026'],
+    ['/mentions-legales', '11 août 2026'],
+    ['/cgv', '11 août 2026'],
   ]) {
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     expect(response?.status(), route).toBe(200);
@@ -16,17 +16,14 @@ test('production publishes the July 2026 legal set and complete privacy disclosu
   }
 
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('rowheader', { name: 'Cal.com' })).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Zoho Mail (SMTP)' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: /Actif pour les notifications transactionnelles/ })).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Journaux de sécurité du serveur' })).toBeVisible();
+  await expect(page.getByText(/Golden Studio Plus détermine les finalités et les moyens/)).toBeVisible();
+  await expect(page.getByText(/Cookies, traceurs et mesure d’audience/)).toBeVisible();
   await expect(page.getByText(/portabilité des données/)).toBeVisible();
 
   await page.goto('/mentions-legales', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/Informations officielles en attente de validation/)).toBeVisible();
-  await expect(page.getByText(/Aucun numéro, nom ou renseignement juridique non vérifié/)).toBeVisible();
-  await expect(page.getByText('Hetzner Online GmbH')).toBeVisible();
-  await expect(page.getByText(/Industriestr\. 25, 91710 Gunzenhausen/)).toBeVisible();
+  await expect(page.getByText(/Golden Studio Plus est l’éditeur du site/)).toBeVisible();
+  await expect(page.getByText(/Le présent site est soumis au droit camerounais/)).toBeVisible();
+  await expect(page.getByText(/Consultez les conditions générales de vente et la politique de confidentialité/)).toBeVisible();
 });
 
 test('production public copy is corrected and no Wikimedia image is requested', async ({ page }) => {

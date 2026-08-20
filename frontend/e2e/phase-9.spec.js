@@ -25,11 +25,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('July 2026 legal pages are mutually linked and publish the complete privacy register', async ({ page }) => {
+test('August 2026 OWNER legal pages are mutually linked and publish the normative content', async ({ page }) => {
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Politique de confidentialité');
-  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 11 août 2026')).toBeVisible();
   for (const heading of [
     'Données collectées',
     'Finalités et fondements',
@@ -40,20 +40,15 @@ test('July 2026 legal pages are mutually linked and publish the complete privacy
   ]) {
     await expect(page.getByRole('heading', { name: new RegExp(heading) })).toBeVisible();
   }
-  await expect(page.getByRole('rowheader', { name: 'Cal.com' })).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Zoho Mail (SMTP)' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: /Actif pour les notifications transactionnelles/ })).toBeVisible();
   await expect(page.getByText(/portabilité des données/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'conditions générales de vente' })).toHaveAttribute('href', '/cgv');
+  await expect(page.getByRole('link', { name: 'Conditions de Vente', exact: true })).toHaveAttribute('href', '/cgv');
 
-  await page.getByRole('link', { name: 'mentions légales' , exact: true }).click();
+  await page.getByRole('link', { name: 'Mentions légales', exact: true }).click();
   await expect(page).toHaveURL(/\/mentions-legales$/);
-  await expect(page.getByText(/Informations officielles en attente de validation/)).toBeVisible();
-  await expect(page.getByText(/numéro RCCM et identifiant fiscal/)).toBeVisible();
-  await expect(page.getByText('Hetzner Online GmbH')).toBeVisible();
-  await expect(page.getByText(/Industriestr\. 25, 91710 Gunzenhausen/)).toBeVisible();
+  await expect(page.getByText(/Golden Studio Plus est l’éditeur du site/)).toBeVisible();
+  await expect(page.getByText(/Le présent site est soumis au droit camerounais/)).toBeVisible();
 
-  await page.getByRole('link', { name: 'conditions générales de vente' }).click();
+  await page.getByRole('link', { name: 'Conditions de Vente', exact: true }).click();
   await expect(page).toHaveURL(/\/cgv$/);
   await expect(page.getByText(/contrôle manuel du paiement/)).toBeVisible();
   await expect(page.getByText(/absence non signalée/)).toBeVisible();
@@ -70,7 +65,7 @@ test('approved public copy and package accents render without external icon requ
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Incontournable')).toBeVisible();
   await expect(page.getByText('Idéal pour un profil professionnel')).toBeVisible();
-  await expect(page.getByText(/Livraison sous 72 h/).first()).toBeVisible();
+  await expect(page.getByText(/Pour connaître les modalités et délais de livraison de cette offre, veuillez nous contacter\./).first()).toBeVisible();
 
   await page.goto('/services', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('tab', { name: 'Séances photo' })).toBeVisible();
@@ -78,7 +73,7 @@ test('approved public copy and package accents render without external icon requ
   await expect(page.getByRole('button', { name: 'Fiançailles & Pré-mariage', exact: true })).toBeVisible();
 
   await page.goto('/contact', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: "Horaires d'ouverture" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Horaires d[’']ouverture/ })).toBeVisible();
   await expect(page.getByText(/Fermé, sauf rendez-vous VIP préalable/)).toBeVisible();
   expect(thirdPartyImages).toEqual([]);
 });

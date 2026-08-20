@@ -117,7 +117,7 @@ test('P1-04 exposes every mandatory draft field without mobile overflow', async 
     'Nom *',
     'Montant *',
     'Devise *',
-    'Durée en minutes *',
+    'Durée en minutes — vide si prise de contact',
     'Contenu de la formule *',
     'Inclusions — une par ligne *',
     'Conditions applicables *',

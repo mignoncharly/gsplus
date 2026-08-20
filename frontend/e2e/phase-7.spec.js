@@ -112,8 +112,7 @@ test('reservation steps expose associated fields and pass axe', async ({ page })
   await page.getByLabel('Téléphone (WhatsApp) *').fill('+237673026654');
   await page.getByLabel('Adresse email *').fill('phase7@example.com');
   await page.getByLabel('Genre *').selectOption('Feminin');
-  await page.getByLabel(/J'accepte les Conditions Générales/).check();
-  await page.getByLabel(/Je confirme avoir lu la Politique/).check();
+  await page.getByLabel(/Je reconnais avoir pris connaissance/).check();
   await assertNoAxeViolations(page, 'reservation step 3');
 
   await page.getByRole('button', { name: /Continuer/ }).click();

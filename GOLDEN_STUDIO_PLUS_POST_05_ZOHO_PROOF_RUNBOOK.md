@@ -1,6 +1,8 @@
 # Runbook supervisé POST-05 — Zoho et preuves I-09/I-11/I-12
 
-État : `DIFFÉRÉ-OWNER` au 9 août 2026. L'OWNER conserve Zoho Mail mais diffère la preuve OAuth SMTP Logs; l'envoi/réception ordinaire reste opérationnel.
+> **ÉTAT COURANT — 11 août 2026** — E-22 et I-12 ont été créés une seule fois, livrés par le fournisseur et confirmés reçus humainement par l’OWNER. I-11 est livré 9/9 côté fournisseur et sa réception humaine, son contenu et son horaire ont été confirmés. Ne rejouer aucun de ces messages et ne créer aucun lead. Conserver `I-09 TECHNICALLY OBSERVED` et `I-09 CONTROLLED TEST DEFERRED`; aucun nouveau hard bounce n’est requis. Les sections ci-dessous décrivent l’historique de préparation.
+
+État : `ACTIVÉ-PROD — PREUVES PARTIELLES` au 9 août 2026. Le poller EU est actif et I-11 est rapproché côté fournisseur; I-09 et I-12 restent à prouver par leurs scénarios QA.
 
 Ce document n'autorise aucun envoi. Il sépare la preuve immédiate des messages internes et le choix d'intégration nécessaire pour les rapports de livraison.
 
@@ -75,3 +77,41 @@ Préparer hors Git :
 Le probe interroge un seul Message-ID sur 14 jours, limite la réponse à un enregistrement et ne restitue que `accessConfirmed`, les codes HTTP/fournisseur, le nombre de correspondances et l'indicateur de pagination. Il n'affiche jamais le token, le destinataire, le sujet ou le contenu du journal.
 
 État vérifié avant accès : tests dédiés 4/4, backend 156/156, build vert; sans Organization ID, arrêt avant appel réseau. L'accès réel n'est confirmé que si le probe renvoie `accessConfirmed: true`.
+## OAuth EU validé et poller disponible — 9 août 2026
+
+Le probe réel et expurgé a confirmé toute la chaîne : refresh OAuth, organisation correspondante et requête SMTP Logs HTTP 200. Cette organisation Zoho Mail Free dispose empiriquement de l'API. Deux transactions `delivered` / `MAILBOX DELIVERY` ont été observées sur 24 heures; aucune adresse ni aucun identifiant complet n'a été affiché ou archivé.
+
+Le poller implémenté :
+
+- renouvelle le token via `https://accounts.zoho.eu` et ne le conserve qu'en mémoire;
+- revalide le `zoid` avant utilisation d'un nouveau token;
+- interroge `https://mail.zoho.eu` avec timestamps Unix en millisecondes et pagination bornée;
+- ne rapproche que les Message-ID et destinataires déjà présents dans `NotificationEvent`;
+- hache l'identité de transaction avant stockage comme `providerEventId`;
+- laisse Zoho gérer les reprises 4xx, sans nouvel envoi applicatif ni I-09;
+- produit I-09 uniquement par le gestionnaire existant lors d'un échec permanent E-xx;
+- ignore pour l'état courant tout rapport plus ancien que `lastWebhookAt`.
+
+Configuration nouvelle, toujours hors Git pour les valeurs sensibles : `ZOHO_MAIL_CLIENT_ID`, `ZOHO_MAIL_CLIENT_SECRET`, `ZOHO_MAIL_REFRESH_TOKEN`, `ZOHO_MAIL_ORG_ID`, les deux bases EU et les bornes du poller. L'activation exige explicitement `ZOHO_MAIL_SMTP_LOGS_SYNC_ENABLED=true`. La valeur d'exemple et le défaut restent `false`.
+
+### Activation supervisée restante
+
+1. Capturer les compteurs production et une sauvegarde restaurable avant le premier cycle.
+2. Déployer le build avec le flag encore à `false`.
+3. Choisir temporairement une fenêtre couvrant les événements I-11 à rapprocher, dans la limite de rétention Zoho.
+4. Activer le flag et redémarrer le service; vérifier un seul cycle, les rapports créés, les statuts et l'absence de réémission e-mail.
+5. Rejouer le cycle pour prouver zéro doublon, puis exécuter séparément les preuves QA autorisées I-09 et I-12.
+
+État actuel : code et tests prêts, worker non activé, aucune mutation de rapport production, aucun e-mail réel envoyé. POST-05 reste ouvert jusqu'aux preuves supervisées.
+## Activation production exécutée — 9 août 2026
+
+- Sauvegarde PostgreSQL chiffrée et restaurable vérifiée avant écriture; copie de l'environnement pré-activation conservée en mode 0600.
+- Dry-run 14 jours : 51 transactions, 18 livraisons rapprochables, aucun échec permanent rapproché.
+- Premier cycle : 18 `EmailDeliveryReport DELIVERED`; les 8 I-11 existants ont reçu `deliveredAt`.
+- Rejeu immédiat : zéro rapport supplémentaire et compteurs inchangés.
+- Poller actif toutes les cinq minutes sur une fenêtre de 14 jours, API et Accounts EU, pagination 100 × 10 pages maximum.
+- Backend relancé proprement, santé 200, aucun échec Zoho journalisé.
+- Invariants : 55 notifications avant/après, zéro I-09/I-12, zéro e-mail prêt ou en traitement; aucun e-mail de test envoyé.
+- Écart restant : un Message-ID suivi sans confirmation et 16 libellés fournisseur `failure` non classés faute de code SMTP/statut terminal fiable.
+
+La preuve I-11 côté fournisseur est acquise. POST-05 ne sera clos qu'après le hard bounce QA I-09, la soumission QA I-12 et les contrôles de réception/déduplication correspondants.

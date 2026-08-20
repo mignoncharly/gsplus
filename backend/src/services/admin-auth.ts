@@ -96,6 +96,43 @@ export const verifyAdminCredentials = async (email: string, password: string) =>
   return admin;
 };
 
+export const changeAdminPassword = async (
+  admin: AdminUser,
+  currentPassword: string,
+  newPassword: string,
+) => {
+  const currentPasswordMatches = await bcrypt.compare(currentPassword, admin.passwordHash);
+  if (!currentPasswordMatches) {
+    throw new HttpError(400, 'CURRENT_PASSWORD_INVALID', 'Le mot de passe actuel est incorrect.');
+  }
+
+  if (currentPassword === newPassword) {
+    throw new HttpError(400, 'PASSWORD_UNCHANGED', 'Le nouveau mot de passe doit être différent du mot de passe actuel.');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  return prisma.$transaction(async (transaction) => {
+    const result = await transaction.adminUser.updateMany({
+      where: { id: admin.id, isActive: true, sessionVersion: admin.sessionVersion },
+      data: { passwordHash, sessionVersion: { increment: 1 } },
+    });
+    if (result.count !== 1) {
+      throw new HttpError(409, 'ADMIN_SESSION_CHANGED', 'La session a changé. Reconnectez-vous avant de réessayer.');
+    }
+
+    const updatedAdmin = await transaction.adminUser.findUniqueOrThrow({ where: { id: admin.id } });
+    await transaction.auditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: 'admin.password.change',
+        entityType: 'AdminUser',
+        entityId: admin.id,
+        metadata: { otherSessionsInvalidated: true },
+      },
+    });
+    return updatedAdmin;
+  });
+};
 export const getAdminFromRequest = async (req: Request) => {
   const token = req.cookies?.[adminSessionCookieName()];
   if (!token) {

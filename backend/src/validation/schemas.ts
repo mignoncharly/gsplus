@@ -90,6 +90,7 @@ export const reservationCreateSchema = z.object({
   ...publicProtectionFields,
   intentId: requiredString,
   idempotencyKey: z.uuid(),
+  locale: z.enum(['fr', 'en']).default('fr'),
   customer: z
     .object({
       firstName: requiredString,
@@ -107,6 +108,7 @@ export const reservationCreateSchema = z.object({
     })),
   consentImage: z.boolean().default(false),
   whatsappConsent: z.boolean().default(false),
+  whatsappMarketingConsent: z.boolean().default(false),
   acceptedTerms: z.literal(true),
   acceptedPrivacy: z.literal(true),
   paymentChoice: z.enum(['base', 'quote']).optional(),
@@ -134,6 +136,7 @@ export const contactSchema = z
   .object({
     ...publicProtectionFields,
     submissionKey: z.uuid(),
+    locale: z.enum(['fr', 'en']).default('fr'),
     name: requiredString,
     email: emailAddress,
     phone: phone.optional(),
@@ -150,6 +153,7 @@ export const contactSchema = z
 export const b2bInquirySchema = z.object({
   ...publicProtectionFields,
   submissionKey: z.uuid(),
+  locale: z.enum(['fr', 'en']).default('fr'),
   company: requiredString,
   rccm: optionalString,
   name: requiredString,
@@ -163,6 +167,7 @@ export const b2bInquirySchema = z.object({
 export const quoteRequestSchema = z.object({
   ...publicProtectionFields,
   submissionKey: z.uuid(),
+  locale: z.enum(['fr', 'en']).default('fr'),
   name: requiredString,
   email: emailAddress.optional(),
   phone,
@@ -175,6 +180,11 @@ export const quoteRequestSchema = z.object({
 export const adminLoginSchema = z.object({
   email: z.email(),
   password: z.string().min(8).max(200),
+});
+
+export const adminPasswordChangeSchema = z.object({
+  currentPassword: z.string().min(8).max(200),
+  newPassword: z.string().min(12).max(200),
 });
 
 export const notificationResolutionSchema = z.object({
@@ -411,6 +421,14 @@ export const reservationDeliveryPublishSchema = z.object({
   deliveryUrl: z.url().max(2000),
   accessInstruction: z.string().trim().min(1).max(1000),
   expiresAt: z.coerce.date(),
+});
+
+export const qaNotificationOverrideSchema = z.object({
+  commandId: z.uuid(),
+  expectedReservationVersion: z.number().int().positive(),
+  expectedOverrideVersion: z.number().int().nonnegative(),
+  recipientEmail: emailAddress,
+  reason: z.string().trim().min(10).max(1000),
 });
 
 export const reservationCancellationSchema = z.object({

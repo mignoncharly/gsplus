@@ -87,14 +87,12 @@ test('LEG-04 présente quatre choix séparés et ne pré-coche aucun consentemen
   await installPublicApi(page);
   await openPublicChoices(page);
 
-  await expect(page.getByText(/Finalité : Portfolio et promotion du Studio/)).toBeVisible();
-  await expect(page.getByText(/Portée : Site web, Instagram et TikTok/)).toBeVisible();
-  await expect(page.getByLabel(/J'autorise Golden Studio Plus/)).not.toBeChecked();
-  await expect(page.getByLabel(/J’accepte de recevoir sur WhatsApp/)).not.toBeChecked();
-  await expect(page.getByLabel(/J'accepte les Conditions Générales/)).not.toBeChecked();
-  await expect(page.getByLabel(/Je confirme avoir lu la Politique/)).not.toBeChecked();
-  await expect(page.getByRole('link', { name: /Conditions Générales/ })).toHaveAttribute('href', '/cgv');
-  await expect(page.getByRole('link', { name: /Politique de Confidentialité/ })).toHaveAttribute('href', '/confidentialite');
+  await expect(page.getByLabel(/J’autorise l’utilisation des images/)).not.toBeChecked();
+  await expect(page.getByLabel(/informations liées à ma réservation sur WhatsApp/)).not.toBeChecked();
+  await expect(page.getByLabel(/offres, actualités et communications promotionnelles/)).not.toBeChecked();
+  await expect(page.getByLabel(/Je reconnais avoir pris connaissance/)).not.toBeChecked();
+  await expect(page.getByRole('link', { name: 'Conditions générales de vente' })).toHaveAttribute('href', '/cgv');
+  await expect(page.getByRole('link', { name: 'Politique de confidentialité' })).toHaveAttribute('href', '/confidentialite');
   const widths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });

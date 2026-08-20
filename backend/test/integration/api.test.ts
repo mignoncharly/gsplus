@@ -7,6 +7,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { loadOwnerLegalDocuments } from '../../src/legal/owner-legal-documents.js';
 import { createApp } from '../../src/app.js';
 import { prisma } from '../../src/db/prisma.js';
 import { AdminRole, NotificationStatus, PaymentStatus, ReservationStatus } from '../../src/generated/prisma/client.js';
@@ -115,6 +116,7 @@ const reservationPayload = async (packageId: string, startAt = futureDateAt()) =
     },
     consentImage: true,
     whatsappConsent: false,
+    whatsappMarketingConsent: false,
     acceptedTerms: true,
     acceptedPrivacy: true,
     paymentChoice: 'base',
@@ -237,6 +239,49 @@ describe('booking flow', () => {
   });
 });
 
+  it('fige la nouvelle version juridique sans réécrire une réservation historique', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const historicalPayload = await reservationPayload(pack.id, futureDateAt(9, 0, 21));
+    const historical = await request(app).post('/api/reservations').send(historicalPayload).expect(201);
+    const before = await prisma.reservation.findUniqueOrThrow({ where: { id: historical.body.data.id }, include: { snapshot: true } });
+    expect(before.snapshot).toMatchObject({ termsVersion: '2026-07-31', privacyVersion: '2026-07-31' });
+
+    const documents = (await loadOwnerLegalDocuments()).filter(({ documentType }) => documentType !== 'LEGAL_NOTICE');
+    try {
+      for (const document of documents) {
+        await prisma.legalDocumentVersion.create({
+          data: {
+            id: document.id,
+            documentType: document.documentType,
+            version: document.version,
+            status: 'PUBLISHED',
+            sourceDocumentHash: document.sourceDocumentHash,
+            noticeText: document.noticeText,
+            purpose: document.purpose,
+            scope: [...document.scope],
+            effectiveAt: document.effectiveAt,
+            publishedAt: document.publishedAt,
+          },
+        });
+      }
+      const currentPayload = await reservationPayload(pack.id, futureDateAt(10, 0, 22));
+      const current = await request(app).post('/api/reservations').send(currentPayload).expect(201);
+      const [historicalAfter, currentAfter] = await Promise.all([
+        prisma.reservation.findUniqueOrThrow({ where: { id: historical.body.data.id }, include: { snapshot: true } }),
+        prisma.reservation.findUniqueOrThrow({ where: { id: current.body.data.id }, include: { snapshot: true } }),
+      ]);
+      expect(historicalAfter.snapshot).toMatchObject({ termsVersion: '2026-07-31', privacyVersion: '2026-07-31' });
+      expect(currentAfter.snapshot).toMatchObject({ termsVersion: '2026-08-11', privacyVersion: '2026-08-11' });
+      expect(currentAfter.snapshot?.evidence).toMatchObject({
+        legalVersionIds: { terms: 'legal-terms-2026-08-11', privacy: 'legal-privacy-2026-08-11' },
+      });
+    } finally {
+      await prisma.legalDocumentVersion.deleteMany({
+        where: { version: '2026-08-11', documentType: { in: ['TERMS', 'PRIVACY'] } },
+      });
+    }
+  });
+
 describe('lead capture', () => {
   it('deduplicates concurrent contact submissions and queues one notification per audience', async () => {
     const submissionKey = randomUUID();
@@ -287,6 +332,49 @@ describe('admin flow', () => {
     const agent = await loginAdmin();
     const response = await agent.get('/api/admin/reservations').expect(200);
     expect(response.body.data).toEqual([]);
+  });
+
+  it('lets an admin change their own password and invalidates other sessions', async () => {
+    const agent = await loginAdmin();
+    const otherSession = await loginAdmin();
+    const newPassword = 'new-test-admin-password-2026';
+
+    const wrongCurrent = await agent
+      .post('/api/admin/password')
+      .send({ currentPassword: 'wrong-admin-password', newPassword })
+      .expect(400);
+    expect(wrongCurrent.body.error.code).toBe('CURRENT_PASSWORD_INVALID');
+
+    const unchanged = await agent
+      .post('/api/admin/password')
+      .send({ currentPassword: adminPassword, newPassword: adminPassword })
+      .expect(400);
+    expect(unchanged.body.error.code).toBe('PASSWORD_UNCHANGED');
+
+    const changed = await agent
+      .post('/api/admin/password')
+      .send({ currentPassword: adminPassword, newPassword })
+      .expect(200);
+    expect(changed.body.data).toMatchObject({ email: 'admin@goldenstudioplus.test', role: AdminRole.OWNER });
+    expect(changed.body.data.passwordHash).toBeUndefined();
+
+    await agent.get('/api/admin/me').expect(200);
+    await otherSession.get('/api/admin/me').expect(401);
+    await request(app)
+      .post('/api/admin/login')
+      .send({ email: 'admin@goldenstudioplus.test', password: adminPassword })
+      .expect(401);
+    await request(app)
+      .post('/api/admin/login')
+      .send({ email: 'admin@goldenstudioplus.test', password: newPassword })
+      .expect(200);
+
+    const updatedAdmin = await prisma.adminUser.findUniqueOrThrow({ where: { email: 'admin@goldenstudioplus.test' } });
+    expect(updatedAdmin.sessionVersion).toBe(1);
+    expect(await bcrypt.compare(newPassword, updatedAdmin.passwordHash)).toBe(true);
+    expect(await prisma.auditLog.count({
+      where: { adminUserId: updatedAdmin.id, action: 'admin.password.change' },
+    })).toBe(1);
   });
 
   it('verifies payment without confirming the reservation and records transition history', async () => {
@@ -918,6 +1006,44 @@ describe('P0-04 payment and reservation decisions', () => {
     const storedPayment = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
     expect(storedReservation.status).toBe(ReservationStatus.PENDING_CONFIRMATION);
     expect(storedPayment.status).toBe(PaymentStatus.PENDING);
+  });
+
+  it('P0-04 confirms a quote reservation without creating or verifying a payment', async () => {
+    const pack = await prisma.package.findFirstOrThrow();
+    const initialPayload = await reservationPayload(pack.id);
+    const {
+      paymentMethod: _paymentMethod,
+      paymentPhone: _paymentPhone,
+      transactionRef: _transactionRef,
+      ...quotePayload
+    } = initialPayload;
+    quotePayload.paymentChoice = 'quote';
+
+    const created = await request(app).post('/api/reservations').send(quotePayload).expect(201);
+    const reservation = await prisma.reservation.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+      include: { payments: true },
+    });
+    expect(reservation.payments).toEqual([]);
+
+    const agent = await loginAdmin();
+    const commandId = randomUUID();
+    const body = {
+      status: ReservationStatus.CONFIRMED,
+      commandId,
+      expectedVersion: reservation.version,
+    };
+    const first = await agent.patch(`/api/admin/reservations/${reservation.id}`).send(body).expect(200);
+    const replay = await agent.patch(`/api/admin/reservations/${reservation.id}`).send(body).expect(200);
+
+    expect(first.body.data).toMatchObject({ status: ReservationStatus.CONFIRMED, replayed: false });
+    expect(replay.body.data).toMatchObject({ status: ReservationStatus.CONFIRMED, replayed: true });
+    expect(await prisma.payment.count({ where: { reservationId: reservation.id } })).toBe(0);
+    expect(
+      await prisma.notificationEvent.count({
+        where: { reservationId: reservation.id, type: 'booking_confirmed_customer' },
+      }),
+    ).toBe(1);
   });
 
   it('P0-04 verifies payment without confirmation and replays one command idempotently', async () => {
@@ -2306,6 +2432,7 @@ describe('LEG-04 legal versions and image consent evidence', () => {
 
     const grantedPayload = await reservationPayload(pack.id, futureDateAt(10, 0, 35));
     grantedPayload.consentImage = true;
+    grantedPayload.whatsappMarketingConsent = true;
     const granted = await request(app).post('/api/reservations').send(grantedPayload).expect(201);
     const refusedPayload = await reservationPayload(pack.id, futureDateAt(11, 0, 36));
     refusedPayload.consentImage = false;
@@ -2318,6 +2445,9 @@ describe('LEG-04 legal versions and image consent evidence', () => {
     });
     expect(reservations.map((item) => item.snapshot?.privacyAccepted)).toEqual([true, true]);
     expect(reservations.map((item) => item.snapshot?.privacyVersion)).toEqual(['2026-07-31', '2026-07-31']);
+    expect(reservations.map((item) => item.snapshot?.whatsappMarketingConsent)).toEqual([true, false]);
+    expect(reservations[0].snapshot?.whatsappMarketingConsentAt).toBeInstanceOf(Date);
+    expect(reservations[1].snapshot?.whatsappMarketingConsentAt).toBeNull();
     expect(reservations.map((item) => item.imageConsentEvents[0].choice)).toEqual(['GRANTED', 'REFUSED']);
     expect(reservations.every((item) => item.imageConsentEvents[0].purpose === 'PORTFOLIO_AND_PROMOTION')).toBe(true);
     expect(reservations.every((item) => item.imageConsentEvents[0].legalVersion.documentType === 'IMAGE_AUTHORIZATION')).toBe(true);

@@ -73,33 +73,34 @@ enum PackageBookingMode {
 }
 
 model AdminUser {
-  id                          String                         @id @default(cuid())
-  email                       String                         @unique
-  passwordHash                String
-  name                        String
-  role                        AdminRole                      @default(STAFF)
-  isActive                    Boolean                        @default(true)
-  sessionVersion              Int                            @default(0)
-  createdAt                   DateTime                       @default(now())
-  updatedAt                   DateTime                       @updatedAt
-  auditLogs                   AuditLog[]
-  packageVersions             PackageVersion[]               @relation("PackageVersionCreatedBy")
-  validatedPackageVersions    PackageVersion[]               @relation("PackageVersionValidatedBy")
-  publishedPackageVersions    PackageVersion[]               @relation("PackageVersionPublishedBy")
-  paymentTransitions          PaymentTransition[]
-  reservationTransitions      ReservationTransition[]
-  verifiedPayments            Payment[]                      @relation("PaymentVerifiedBy")
-  adminCommands               AdminCommand[]
-  financialTasks              FinancialTask[]
-  rescheduleRequestsRecorded  ReservationRescheduleRequest[] @relation("RescheduleRequestedBy")
-  rescheduleRequestsDecided   ReservationRescheduleRequest[] @relation("RescheduleDecidedBy")
-  withdrawalRequestsRecorded  ReservationWithdrawalRequest[] @relation("WithdrawalRequestedBy")
-  withdrawalRequestsDecided   ReservationWithdrawalRequest[] @relation("WithdrawalDecidedBy")
-  reservationDeliveries       ReservationDelivery[]
-  imageConsentEvents          ImageConsentEvent[]
-  mediaConsentUsagesPublished MediaConsentUsage[]            @relation("MediaConsentUsagePublishedBy")
-  dataRightsRequestsCreated   DataRightsRequest[]            @relation("DataRightsRequestCreatedBy")
-  dataRightsRequestEvents     DataRightsRequestEvent[]
+  id                               String                            @id @default(cuid())
+  email                            String                            @unique
+  passwordHash                     String
+  name                             String
+  role                             AdminRole                         @default(STAFF)
+  isActive                         Boolean                           @default(true)
+  sessionVersion                   Int                               @default(0)
+  createdAt                        DateTime                          @default(now())
+  updatedAt                        DateTime                          @updatedAt
+  auditLogs                        AuditLog[]
+  packageVersions                  PackageVersion[]                  @relation("PackageVersionCreatedBy")
+  validatedPackageVersions         PackageVersion[]                  @relation("PackageVersionValidatedBy")
+  publishedPackageVersions         PackageVersion[]                  @relation("PackageVersionPublishedBy")
+  paymentTransitions               PaymentTransition[]
+  reservationTransitions           ReservationTransition[]
+  verifiedPayments                 Payment[]                         @relation("PaymentVerifiedBy")
+  adminCommands                    AdminCommand[]
+  financialTasks                   FinancialTask[]
+  rescheduleRequestsRecorded       ReservationRescheduleRequest[]    @relation("RescheduleRequestedBy")
+  rescheduleRequestsDecided        ReservationRescheduleRequest[]    @relation("RescheduleDecidedBy")
+  withdrawalRequestsRecorded       ReservationWithdrawalRequest[]    @relation("WithdrawalRequestedBy")
+  withdrawalRequestsDecided        ReservationWithdrawalRequest[]    @relation("WithdrawalDecidedBy")
+  reservationDeliveries            ReservationDelivery[]
+  imageConsentEvents               ImageConsentEvent[]
+  mediaConsentUsagesPublished      MediaConsentUsage[]               @relation("MediaConsentUsagePublishedBy")
+  dataRightsRequestsCreated        DataRightsRequest[]               @relation("DataRightsRequestCreatedBy")
+  dataRightsRequestEvents          DataRightsRequestEvent[]
+  reservationNotificationOverrides ReservationNotificationOverride[]
 }
 
 model Customer {
@@ -194,43 +195,44 @@ model PackageVersion {
 }
 
 model Reservation {
-  id                 String                         @id @default(cuid())
-  reference          String                         @unique
-  customerId         String
-  packageId          String
-  packageVersionId   String
-  startAt            DateTime
-  endAt              DateTime
-  status             ReservationStatus              @default(PENDING_CONFIRMATION)
-  statusReason       String?
-  statusChangedAt    DateTime                       @default(now())
-  version            Int                            @default(1)
-  expiresAt          DateTime?
-  paymentChoice      String?
-  notes              String?
-  extraInfo          String?
-  acceptedTermsAt    DateTime?
-  consentImage       Boolean                        @default(false)
-  whatsappConsentAt  DateTime?
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
-  customer           Customer                       @relation(fields: [customerId], references: [id])
-  package            Package                        @relation(fields: [packageId], references: [id])
-  packageVersion     PackageVersion                 @relation(fields: [packageVersionId], references: [id])
-  payments           Payment[]
-  transitions        ReservationTransition[]
-  notifications      NotificationEvent[]
-  calendarSyncLogs   CalendarSyncLog[]
-  reservationIntent  ReservationIntent?
-  snapshot           ReservationSnapshot?
-  integrityIncidents DataIntegrityIncident[]
-  financialTasks     FinancialTask[]
-  rescheduleRequests ReservationRescheduleRequest[]
-  withdrawalRequests ReservationWithdrawalRequest[]
-  deliveries         ReservationDelivery[]
-  imageConsentEvents ImageConsentEvent[]
-  mediaItems         MediaItem[]
-  mediaConsentUsages MediaConsentUsage[]
+  id                    String                            @id @default(cuid())
+  reference             String                            @unique
+  customerId            String
+  packageId             String
+  packageVersionId      String
+  startAt               DateTime
+  endAt                 DateTime
+  status                ReservationStatus                 @default(PENDING_CONFIRMATION)
+  statusReason          String?
+  statusChangedAt       DateTime                          @default(now())
+  version               Int                               @default(1)
+  expiresAt             DateTime?
+  paymentChoice         String?
+  notes                 String?
+  extraInfo             String?
+  acceptedTermsAt       DateTime?
+  consentImage          Boolean                           @default(false)
+  whatsappConsentAt     DateTime?
+  createdAt             DateTime                          @default(now())
+  updatedAt             DateTime                          @updatedAt
+  customer              Customer                          @relation(fields: [customerId], references: [id])
+  package               Package                           @relation(fields: [packageId], references: [id])
+  packageVersion        PackageVersion                    @relation(fields: [packageVersionId], references: [id])
+  payments              Payment[]
+  transitions           ReservationTransition[]
+  notifications         NotificationEvent[]
+  calendarSyncLogs      CalendarSyncLog[]
+  reservationIntent     ReservationIntent?
+  snapshot              ReservationSnapshot?
+  integrityIncidents    DataIntegrityIncident[]
+  financialTasks        FinancialTask[]
+  rescheduleRequests    ReservationRescheduleRequest[]
+  withdrawalRequests    ReservationWithdrawalRequest[]
+  deliveries            ReservationDelivery[]
+  imageConsentEvents    ImageConsentEvent[]
+  mediaItems            MediaItem[]
+  mediaConsentUsages    MediaConsentUsage[]
+  notificationOverrides ReservationNotificationOverride[]
 
   @@index([startAt, endAt])
   @@index([status])
@@ -240,10 +242,32 @@ model Reservation {
   @@index([expiresAt])
 }
 
+model ReservationNotificationOverride {
+  id                           String      @id @default(cuid())
+  reservationId                String
+  version                      Int
+  recipientEmail               String
+  recipientFingerprint         String
+  previousRecipientFingerprint String
+  reason                       String
+  commandId                    String      @unique
+  isActive                     Boolean     @default(true)
+  deactivatedAt                DateTime?
+  createdAt                    DateTime    @default(now())
+  createdById                  String?
+  reservation                  Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  createdBy                    AdminUser?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([reservationId, version])
+  @@index([reservationId, isActive, createdAt])
+  @@index([createdById, createdAt])
+}
+
 model ReservationSnapshot {
   id                        String      @id @default(cuid())
   reservationId             String      @unique
   firstName                 String
+  locale                    String      @default("fr")
   lastName                  String
   phoneRaw                  String
   phoneE164                 String
@@ -273,6 +297,8 @@ model ReservationSnapshot {
   privacyAcceptedAt         DateTime
   whatsappConsent           Boolean
   whatsappConsentAt         DateTime?
+  whatsappMarketingConsent   Boolean     @default(false)
+  whatsappMarketingConsentAt DateTime?
   imageConsent              Boolean
   imageAuthorizationVersion String
   imageConsentAt            DateTime?
@@ -645,6 +671,7 @@ model Lead {
   rccm              String?
   subject           String?
   message           String
+  locale            String              @default("fr")
   source            String?
   whatsappConsentAt DateTime?
   createdAt         DateTime            @default(now())

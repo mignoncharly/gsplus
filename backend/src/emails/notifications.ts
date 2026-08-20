@@ -1,10 +1,12 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
 
+import { hasOwnerExplicitDeliveryLabel } from '../catalogue/delivery-labels.js';
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { HttpError } from '../errors/http-error.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
+import { resolveReservationNotificationEmail } from '../services/reservation-notification-overrides.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { LeadType, NotificationStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { normalizeE164Phone } from '../utils/phone.js';
@@ -28,6 +30,7 @@ type ReservationForMessage = NonNullable<NotificationEvent['reservation']>;
 type ReservationContactSource = {
   snapshot: {
     firstName: string;
+    locale: string;
     lastName: string;
     notificationPhoneE164: string;
     notificationEmail: string | null;
@@ -97,6 +100,7 @@ const reservationContact = (reservation: ReservationContactSource) => {
   if (!reservation.snapshot) throw new Error('RESERVATION_SNAPSHOT_MISSING');
   return {
     firstName: reservation.snapshot.firstName,
+    locale: reservation.snapshot.locale === 'en' ? 'en' : 'fr',
     lastName: reservation.snapshot.lastName,
     phone: reservation.snapshot.notificationPhoneE164,
     email: reservation.snapshot.notificationEmail ?? reservation.snapshot.email,
@@ -124,36 +128,29 @@ type ReservationEmailSource = ReservationContactSource & {
   }>;
 };
 
-const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-CM', {
+const emailLocaleTag = (locale: string) => locale === 'en' ? 'en-GB' : 'fr-CM';
+const formatDate = (date: Date, locale: string = 'fr') => new Intl.DateTimeFormat(emailLocaleTag(locale), {
   dateStyle: 'long',
   timeZone: 'Africa/Douala',
 }).format(date);
-
-const formatTime = (date: Date) => new Intl.DateTimeFormat('fr-CM', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'Africa/Douala',
-}).format(date).replace(':', ' h ');
-
-const formatAmount = (amount: number) => amount.toLocaleString('fr-CM');
+const formatTime = (date: Date, locale: string = 'fr') => {
+  const value = new Intl.DateTimeFormat(emailLocaleTag(locale), {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Douala',
+  }).format(date);
+  return locale === 'fr' ? value.replace(':', ' h ') : value;
+};
+const formatAmount = (amount: number, locale: string = 'fr') => amount.toLocaleString(emailLocaleTag(locale));
 const maskReference = (reference: string | null | undefined) => {
-  if (!reference) return 'Non transmise';
+  if (!reference) return 'Not provided';
   return `•••• ${reference.slice(-4)}`;
 };
 
-const paymentLabel = (status: PaymentStatus | undefined) => ({
-  [PaymentStatus.PENDING]: 'En attente de vérification',
-  [PaymentStatus.PAYMENT_INFO_REQUIRED]: 'Information complémentaire requise',
-  [PaymentStatus.VERIFICATION_BLOCKED]: 'Vérification temporairement bloquée',
-  [PaymentStatus.VERIFIED]: 'Vérifié',
-  [PaymentStatus.PAID]: 'Payé',
-  [PaymentStatus.REJECTED]: 'Rejeté',
-  [PaymentStatus.FAILED]: 'Échec',
-  [PaymentStatus.EXPIRED]: 'Expiré',
-  [PaymentStatus.REFUND_PENDING]: 'Remboursement en cours',
-  [PaymentStatus.REFUNDED]: 'Remboursé',
-}[status ?? PaymentStatus.PENDING]);
+const paymentLabel = (status: PaymentStatus | undefined, locale: string = 'fr') => {
+  const labels = locale === 'en'
+    ? { [PaymentStatus.PENDING]: 'Awaiting verification', [PaymentStatus.PAYMENT_INFO_REQUIRED]: 'Additional information required', [PaymentStatus.VERIFICATION_BLOCKED]: 'Verification temporarily blocked', [PaymentStatus.VERIFIED]: 'Verified', [PaymentStatus.PAID]: 'Paid', [PaymentStatus.REJECTED]: 'Rejected', [PaymentStatus.FAILED]: 'Failed', [PaymentStatus.EXPIRED]: 'Expired', [PaymentStatus.REFUND_PENDING]: 'Refund in progress', [PaymentStatus.REFUNDED]: 'Refunded' }
+    : { [PaymentStatus.PENDING]: 'En attente de vérification', [PaymentStatus.PAYMENT_INFO_REQUIRED]: 'Information complémentaire requise', [PaymentStatus.VERIFICATION_BLOCKED]: 'Vérification temporairement bloquée', [PaymentStatus.VERIFIED]: 'Vérifié', [PaymentStatus.PAID]: 'Payé', [PaymentStatus.REJECTED]: 'Rejeté', [PaymentStatus.FAILED]: 'Échec', [PaymentStatus.EXPIRED]: 'Expiré', [PaymentStatus.REFUND_PENDING]: 'Remboursement en cours', [PaymentStatus.REFUNDED]: 'Remboursé' };
+  return labels[status ?? PaymentStatus.PENDING];
+};
 
 const reservationEmailVariables = (
   reservation: ReservationEmailSource,
@@ -166,15 +163,15 @@ const reservationEmailVariables = (
     nom_client: `${contact.firstName} ${contact.lastName}`,
     reference_courte: reservation.reference,
     nom_prestation: contact.packageName,
-    date_seance: formatDate(contact.startAt),
-    heure_debut: formatTime(contact.startAt),
-    heure_fin: formatTime(contact.endAt),
-    montant_fcfa: formatAmount(contact.amount),
+    date_seance: formatDate(contact.startAt, contact.locale),
+    heure_debut: formatTime(contact.startAt, contact.locale),
+    heure_fin: formatTime(contact.endAt, contact.locale),
+    montant_fcfa: formatAmount(contact.amount, contact.locale),
     telephone_e164: contact.phone,
-    email_client: contact.email ?? 'Non renseigné',
+    email_client: contact.email ?? (contact.locale === 'en' ? 'Not provided' : 'Non renseigné'),
     statut_paiement: payment?.status ?? PaymentStatus.PENDING,
-    statut_paiement_libelle: paymentLabel(payment?.status),
-    operateur_paiement: payment?.method ?? 'Non renseigné',
+    statut_paiement_libelle: paymentLabel(payment?.status, contact.locale),
+    operateur_paiement: payment?.method ?? (contact.locale === 'en' ? 'Not provided' : 'Non renseigné'),
     reference_paiement_masquee: maskReference(payment?.transactionRef),
     lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${reservation.id}`,
     adresse_ou_instruction_acces: 'Golden Studio Plus, Douala',
@@ -186,7 +183,7 @@ const renderReservationEmail = (
   reservation: ReservationEmailSource,
   code: EmailTemplateCode,
   overrides: EmailTemplateVariables = {},
-) => renderEmailTemplate(code, reservationEmailVariables(reservation, overrides));
+) => renderEmailTemplate(code, reservationEmailVariables(reservation, overrides), reservationContact(reservation).locale === 'en' ? 'en' : 'fr');
 
 const reservationLines = (reservation: ReservationForMessage) => {
   const contact = reservationContact(reservation);
@@ -674,7 +671,7 @@ const enqueue = async (data: {
   }
 };
 
-const enqueueReservationEmail = (
+const enqueueReservationEmail = async (
   reservation: ReservationEmailSource,
   input: {
     code: EmailTemplateCode;
@@ -686,12 +683,17 @@ const enqueueReservationEmail = (
     variables?: EmailTemplateVariables;
   },
 ) => {
-  const rendered = renderReservationEmail(reservation, input.code, input.variables);
+  const recipient = await resolveReservationNotificationEmail(reservation.id, input.recipient);
+  if (!recipient) return null;
+  const rendered = renderReservationEmail(reservation, input.code, {
+    ...input.variables,
+    email_client: recipient,
+  });
   return enqueue({
     reservationId: reservation.id,
     channel: 'email',
     type: input.type,
-    recipient: input.recipient,
+    recipient,
     idempotencyKey: input.idempotencyKey,
     nextAttemptAt: input.nextAttemptAt,
     templateCode: input.code,
@@ -946,7 +948,7 @@ export const queueReservationStatusNotification = async (
   } else if (status === ReservationStatus.NO_SHOW) {
     code = 'E-17';
     type = 'booking_no_show_customer';
-  } else if (status === ReservationStatus.COMPLETED && reservation.packageVersion.deliveryLabel?.trim()) {
+  } else if (status === ReservationStatus.COMPLETED && hasOwnerExplicitDeliveryLabel(reservation.packageVersion.deliveryLabel)) {
     code = 'E-18';
     type = 'booking_completed_followup_customer';
   }
@@ -1768,7 +1770,7 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
       };
   const jobs: Array<Promise<unknown>> = [];
   if (lead.email) {
-    const rendered = renderEmailTemplate(customerCode, customerVariables);
+    const rendered = renderEmailTemplate(customerCode, customerVariables, lead.locale === 'en' ? 'en' : 'fr');
     jobs.push(enqueue({
       leadId,
       channel: 'email',

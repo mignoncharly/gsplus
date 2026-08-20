@@ -10,6 +10,7 @@ import {
   Info, 
   Lock, 
   LogOut, 
+  KeyRound,
   Mail, 
   Menu,
   Trash2, 
@@ -26,6 +27,7 @@ import {
 import {
   addAdminReservationPayment,
   cancelAdminReservation,
+  changeAdminPassword,
   createAdminAvailabilityBlock,
   createAdminMedia,
   createAdminWithdrawalRequest,
@@ -154,6 +156,12 @@ const AdminDashboard = () => {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedRes, setSelectedRes] = useState(null);
@@ -276,6 +284,7 @@ const AdminDashboard = () => {
     if (!isAuthenticated) return undefined;
 
     const refreshIfVisible = (reportError = false) => {
+      if (activeTab === 'account') return;
       if (!shouldRunAdminRefresh({ isAuthenticated, visibilityState: document.visibilityState })) return;
       void refreshAdminTab(activeTab, { reportError });
     };
@@ -391,6 +400,38 @@ const AdminDashboard = () => {
     tabRefreshInFlightRef.current.clear();
     reservationSearchReferenceRef.current = '';
     setFeedback(null);
+  };
+  const handlePasswordChange = async (event) => {
+    event.preventDefault();
+    setFeedback(null);
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setFeedback({ tab: 'account', type: 'error', message: 'La confirmation ne correspond pas au nouveau mot de passe.' });
+      return;
+    }
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setFeedback({ tab: 'account', type: 'error', message: 'Le nouveau mot de passe doit être différent du mot de passe actuel.' });
+      return;
+    }
+
+    setPasswordSubmitting(true);
+    try {
+      const admin = await changeAdminPassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setAdminUser(admin);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setFeedback({
+        tab: 'account',
+        type: 'success',
+        message: 'Mot de passe modifié. Les autres sessions administrateur ont été déconnectées.',
+      });
+    } catch (err) {
+      setFeedback({ tab: 'account', type: 'error', message: err.message || 'Impossible de modifier le mot de passe.' });
+    } finally {
+      setPasswordSubmitting(false);
+    }
   };
 
   const runAction = async (label, action, propagateError = false) => {
@@ -917,6 +958,7 @@ const AdminDashboard = () => {
     ['portfolio', 'Portfolio', ImageIcon],
     ['notifications', 'Communications', Mail],
     ...(adminUser?.role === 'OWNER' ? [['governance', 'Données & droits', ShieldCheck]] : []),
+    ['account', 'Sécurité', KeyRound],
   ];
 
   const closeSidebar = ({ restoreFocus = false } = {}) => {
@@ -1020,6 +1062,7 @@ const AdminDashboard = () => {
 
       {/* Main dashboard content */}
       <main className="admin-main">
+      {activeTab !== 'account' && (
       <section className="admin-status-banner admin-refresh-bar" aria-label="Fraîcheur des données administratives">
         <p role="status" aria-live="polite">
           Dernière actualisation : {lastSyncedAt[activeTab]
@@ -1036,6 +1079,7 @@ const AdminDashboard = () => {
           {loadingTabs[activeTab] ? 'Actualisation…' : 'Actualiser'}
         </button>
       </section>
+      )}
         {feedback?.tab === activeTab && (
           <div
             ref={feedbackRef}
@@ -1103,6 +1147,88 @@ const AdminDashboard = () => {
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.95rem', margin: 0 }}>
                   Le système contient actuellement {blocks.length} blocage(s) de calendrier, {media.length} média(s) dans la galerie, {packs.length} package(s) tarifaire(s) configuré(s), et {notifications.length} notification(s) envoyée(s).
                 </p>
+              </div>
+            </Motion.div>
+          )}
+
+          {activeTab === 'account' && (
+            <Motion.div
+              key="account"
+              variants={pageTransition}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <div className="admin-page-header">
+                <h1>Sécurité du <span>compte</span></h1>
+              </div>
+
+              <div className="admin-card" style={{ maxWidth: '720px' }}>
+                <h2>Modifier le mot de passe</h2>
+                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                  Compte : <strong>{adminUser?.email}</strong>
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2rem' }}>
+                  Après la modification, les autres sessions administrateur seront automatiquement déconnectées.
+                </p>
+
+                <form onSubmit={handlePasswordChange} style={{ display: 'grid', gap: '1.25rem' }}>
+                  <div>
+                    <label htmlFor="account-current-password">Mot de passe actuel</label>
+                    <input
+                      id="account-current-password"
+                      name="currentPassword"
+                      type="password"
+                      autoComplete="current-password"
+                      className="form-input"
+                      value={passwordForm.currentPassword}
+                      onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                      minLength={8}
+                      maxLength={200}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="account-new-password">Nouveau mot de passe</label>
+                    <input
+                      id="account-new-password"
+                      name="newPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      className="form-input"
+                      value={passwordForm.newPassword}
+                      onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                      minLength={12}
+                      maxLength={200}
+                      aria-describedby="account-password-help"
+                      required
+                    />
+                    <small id="account-password-help" style={{ display: 'block', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
+                      Utilisez au moins 12 caractères et un mot de passe différent de l’ancien.
+                    </small>
+                  </div>
+                  <div>
+                    <label htmlFor="account-confirm-password">Confirmer le nouveau mot de passe</label>
+                    <input
+                      id="account-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      className="form-input"
+                      value={passwordForm.confirmPassword}
+                      onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                      minLength={12}
+                      maxLength={200}
+                      required
+                    />
+                  </div>
+                  <div className="admin-action-row" style={{ marginTop: '0.5rem' }}>
+                    <button type="submit" className="btn btn-primary" disabled={passwordSubmitting}>
+                      <KeyRound size={17} aria-hidden="true" />
+                      {passwordSubmitting ? 'Modification…' : 'Modifier le mot de passe'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </Motion.div>
           )}

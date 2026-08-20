@@ -35,6 +35,10 @@ export const env = {
   ADMIN_SESSION_SECRET: adminSessionSecret,
   ADMIN_SESSION_TTL_SECONDS: parsePort(process.env.ADMIN_SESSION_TTL_SECONDS, 60 * 60 * 8),
   ADMIN_NOTIFICATION_EMAIL: process.env.ADMIN_NOTIFICATION_EMAIL ?? 'info@gsplus.vip',
+  QA_NOTIFICATION_OVERRIDE_RESERVATION_IDS: (process.env.QA_NOTIFICATION_OVERRIDE_RESERVATION_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean),
   NOTIFICATION_WORKER_ENABLED: parseBoolean(process.env.NOTIFICATION_WORKER_ENABLED, true),
   NOTIFICATION_WORKER_INTERVAL_MS: parsePort(process.env.NOTIFICATION_WORKER_INTERVAL_MS, 15_000),
   NOTIFICATION_BATCH_SIZE: parsePort(process.env.NOTIFICATION_BATCH_SIZE, 20),
@@ -49,6 +53,24 @@ export const env = {
   SMTP_PASS: process.env.SMTP_PASS,
   SMTP_FROM: process.env.SMTP_FROM ?? 'Golden Studio Plus <info@gsplus.vip>',
   EMAIL_DELIVERY_WEBHOOK_SECRET: process.env.EMAIL_DELIVERY_WEBHOOK_SECRET,
+  ZOHO_MAIL_SMTP_LOGS_SYNC_ENABLED: parseBoolean(process.env.ZOHO_MAIL_SMTP_LOGS_SYNC_ENABLED, false),
+  ZOHO_MAIL_ACCOUNTS_BASE_URL: process.env.ZOHO_MAIL_ACCOUNTS_BASE_URL ?? 'https://accounts.zoho.eu',
+  ZOHO_MAIL_API_BASE_URL: process.env.ZOHO_MAIL_API_BASE_URL ?? 'https://mail.zoho.eu',
+  ZOHO_MAIL_ORG_ID: process.env.ZOHO_MAIL_ORG_ID,
+  ZOHO_MAIL_CLIENT_ID: process.env.ZOHO_MAIL_CLIENT_ID,
+  ZOHO_MAIL_CLIENT_SECRET: process.env.ZOHO_MAIL_CLIENT_SECRET,
+  ZOHO_MAIL_REFRESH_TOKEN: process.env.ZOHO_MAIL_REFRESH_TOKEN,
+  ZOHO_MAIL_SMTP_LOGS_SYNC_INTERVAL_MS: parsePort(
+    process.env.ZOHO_MAIL_SMTP_LOGS_SYNC_INTERVAL_MS,
+    5 * 60 * 1000,
+  ),
+  ZOHO_MAIL_SMTP_LOGS_LOOKBACK_MS: parsePort(
+    process.env.ZOHO_MAIL_SMTP_LOGS_LOOKBACK_MS,
+    24 * 60 * 60 * 1000,
+  ),
+  ZOHO_MAIL_SMTP_LOGS_PAGE_SIZE: parsePort(process.env.ZOHO_MAIL_SMTP_LOGS_PAGE_SIZE, 100),
+  ZOHO_MAIL_SMTP_LOGS_MAX_PAGES: parsePort(process.env.ZOHO_MAIL_SMTP_LOGS_MAX_PAGES, 10),
+  ZOHO_MAIL_TIMEOUT_MS: parsePort(process.env.ZOHO_MAIL_TIMEOUT_MS, 15_000),
   WHATSAPP_DELIVERY_ENABLED: parseBoolean(process.env.WHATSAPP_DELIVERY_ENABLED, false),
   WHATSAPP_GRAPH_API_BASE_URL: process.env.WHATSAPP_GRAPH_API_BASE_URL ?? 'https://graph.facebook.com',
   WHATSAPP_GRAPH_API_VERSION: process.env.WHATSAPP_GRAPH_API_VERSION ?? 'v23.0',

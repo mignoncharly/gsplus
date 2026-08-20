@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getRouteMetadata, LOCAL_BUSINESS_SCHEMA } from '../content/site-metadata';
+import { useLocale } from '../lib/i18n.js';
 
 const upsertMeta = (selector, attributes) => {
   let element = document.head.querySelector(selector);
@@ -45,10 +46,11 @@ const updateStructuredData = (enabled) => {
 
 const RouteMetadata = () => {
   const { pathname } = useLocation();
+  const { locale } = useLocale();
 
   useEffect(() => {
-    const metadata = getRouteMetadata(pathname);
-    document.documentElement.lang = 'fr';
+    const metadata = getRouteMetadata(pathname, locale);
+    document.documentElement.lang = locale;
     document.title = metadata.title;
 
     upsertMeta('meta[name="description"]', { name: 'description', content: metadata.description });
@@ -56,7 +58,7 @@ const RouteMetadata = () => {
 
     if (metadata.indexable) {
       upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
-      upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'fr_FR' });
+      upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: locale === 'en' ? 'en_US' : 'fr_FR' });
       upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'Golden Studio Plus' });
       upsertMeta('meta[property="og:title"]', { property: 'og:title', content: metadata.title });
       upsertMeta('meta[property="og:description"]', { property: 'og:description', content: metadata.description });
@@ -84,7 +86,7 @@ const RouteMetadata = () => {
 
     upsertCanonical(metadata.canonical);
     updateStructuredData(metadata.indexable);
-  }, [pathname]);
+  }, [locale, pathname]);
 
   return null;
 };

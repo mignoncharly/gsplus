@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { GENERIC_DELIVERY_CONTACT } from '../../src/catalogue/delivery-labels.js';
 import { prisma } from '../../src/db/prisma.js';
 import { NotificationStatus, PaymentStatus, ReservationStatus } from '../../src/generated/prisma/client.js';
 import { handleEmailDeliveryReport } from '../../src/emails/email-delivery-reports.js';
@@ -22,7 +23,7 @@ const resetDatabase = async () => {
   await prisma.adminUser.deleteMany();
 };
 
-const seedReservation = async (status = ReservationStatus.CONFIRMED) => {
+const seedReservation = async (status = ReservationStatus.CONFIRMED, deliveryLabel = '48 heures ouvrées') => {
   const owner = await prisma.adminUser.create({
     data: {
       email: 'delivery-owner@example.test',
@@ -38,7 +39,7 @@ const seedReservation = async (status = ReservationStatus.CONFIRMED) => {
       category: 'Tests',
       price: 20000,
       durationMin: 60,
-      deliveryLabel: '48 heures ouvrées',
+      deliveryLabel,
     },
   });
   const packageVersion = await prisma.packageVersion.create({
@@ -143,6 +144,12 @@ describe('NOTIF-01 completion, deliverables and permanent bounces', () => {
     expect((events[0].renderedContent as { text: string }).text).toContain('48 heures ouvrées');
   });
 
+  it('does not queue E-18 when the frozen package has only the generic contact wording', async () => {
+    const { reservation } = await seedReservation(ReservationStatus.COMPLETED, GENERIC_DELIVERY_CONTACT);
+    await queueReservationStatusNotification(reservation.id, ReservationStatus.COMPLETED);
+    expect(await prisma.notificationEvent.count({ where: { templateCode: 'E-18' } })).toBe(0);
+  });
+
   it('publishes E-19 only after a completed reservation and a successful live-link verification', async () => {
     const { owner, reservation } = await seedReservation(ReservationStatus.COMPLETED);
     const inaccessible = vi.fn(async () => ({ accessible: false, statusCode: 404, checkedAt: new Date() }));
@@ -221,8 +228,17 @@ describe('NOTIF-01 completion, deliverables and permanent bounces', () => {
       smtpCode: '550',
       occurredAt: new Date('2026-08-02T10:05:00.000Z'),
     };
-    await handleEmailDeliveryReport(permanent);
-    await handleEmailDeliveryReport(permanent);
+    await Promise.all([
+      handleEmailDeliveryReport(permanent),
+      handleEmailDeliveryReport(permanent),
+    ]);
+    await handleEmailDeliveryReport({
+      providerEventId: 'provider-event-stale-delivered-001',
+      providerMessageId: 'smtp-delivery-002',
+      status: 'DELIVERED',
+      smtpCode: '250',
+      occurredAt: new Date('2026-08-02T10:04:00.000Z'),
+    });
 
     expect(await prisma.notificationEvent.findUniqueOrThrow({ where: { id: customerEvent.id } })).toMatchObject({
       status: NotificationStatus.FAILED,
@@ -234,6 +250,6 @@ describe('NOTIF-01 completion, deliverables and permanent bounces', () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0].renderedContent).toMatchObject({ code: 'I-09', audience: 'admin' });
     expect((alerts[0].renderedContent as { text: string }).text).toContain('SMTP_550');
-    expect(await prisma.emailDeliveryReport.count()).toBe(2);
+    expect(await prisma.emailDeliveryReport.count()).toBe(3);
   });
 });

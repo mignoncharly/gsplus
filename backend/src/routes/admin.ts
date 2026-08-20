@@ -24,6 +24,7 @@ import { validate } from '../middleware/validate.js';
 import { prisma } from '../db/prisma.js';
 import {
   clearAdminSessionCookie,
+  changeAdminPassword,
   getAdminFromRequest,
   publicAdminUser,
   setAdminSessionCookie,
@@ -41,6 +42,7 @@ import {
 import { retryCalendarSync, syncReservationToCalendar } from '../services/calendar.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
 import { publishReservationDeliverables } from '../services/reservation-deliveries.js';
+import { executeQaNotificationOverride } from '../services/reservation-notification-overrides.js';
 import { deleteMediaFiles, processUploadedMedia } from '../services/media.js';
 import {
   createMediaWithRights,
@@ -84,6 +86,7 @@ import { transitionReservationStatus } from '../services/status-transitions.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
 import {
   adminLoginSchema,
+  adminPasswordChangeSchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
   dataRightsRequestCreateSchema,
@@ -99,6 +102,7 @@ import {
   packageDuplicateSchema,
   packageUpdateSchema,
   packageValidationSchema,
+  qaNotificationOverrideSchema,
   packageVersionCommandSchema,
   paymentAddSchema,
   paymentVerificationSchema,
@@ -208,6 +212,19 @@ router.get(
 
 router.use(requireAdmin);
 
+router.post(
+  '/password',
+  validate('body', adminPasswordChangeSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin!;
+    const updatedAdmin = await changeAdminPassword(admin, req.body.currentPassword, req.body.newPassword);
+    setAdminSessionCookie(res, updatedAdmin);
+    res.json({
+      data: publicAdminUser(updatedAdmin),
+      message: 'Mot de passe modifié avec succès.',
+    });
+  }),
+);
 router.get(
   '/data-governance',
   asyncHandler(async (_req, res) => {
@@ -563,6 +580,29 @@ router.post(
     });
     res.status(outcome.replayed ? 200 : 201).json({
       data: { delivery: outcome.value, commandId: outcome.commandId, replayed: outcome.replayed },
+    });
+  }),
+);
+
+router.post(
+  '/reservations/:id/qa-notification-override',
+  validate('params', idParamsSchema),
+  validate('body', qaNotificationOverrideSchema),
+  asyncHandler(async (req, res) => {
+    const reservationId = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'QA_NOTIFICATION_OVERRIDE');
+    const outcome = await executeQaNotificationOverride({
+      reservationId,
+      commandId: req.body.commandId,
+      expectedReservationVersion: req.body.expectedReservationVersion,
+      expectedOverrideVersion: req.body.expectedOverrideVersion,
+      recipientEmail: req.body.recipientEmail,
+      reason: req.body.reason,
+      admin,
+    });
+    res.status(outcome.replayed ? 200 : 201).json({
+      data: { override: outcome.value, commandId: outcome.commandId, replayed: outcome.replayed },
     });
   }),
 );

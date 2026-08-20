@@ -85,6 +85,20 @@ export const INDEXABLE_ROUTES = [
   },
 ];
 
+const ENGLISH_ROUTE_METADATA = new Map([
+  ['/', ['Golden Studio Plus | Premium photo studio in Douala', 'Premium photo studio in Douala for portraits, families, maternity, events and corporate imagery, with a fully guided experience.']],
+  ['/services', ['Photo sessions and packages in Douala | Golden Studio Plus', 'Explore Golden Studio Plus photography packages in Douala for portraits, couples, families, maternity, birthdays and pre-wedding sessions.']],
+  ['/portfolio', ['Photography portfolio in Douala | Golden Studio Plus', 'Explore the Golden Studio Plus portfolio of studio portraits, couples, maternity, corporate work and creative photography in Douala.']],
+  ['/reservation', ['Book a photo session in Douala | Golden Studio Plus', 'Choose your package, date and preferred time slot to request a Golden Studio Plus photography session in Douala.']],
+  ['/services-creatifs', ['Design, retouching and printing in Douala | Golden Studio Plus', 'Discover photography retouching, graphic design, albums and personalised printing services in Douala by Golden Studio Plus.']],
+  ['/a-propos', ['About the studio | Golden Studio Plus Douala', 'Discover Golden Studio Plus, its Afro-Luxe approach and its guided photography experience in the heart of Douala.']],
+  ['/contact', ['Contact and opening hours | Golden Studio Plus Douala', 'Contact Golden Studio Plus in Cité des Palmiers, Douala. The studio is open Monday to Saturday from 09:00 to 18:00.']],
+  ['/corporate', ['Corporate photography in Douala | Golden Studio Plus', 'Professional portraits, team photography and brand content in Douala for companies, institutions and entrepreneurs.']],
+  ['/mentions-legales', ['Legal notice | Golden Studio Plus', 'Read the Golden Studio Plus legal notice, published contact details, intellectual-property information and editorial responsibilities.']],
+  ['/confidentialite', ['Privacy policy | Golden Studio Plus', 'Learn how Golden Studio Plus collects, uses, retains and protects personal data connected with enquiries, bookings and services.']],
+  ['/cgv', ['Terms of sale | Golden Studio Plus', 'Read the Golden Studio Plus terms governing bookings, payment verification, rescheduling, cancellation, delivery and liability.']],
+]);
+
 export const PRIVATE_ROUTE_PATHS = ['/admin', '/admin/login', '/admin/dashboard'];
 
 const indexableRouteMap = new Map(INDEXABLE_ROUTES.map((route) => [route.path, route]));
@@ -95,13 +109,15 @@ export const normalizeRoutePath = (pathname = '/') => {
   return withoutQuery.replace(/\/+$/, '') || '/';
 };
 
-export const getRouteMetadata = (pathname) => {
+export const getRouteMetadata = (pathname, locale = 'fr') => {
   const path = normalizeRoutePath(pathname);
   const route = indexableRouteMap.get(path);
 
   if (route) {
+    const english = locale === 'en' ? ENGLISH_ROUTE_METADATA.get(path) : null;
     return {
       ...route,
+      ...(english ? { title: english[0], description: english[1] } : {}),
       canonical: `${SITE_ORIGIN}${path === '/' ? '' : path}`,
       image: `${SITE_ORIGIN}${SOCIAL_IMAGE_PATH}`,
       imageAlt: SOCIAL_IMAGE_ALT,
@@ -116,10 +132,10 @@ export const getRouteMetadata = (pathname) => {
   const isPrivate = path === '/admin' || path.startsWith('/admin/');
   return {
     path,
-    title: isPrivate ? 'Administration | Golden Studio Plus' : 'Page introuvable | Golden Studio Plus',
+    title: isPrivate ? (locale === 'en' ? 'Administration | Golden Studio Plus' : 'Administration | Golden Studio Plus') : (locale === 'en' ? 'Page not found | Golden Studio Plus' : 'Page introuvable | Golden Studio Plus'),
     description: isPrivate
-      ? 'Espace privé d’administration Golden Studio Plus.'
-      : 'La page demandée est introuvable.',
+      ? (locale === 'en' ? 'Private Golden Studio Plus administration area.' : 'Espace privé d’administration Golden Studio Plus.')
+      : (locale === 'en' ? 'The requested page could not be found.' : 'La page demandée est introuvable.'),
     heading: isPrivate ? 'Espace privé' : 'Page introuvable',
     summary: isPrivate
       ? 'Cette interface est réservée à l’administration du studio.'

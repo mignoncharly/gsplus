@@ -7,6 +7,7 @@ type LeadSubmission = {
   submissionKey: string;
   type: LeadType;
   source: 'contact_form' | 'b2b_form' | 'quote_form';
+  locale: 'fr' | 'en';
   name: string;
   email?: string;
   phone?: string;
@@ -25,6 +26,7 @@ export const createLeadSubmission = async (submission: LeadSubmission) => {
     create: {
       submissionKey,
       type: submission.type,
+      locale: submission.locale,
       name: submission.name,
       email: submission.email,
       phone: submission.phone,

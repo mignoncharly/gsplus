@@ -1,5 +1,9 @@
 # Rapport de tests — P0-01, P0-04, P0-03 et P0-02
 
+> **DIRECTIVE COURANTE — 11 août 2026** — Ce fichier est un journal de campagnes historiques. Les prochains contrôles et verdicts sont définis dans `GSPLUS_NEXT_PHASES_PROMPT.md`; les anciens totaux et états de production ci-dessous ne doivent pas être réutilisés sans nouvelle exécution.
+
+> **CAMPAGNE COURANTE — POST-06 PRE-CLOSURE** — Les résultats frais du 11 août 2026 sont ajoutés en fin de document. Le score courant est 55/59 actives et 55/61 globales; aucun ancien compteur ci-dessous ne le remplace.
+
 Date : 1er août 2026
 État global : P0-01, P0-04, P0-03 et P0-02 `VALIDÉ-PROD`; P0-02 redémarré et vérifié en production le 1er août 2026.
 
@@ -1534,7 +1538,7 @@ Le frontend écrasait systématiquement le futur `deliveryLabel` publié par l'O
 | Frontend réellement servi | `packages-DXmI3P88.js` contient la priorité du délai API; santé/admin 200 |
 | Postflight base | 22 `PUBLISHED`, 0 DRAFT/VALIDATED, 13 réservations/snapshots, empreinte inchangée |
 
-Le livrable `GOLDEN_STUDIO_PLUS_OWNER_PACKAGE_CONTENT_INVENTORY.md` demande désormais une source catalogue, une décision globale sur la grille de livraison, l'application des CGV communes et les seules exceptions. POST-03 reste ouvert mais différé et la progression demeure à 2/6 et 53/61 `VALIDÉ-PROD`.
+L’ancien inventaire POST-03, désormais supprimé du worktree, demandait alors une source catalogue, une décision globale sur la grille de livraison, l'application des CGV communes et les seules exceptions. Cette phrase décrit uniquement l’état historique du 9 août.
 
 # POST-04 — Préflight de preuve réelle E-17/E-18/E-19 — 9 août 2026
 
@@ -1653,3 +1657,51 @@ Les actions OWNER de validation des mentions et de publication restent volontair
 | Idempotence | 35 déjà courantes, 0 mise à jour, 0 nouveau brouillon |
 
 POST-03 est clôturé. Le score atomique reste 53/61 : les preuves externes POST-04/POST-05 et les exigences Meta différées restent distinctes.
+# POST-05 — Activation production du poller Zoho SMTP Logs — 9 août 2026
+
+| Contrôle | Résultat |
+|---|---|
+| Préflight | 55 notifications; 8 I-11; 0 I-09/I-12; 0 rapport; 0 e-mail prêt; 0 en traitement |
+| Sauvegarde | Dump custom chiffré AES-256-CBC/PBKDF2, mode 0600, 175 728 octets; déchiffrement byte-identique; catalogue 287 entrées |
+| Dry-run Zoho | 51 transactions sur 14 jours; 18 `DELIVERED` rapprochables; aucun permanent rapproché |
+| Premier cycle | 18 rapports `DELIVERED`; 8/8 I-11 avec `deliveredAt` |
+| Rejeu | 18 rapports avant/après le second cycle; zéro doublon |
+| Activation | EU, fenêtre 14 jours, intervalle 5 minutes, pagination bornée; flag actif |
+| Service | PID 2230658; `NRestarts=69`; `active/running`; santé 200 |
+| Postflight | 55 notifications; 18 rapports; 0 I-09/I-12; 0 e-mail prêt ou en traitement |
+| Envoi QA | Aucun |
+
+Verdict : synchronisation `ACTIVÉE-PROD` et I-11 prouvé côté fournisseur. POST-05 reste partiel : un message suivi n'a pas de confirmation exploitable, les statuts `failure` sans preuve terminale restent ignorés, et les preuves contrôlées I-09/I-12 ne sont pas encore exécutées.
+
+# POST-06 PRE-CLOSURE — 11 août 2026
+
+Date de contrôle production : 11 août 2026 à partir de 18:06 UTC. Aucune transition POST-04 ni écriture métier n'a été exécutée.
+
+- Backend : 23 fichiers, 174/174 tests; build TypeScript vert; schéma production 30/30 à jour.
+- Frontend : 94/94 tests, ESLint et build/prerender/budgets/audit traceurs verts.
+- E2E local : première campagne 125/134, neuf assertions périmées corrigées; campagne complète 132/134 puis les deux crashes WebKit d'endurance passent isolément.
+- E2E production READ-ONLY : 116/118 puis reprise WebKit ciblée 4/4. Le test de sécurité qui tente `POST /` a été explicitement exclu.
+- Accessibilité production : axe 2/2.
+- Production : service backend `active`, santé HTTPS 200/HSTS, catalogue API 35/35.
+- Catalogue : 35 offres actives/non archivées, 35 versions `PUBLISHED` uniques — 22 v3 et 13 v2; aucune publication dupliquée.
+- Juridique : TERMS, PRIVACY et LEGAL_NOTICE `2026-08-11` résolus par date d'effet; hashes OWNER conformes; anciennes versions conservées.
+- Notifications : 10 I-11 provider-delivered, un E-22 et un I-12 provider-delivered; confirmations OWNER I-11/E-22/I-12 acquises; zéro E-17/E-18/E-19.
+- Git : `docs/values.txt` et `.env` ignorés; 56 fichiers textuels modifiés/non suivis scannés; aucun secret réel détecté, uniquement variables vides d'exemple et littéraux de test.
+
+Verdict provisoire : 55/59 exigences actives et 55/61 globales `VALIDÉ-PROD`.
+Restent ouverts : E-17/E-18/E-19 après leurs gates temporelles; I-09 contrôlé différé; P1-01/I-08 différés Meta. POST-06 n'est pas clos et aucun commit final n'est créé.
+
+## POST-06 — clôture POST-04 — 12 août 2026
+
+| Contrôle | Résultat frais |
+|---|---|
+| QA-A-R1 / E-17 | `NO_SHOW` v3 après fin réelle; un E-17 et une tentative; fournisseur `delivered`; réception humaine OWNER confirmée; rejeu sans doublon |
+| QA-B-R1 / E-18 | `COMPLETED` v3 après fin réelle; un E-18 au délai OWNER exact; fournisseur `delivered`; réception humaine OWNER confirmée; rejeu sans doublon |
+| QA-B-R1 / E-19 | une livraison OWNER, HTTPS 200 et expiration future; un E-19 et une tentative; fournisseur `delivered`; réception humaine OWNER confirmée; rejeu sans doublon |
+| Invariants | zéro paiement QA, zéro nouvelle réservation/lead, zéro WhatsApp externe et aucune réémission E-01/E-05/E-16 |
+| Tests | backend 174/174; frontend 94/94; ESLint, builds, prerender, budgets et audit traceurs verts; WebKit ciblé 4/4; axe production 2/2 |
+| Production | HTTPS/HSTS 200; schéma 32/32; 35 offres/35 versions publiées; 17 réservations/17 snapshots; 15 paiements; 9 leads; une livraison; 89 notifications |
+
+Le worker de l’E2E production isolé a terminé sans artefact d’échec; son parent Playwright est resté bloqué au nettoyage. Les quatre notifications encore `PENDING` sont les événements Meta/WhatsApp différés, non des e-mails POST-04.
+
+Verdict : POST-06 `CLOS-AVEC-DIFFÉRÉS`, 58/59 exigences actives et 58/61 globales `VALIDÉ-PROD`. Restent uniquement I-09 contrôlé et P1-01/I-08 Meta, explicitement différés.

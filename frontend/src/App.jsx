@@ -1,13 +1,14 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
-import Header from './components/Header';
 import Footer from './components/Footer';
 import ScrollManager from './components/ScrollManager';
 import RouteMetadata from './components/RouteMetadata';
 import WhatsAppFab from './components/WhatsAppFab';
 import './index.css';
+import { useLocale } from './lib/i18n';
 
+const Header = lazy(() => import('./components/Header'));
 const Home = lazy(() => import('./pages/Home'));
 const Services = lazy(() => import('./pages/Services'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
@@ -22,14 +23,18 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-const RouteLoading = () => (
-  <div className="route-loading" role="status" aria-live="polite">
-    <span className="route-loading__indicator" aria-hidden="true" />
-    <span>Chargement de la page…</span>
-  </div>
-);
+const RouteLoading = () => {
+  const { t } = useLocale();
+  return (
+    <div className="route-loading" role="status" aria-live="polite">
+      <span className="route-loading__indicator" aria-hidden="true" />
+      <span>{t('loadingPage')}</span>
+    </div>
+  );
+};
 
 const AppLayout = () => {
+  const { t } = useLocale();
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
 
@@ -37,8 +42,8 @@ const AppLayout = () => {
     <>
       <ScrollManager />
       <RouteMetadata />
-      {!isAdmin && <a className="skip-link" href="#main-content">Aller au contenu principal</a>}
-      {!isAdmin && <Header />}
+      {!isAdmin && <a className="skip-link" href="#main-content">{t('skipToContent')}</a>}
+      {!isAdmin && <Suspense fallback={null}><Header /></Suspense>}
       <main id="main-content" tabIndex="-1" style={{ minHeight: '80vh' }}>
         <Suspense fallback={<RouteLoading />}>
           <Routes>

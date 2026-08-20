@@ -1,5 +1,4 @@
-export const TRACKER_INVENTORY_VERSION = '2026-08-08';
-
+export const TRACKER_INVENTORY_VERSION = '2026-08-12';
 export const OPTIONAL_TRACKERS_ENABLED = false;
 
 export const TRACKER_INVENTORY = [
@@ -35,8 +34,23 @@ export const TRACKER_INVENTORY = [
     defaultEnabled: true,
     externalOrigins: ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
   },
+  {
+    id: 'language-preference',
+    name: 'gsp.locale',
+    classification: 'STRICTLY_NECESSARY',
+    classificationLabel: 'Strictly necessary preference',
+    mechanism: 'Browser localStorage preference',
+    provider: 'Golden Studio Plus',
+    scope: 'Public and private interface',
+    purpose: 'Remember the language selected by the visitor for the interface and future contact emails.',
+    storage: 'localStorage key gsp.locale; stores only fr or en and contains no personal data.',
+    lifetime: 'Until the visitor changes the language or clears browser data',
+    publicSite: true,
+    consentRequired: false,
+    defaultEnabled: true,
+    externalOrigins: [],
+  },
 ];
-
 export const OPTIONAL_TRACKERS = TRACKER_INVENTORY.filter(
   (entry) => entry.classification === 'OPTIONAL',
 );

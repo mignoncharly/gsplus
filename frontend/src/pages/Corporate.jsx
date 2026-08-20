@@ -2,13 +2,14 @@ import React, { useRef, useState } from 'react';
 import { submitB2BInquiry } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
 import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
-import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/form-errors';
+import { validationSummaryForApiError } from '../lib/form-errors';
 import { motion as Motion } from 'framer-motion';
 import { Briefcase, Users, Camera, Building2, CheckCircle2, Send } from 'lucide-react';
 import './Corporate.css';
+import { useLocale } from '../lib/i18n.js';
 
 const fadeIn = {
-  initial: { opacity: 0, y: 20 },
+  initial: { opacity: 1, y: 0 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
 };
@@ -22,6 +23,8 @@ const staggerContainer = {
 };
 
 const Corporate = () => {
+  const { locale } = useLocale();
+  const t = (fr, en) => locale === 'en' ? en : fr;
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -53,10 +56,11 @@ const Corporate = () => {
       email: form.get('email'),
       phoneRequired: true,
       emailRequired: true,
+      locale,
     });
     setFieldErrors(contactErrors);
     if (Object.keys(contactErrors).length > 0) {
-      setError(FRENCH_VALIDATION_SUMMARY);
+      setError(t('Corrigez les champs indiqués ci-dessous.', 'Please correct the fields highlighted below.'));
       return;
     }
 
@@ -77,8 +81,8 @@ const Corporate = () => {
         email: form.get('email'),
         phone: form.get('phone'),
         whatsappConsent: form.get('whatsappConsent') === 'on',
-        subject: service ? `B2B: ${service}` : 'Demande B2B',
-        message: [service ? `Prestation: ${service}` : null, details || 'Demande de devis professionnel.']
+        subject: service ? `B2B: ${service}` : t('Demande B2B', 'B2B request'),
+        message: [service ? `${t('Prestation', 'Service')}: ${service}` : null, details || t('Demande de devis professionnel.', 'Professional quote request.')]
           .filter(Boolean)
           .join('\n\n'),
         website: form.get('website') || '',
@@ -87,9 +91,9 @@ const Corporate = () => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      const apiFields = validationErrorsFromApi(err, { company: 'company', rccm: 'rccm', name: 'name', email: 'email', phone: 'phone', packageName: 'service', message: 'message' });
+      const apiFields = validationErrorsFromApi(err, { company: 'company', rccm: 'rccm', name: 'name', email: 'email', phone: 'phone', packageName: 'service', message: 'message' }, locale);
       if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
-      setError(validationSummaryForApiError(err) || "Impossible d'envoyer la demande. Veuillez réessayer.");
+      setError(validationSummaryForApiError(err, locale) || t("Impossible d’envoyer la demande. Veuillez réessayer.", 'Unable to send the request. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -107,13 +111,13 @@ const Corporate = () => {
             transition={{ duration: 0.8 }}
           >
             <p className="home-section-label" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <Briefcase size={16} /> Professionnels & Entreprises
+              <Briefcase size={16} /> {t('Professionnels & entreprises', 'Professionals & businesses')}
             </p>
             <h1 id="corporate-title" className="hero-title">
-              Offres <span className="text-gold">B2B</span> & Corporate
+              {t('Offres', 'Offers')} <span className="text-gold">B2B</span> & Corporate
             </h1>
             <p className="corporate-hero__lead">
-              Améliorez l'image de votre entreprise. Nous réalisons des portraits professionnels pour vos collaborateurs et couvrons vos événements d'entreprise avec soin et professionnalisme.
+              {t("Améliorez l’image de votre entreprise. Nous réalisons des portraits professionnels pour vos collaborateurs et couvrons vos événements d’entreprise avec soin et professionnalisme.", 'Enhance your company image. We create professional portraits for your team and cover your corporate events with care and professionalism.')}
             </p>
           </Motion.div>
         </div>
@@ -133,24 +137,24 @@ const Corporate = () => {
               <div className="icon-wrap">
                 <Users size={32} />
               </div>
-              <h3>Trombinoscope & Portraits</h3>
-              <p>Harmonisez la présentation de vos équipes. Portraits corporate sur fond uni ou en situation pour vos rapports et sites web.</p>
+              <h3>{t('Trombinoscope & portraits', 'Staff directory & portraits')}</h3>
+              <p>{t('Harmonisez la présentation de vos équipes. Portraits corporate sur fond uni ou en situation pour vos rapports et sites web.', 'Present your teams consistently with corporate portraits on a plain background or in context for reports and websites.')}</p>
             </Motion.div>
             
             <Motion.div className="feature-card" variants={fadeIn}>
               <div className="icon-wrap">
                 <Camera size={32} />
               </div>
-              <h3>Couverture Événementielle</h3>
-              <p>Immortalisez vos séminaires, galas, inaugurations ou conférences avec des reportages photographiques adaptés à l'événement.</p>
+              <h3>{t('Couverture événementielle', 'Event coverage')}</h3>
+              <p>{t('Immortalisez vos séminaires, galas, inaugurations ou conférences avec des reportages photographiques adaptés à l’événement.', 'Capture your seminars, galas, openings or conferences with photography tailored to the event.')}</p>
             </Motion.div>
 
             <Motion.div className="feature-card" variants={fadeIn}>
               <div className="icon-wrap">
                 <Building2 size={32} />
               </div>
-              <h3>Publicité & Packshots</h3>
-              <p>Mettez en valeur vos produits ou vos locaux avec des images haute résolution destinées à la publicité et au e-commerce.</p>
+              <h3>{t('Publicité & packshots', 'Advertising & packshots')}</h3>
+              <p>{t('Mettez en valeur vos produits ou vos locaux avec des images haute résolution destinées à la publicité et au e-commerce.', 'Showcase your products or premises with high-resolution images for advertising and e-commerce.')}</p>
             </Motion.div>
           </Motion.div>
 
@@ -158,7 +162,7 @@ const Corporate = () => {
           <div className="corporate-devis-wrap">
             <Motion.div 
               className="devis-section"
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ opacity: 1, y: 0 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
@@ -174,48 +178,48 @@ const Corporate = () => {
                     animate={{ opacity: 1, scale: 1 }}
                   >
                     <CheckCircle2 size={56} className="text-gold" style={{ margin: '0 auto' }} />
-                    <h3>Demande envoyée avec succès</h3>
-                    <p>Notre équipe B2B étudiera attentivement vos besoins et reviendra vers vous avec une proposition sur mesure très rapidement.</p>
+                    <h3>{t('Demande envoyée avec succès', 'Request sent successfully')}</h3>
+                    <p>{t('Notre équipe B2B étudiera attentivement vos besoins et reviendra vers vous avec une proposition sur mesure très rapidement.', 'Our B2B team will carefully review your needs and get back to you shortly with a tailored proposal.')}</p>
                     <button className="btn btn-secondary" onClick={startAnotherRequest}>
-                      Nouvelle demande
+                      {t('Nouvelle demande', 'New request')}
                     </button>
                   </Motion.div>
                 ) : (
                   <>
-                    <h2>Demande de devis B2B</h2>
-                    <p className="lead">Obtenez une proposition tarifaire personnalisée pour votre structure.</p>
+                    <h2>{t('Demande de devis B2B', 'B2B quote request')}</h2>
+                    <p className="lead">{t('Obtenez une proposition tarifaire personnalisée pour votre structure.', 'Get a tailored pricing proposal for your organisation.')}</p>
 
                     <form onSubmit={handleSubmit} aria-describedby={error ? 'b2b-form-error' : undefined}>
                       <input name="website" type="text" tabIndex="-1" autoComplete="off" aria-hidden="true" style={{ display: 'none' }} />
                       <div className="form-row">
                         <div>
-                          <label className="form-label" htmlFor="b2b-company">Nom de l'entreprise *</label>
-                          <input id="b2b-company" autoComplete="organization" name="company" type="text" placeholder="Ex: Groupe S.A." required className="form-input corporate-form-input" onChange={() => clearFieldError('company')} aria-invalid={Boolean(fieldErrors.company)} aria-describedby={fieldErrors.company ? 'b2b-company-error' : undefined} />
+                          <label className="form-label" htmlFor="b2b-company">{t("Nom de l’entreprise *", 'Company name *')}</label>
+                          <input id="b2b-company" autoComplete="organization" name="company" type="text" placeholder={t('Ex. : Groupe S.A.', 'E.g. Group S.A.')} required className="form-input corporate-form-input" onChange={() => clearFieldError('company')} aria-invalid={Boolean(fieldErrors.company)} aria-describedby={fieldErrors.company ? 'b2b-company-error' : undefined} />
                           {fieldErrors.company && <p id="b2b-company-error" className="form-field-error" role="alert">{fieldErrors.company}</p>}
                         </div>
                         <div>
                           <label className="form-label" htmlFor="b2b-rccm">NIU / RCCM *</label>
-                          <input id="b2b-rccm" autoComplete="off" name="rccm" type="text" placeholder="Numéro d'enregistrement" required className="form-input corporate-form-input" onChange={() => clearFieldError('rccm')} aria-invalid={Boolean(fieldErrors.rccm)} aria-describedby={fieldErrors.rccm ? 'b2b-rccm-error' : undefined} />
+                          <input id="b2b-rccm" autoComplete="off" name="rccm" type="text" placeholder={t("Numéro d’enregistrement", 'Registration number')} required className="form-input corporate-form-input" onChange={() => clearFieldError('rccm')} aria-invalid={Boolean(fieldErrors.rccm)} aria-describedby={fieldErrors.rccm ? 'b2b-rccm-error' : undefined} />
                           {fieldErrors.rccm && <p id="b2b-rccm-error" className="form-field-error" role="alert">{fieldErrors.rccm}</p>}
                         </div>
                       </div>
 
                       <div className="form-row">
                         <div>
-                          <label className="form-label" htmlFor="b2b-name">Personne de contact *</label>
-                          <input id="b2b-name" autoComplete="name" name="name" type="text" placeholder="Nom du responsable" required className="form-input corporate-form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'b2b-name-error' : undefined} />
+                          <label className="form-label" htmlFor="b2b-name">{t('Personne de contact *', 'Contact person *')}</label>
+                          <input id="b2b-name" autoComplete="name" name="name" type="text" placeholder={t('Nom du responsable', 'Contact name')} required className="form-input corporate-form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'b2b-name-error' : undefined} />
                           {fieldErrors.name && <p id="b2b-name-error" className="form-field-error" role="alert">{fieldErrors.name}</p>}
                         </div>
                         <div>
-                          <label className="form-label" htmlFor="b2b-phone">Téléphone direct *</label>
-                          <input id="b2b-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder="Ex : 233 42 11 22" required className="form-input corporate-form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'b2b-phone-error' : undefined} />
+                          <label className="form-label" htmlFor="b2b-phone">{t('Téléphone direct *', 'Direct phone *')}</label>
+                          <input id="b2b-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder={t('Ex. : 233 42 11 22', 'E.g. 233 42 11 22')} required className="form-input corporate-form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'b2b-phone-error' : undefined} />
                           {fieldErrors.phone && <p id="b2b-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                         </div>
                       </div>
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
                         <div>
-                          <label className="form-label" htmlFor="b2b-email">Email de l'entreprise *</label>
+                          <label className="form-label" htmlFor="b2b-email">{t("E-mail de l’entreprise *", 'Company email *')}</label>
                           <input id="b2b-email" autoComplete="email" name="email" type="email" inputMode="email" placeholder="contact@entreprise.cm" required className="form-input corporate-form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'b2b-email-error' : undefined} />
                           {fieldErrors.email && <p id="b2b-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                         </div>
@@ -223,13 +227,13 @@ const Corporate = () => {
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
                         <div>
-                          <label className="form-label" htmlFor="b2b-service">Nature du besoin *</label>
+                          <label className="form-label" htmlFor="b2b-service">{t('Nature du besoin *', 'Type of service needed *')}</label>
                           <select id="b2b-service" name="service" required className="form-input corporate-form-input" defaultValue="" onChange={() => clearFieldError('service')} aria-invalid={Boolean(fieldErrors.service)} aria-describedby={fieldErrors.service ? 'b2b-service-error' : undefined}>
-                            <option value="" disabled hidden>Sélectionnez le type de prestation</option>
-                            <option value="Portraits de collaborateurs">Portraits de collaborateurs (Trombinoscope)</option>
-                            <option value="Couverture evenementielle">Couverture photographique événementielle</option>
-                            <option value="Photographie de produits">Photographie de produits (Packshots)</option>
-                            <option value="Autre">Autre (préciser ci-dessous)</option>
+                            <option value="" disabled hidden>{t('Sélectionnez le type de prestation', 'Select the service type')}</option>
+                            <option value="Portraits de collaborateurs">{t('Portraits de collaborateurs (trombinoscope)', 'Employee portraits (staff directory)')}</option>
+                            <option value="Couverture evenementielle">{t('Couverture photographique événementielle', 'Event photography coverage')}</option>
+                            <option value="Photographie de produits">{t('Photographie de produits (packshots)', 'Product photography (packshots)')}</option>
+                            <option value="Autre">{t('Autre (préciser ci-dessous)', 'Other (please specify below)')}</option>
                           </select>
                           {fieldErrors.service && <p id="b2b-service-error" className="form-field-error" role="alert">{fieldErrors.service}</p>}
                         </div>
@@ -237,22 +241,22 @@ const Corporate = () => {
 
                       <div className="form-row" style={{ gridTemplateColumns: '1fr', marginBottom: '2rem' }}>
                         <div>
-                          <label className="form-label" htmlFor="b2b-message">Détails (effectif, budget, lieu...) *</label>
-                          <textarea id="b2b-message" name="message" rows="4" minLength={10} required className="form-input corporate-form-input" placeholder="Décrivez votre projet ici..." style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'b2b-message-error' : undefined}></textarea>
+                          <label className="form-label" htmlFor="b2b-message">{t('Détails (effectif, budget, lieu...) *', 'Details (team size, budget, location...) *')}</label>
+                          <textarea id="b2b-message" name="message" rows="4" minLength={10} required className="form-input corporate-form-input" placeholder={t('Décrivez votre projet ici...', 'Describe your project here...')} style={{ resize: 'vertical' }} onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'b2b-message-error' : undefined}></textarea>
                           {fieldErrors.message && <p id="b2b-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                         </div>
                       </div>
 
                       <label style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', marginBottom: '1.25rem', fontSize: '0.88rem' }}>
                         <input name="whatsappConsent" type="checkbox" style={{ marginTop: '0.2rem', accentColor: 'var(--c-gold)' }} />
-                        <span>J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.</span>
+                        <span>{t('J’accepte de recevoir sur WhatsApp uniquement les informations transactionnelles liées à cette demande. Optionnel.', 'I agree to receive only transactional information about this request on WhatsApp. Optional.')}</span>
                       </label>
 
                       {error && <p id="b2b-form-error" role="alert" style={{ color: '#FED7D7', marginBottom: '1.5rem', fontWeight: 700, textAlign: 'center' }}>{error}</p>}
                       
                       <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.05rem' }} disabled={submitting}>
                         <Send size={20} />
-                        {submitting ? 'Envoi en cours...' : 'Envoyer la demande de devis'}
+                        {submitting ? t('Envoi en cours...', 'Sending...') : t('Envoyer la demande de devis', 'Send quote request')}
                       </button>
                     </form>
                   </>

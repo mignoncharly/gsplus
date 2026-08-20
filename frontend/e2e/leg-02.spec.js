@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-test('LEG-02 publie les dix sections et la date du 31 juillet 2026', async ({ page }) => {
+test('LEG-02 publie les dix sections et la date du 11 août 2026', async ({ page }) => {
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 11 août 2026')).toBeVisible();
   await expect(page.locator('.legal-content-wrap > .legal-section > h2')).toHaveText([
     '1. Responsable du traitement et contact',
     '2. Données collectées',
@@ -22,14 +22,13 @@ test('LEG-02 publie les dix sections et la date du 31 juillet 2026', async ({ pa
   await expect(page.getByText(/Le droit à l’effacement n’est pas absolu/)).toBeVisible();
 });
 
-test('LEG-02 conserve les pratiques réelles et reste contenue à 320 pixels', async ({ page }) => {
+test('LEG-02 conserve exactement les pratiques OWNER et reste contenue à 320 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('rowheader', { name: 'Cal.com' })).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Zoho Mail (SMTP)' })).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Journaux de sécurité du serveur' })).toBeVisible();
-  await expect(page.getByText(/Le site public n’utilise actuellement ni cookie publicitaire ni outil de mesure d’audience/)).toBeVisible();
+  await expect(page.getByText(/Golden Studio Plus détermine les finalités et les moyens/)).toBeVisible();
+  await expect(page.getByText(/Les données ne sont pas vendues comme une activité commerciale autonome/)).toBeVisible();
+  await expect(page.getByText(/Les traceurs facultatifs sont soumis au choix de l’utilisateur/)).toBeVisible();
   await expect(page.getByText(/Une preuve d’identité proportionnée/)).toBeVisible();
   await expect(page.getByText(/Le retrait d’une autorisation relative au droit à l’image est traité séparément/)).toBeVisible();
 

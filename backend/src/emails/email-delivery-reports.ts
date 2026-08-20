@@ -12,6 +12,7 @@ export type EmailDeliveryReportInput = {
   providerMessageId: string;
   status: EmailDeliveryReportStatus;
   smtpCode?: string | null;
+  providerManagesRetry?: boolean;
   occurredAt: Date;
 };
 
@@ -43,115 +44,145 @@ export const handleEmailDeliveryReport = async (input: EmailDeliveryReportInput)
   const safeMessage = input.status === 'DELIVERED'
     ? 'Distribution confirmée par le fournisseur.'
     : input.status === 'TEMPORARY_FAILURE'
-      ? 'Échec temporaire signalé par le serveur destinataire; une reprise est planifiée.'
+      ? input.providerManagesRetry
+        ? 'Échec temporaire signalé; le fournisseur poursuit ses tentatives de distribution.'
+        : 'Échec temporaire signalé par le serveur destinataire; une reprise est planifiée.'
       : 'Rejet permanent signalé par le serveur destinataire.';
 
-  return prisma.$transaction(async (tx) => {
-    const raced = await tx.emailDeliveryReport.findUnique({ where: { providerEventId: input.providerEventId } });
-    if (raced) return raced;
-    const event = await tx.notificationEvent.findFirst({
-      where: { channel: 'email', providerMessageId: input.providerMessageId },
-      include: { reservation: { include: { snapshot: true } } },
-    });
-    if (!event) throw new HttpError(404, 'EMAIL_NOTIFICATION_NOT_FOUND', 'Notification e-mail introuvable.');
-    if (event.status === NotificationStatus.CANCELLED) {
-      throw new HttpError(409, 'EMAIL_NOTIFICATION_CANCELLED', 'Une notification annulée ne peut pas recevoir de rapport.');
-    }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const raced = await tx.emailDeliveryReport.findUnique({ where: { providerEventId: input.providerEventId } });
+      if (raced) return raced;
+      const event = await tx.notificationEvent.findFirst({
+        where: { channel: 'email', providerMessageId: input.providerMessageId },
+        include: { reservation: { include: { snapshot: true } } },
+      });
+      if (!event) throw new HttpError(404, 'EMAIL_NOTIFICATION_NOT_FOUND', 'Notification e-mail introuvable.');
+      if (event.status === NotificationStatus.CANCELLED) {
+        throw new HttpError(409, 'EMAIL_NOTIFICATION_CANCELLED', 'Une notification annulée ne peut pas recevoir de rapport.');
+      }
 
-    const report = await tx.emailDeliveryReport.create({
-      data: {
-        notificationEventId: event.id,
-        providerEventId: input.providerEventId,
-        providerMessageId: input.providerMessageId,
-        status: input.status,
-        smtpCode: smtpCode === 'UNKNOWN' ? null : smtpCode,
-        safeMessage,
-        occurredAt: input.occurredAt,
-      },
-    });
-
-    if (input.status === 'DELIVERED') {
-      await tx.notificationEvent.update({
-        where: { id: event.id },
+      const report = await tx.emailDeliveryReport.create({
         data: {
-          status: NotificationStatus.SENT,
-          providerStatus: 'delivered',
-          deliveredAt: input.occurredAt,
-          lastWebhookAt: input.occurredAt,
-          nextAttemptAt: null,
-          error: null,
+          notificationEventId: event.id,
+          providerEventId: input.providerEventId,
+          providerMessageId: input.providerMessageId,
+          status: input.status,
+          smtpCode: smtpCode === 'UNKNOWN' ? null : smtpCode,
+          safeMessage,
+          occurredAt: input.occurredAt,
         },
       });
-      return report;
-    }
+      if (event.lastWebhookAt && input.occurredAt < event.lastWebhookAt) {
+        return report;
+      }
 
-    if (input.status === 'TEMPORARY_FAILURE' && event.attemptCount < event.maxAttempts) {
+      if (input.status === 'DELIVERED') {
+        await tx.notificationEvent.update({
+          where: { id: event.id },
+          data: {
+            status: NotificationStatus.SENT,
+            providerStatus: 'delivered',
+            deliveredAt: input.occurredAt,
+            lastWebhookAt: input.occurredAt,
+            nextAttemptAt: null,
+            error: null,
+          },
+        });
+        return report;
+      }
+      if (input.status === 'TEMPORARY_FAILURE' && input.providerManagesRetry) {
+        await tx.notificationEvent.update({
+          where: { id: event.id },
+          data: {
+            status: NotificationStatus.SENT,
+            providerStatus: 'temporary_failure_provider_retry',
+            deliveredAt: null,
+            lastWebhookAt: input.occurredAt,
+            nextAttemptAt: null,
+            error: failureCode,
+            lockedAt: null,
+          },
+        });
+        return report;
+      }
+
+      if (input.status === 'TEMPORARY_FAILURE' && event.attemptCount < event.maxAttempts) {
+        await tx.notificationEvent.update({
+          where: { id: event.id },
+          data: {
+            status: NotificationStatus.PENDING,
+            providerStatus: 'temporary_failure',
+            deliveredAt: null,
+            lastWebhookAt: input.occurredAt,
+            nextAttemptAt: retryAt(event.attemptCount, input.occurredAt),
+            error: failureCode,
+            lockedAt: null,
+          },
+        });
+        return report;
+      }
+
       await tx.notificationEvent.update({
         where: { id: event.id },
         data: {
-          status: NotificationStatus.PENDING,
-          providerStatus: 'temporary_failure',
+          status: NotificationStatus.FAILED,
+          providerStatus: 'permanent_failure',
           deliveredAt: null,
           lastWebhookAt: input.occurredAt,
-          nextAttemptAt: retryAt(event.attemptCount, input.occurredAt),
+          nextAttemptAt: null,
           error: failureCode,
           lockedAt: null,
         },
       });
-      return report;
-    }
 
-    await tx.notificationEvent.update({
-      where: { id: event.id },
-      data: {
-        status: NotificationStatus.FAILED,
-        providerStatus: 'permanent_failure',
-        deliveredAt: null,
-        lastWebhookAt: input.occurredAt,
-        nextAttemptAt: null,
-        error: failureCode,
-        lockedAt: null,
-      },
-    });
-
-    const snapshot = event.reservation?.snapshot;
-    if (event.templateCode?.startsWith('E-') && event.reservation && snapshot) {
-      const rendered = renderEmailTemplate('I-09', {
-        reference_courte: event.reservation.reference,
-        nom_client: `${snapshot.firstName} ${snapshot.lastName}`,
-        email_client_masque: maskEmail(event.recipient),
-        id_modele: event.templateCode,
-        objet_email: storedSubject(event.renderedContent),
-        code_smtp: failureCode,
-        message_retour: safeMessage,
-        lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${event.reservation.id}`,
-      });
-      await tx.notificationEvent.upsert({
-        where: { idempotencyKey: `notification:${event.id}:I-09:permanent-bounce` },
-        update: {},
-        create: {
-          reservationId: event.reservation.id,
-          channel: 'email',
-          type: 'email_permanent_bounce_admin',
-          recipient: env.ADMIN_NOTIFICATION_EMAIL,
-          idempotencyKey: `notification:${event.id}:I-09:permanent-bounce`,
-          templateCode: 'I-09',
-          templateVersion: EMAIL_TEMPLATE_VERSION,
-          renderedContent: rendered as unknown as Prisma.InputJsonValue,
-          metadata: {
+      const snapshot = event.reservation?.snapshot;
+      if (event.templateCode?.startsWith('E-') && event.reservation && snapshot) {
+        const rendered = renderEmailTemplate('I-09', {
+          reference_courte: event.reservation.reference,
+          nom_client: `${snapshot.firstName} ${snapshot.lastName}`,
+          email_client_masque: maskEmail(event.recipient),
+          id_modele: event.templateCode,
+          objet_email: storedSubject(event.renderedContent),
+          code_smtp: failureCode,
+          message_retour: safeMessage,
+          lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${event.reservation.id}`,
+        });
+        await tx.notificationEvent.upsert({
+          where: { idempotencyKey: `notification:${event.id}:I-09:permanent-bounce` },
+          update: {},
+          create: {
+            reservationId: event.reservation.id,
+            channel: 'email',
+            type: 'email_permanent_bounce_admin',
+            recipient: env.ADMIN_NOTIFICATION_EMAIL,
+            idempotencyKey: `notification:${event.id}:I-09:permanent-bounce`,
             templateCode: 'I-09',
-            audience: 'ADMIN',
-            destinationType: 'SHARED_OPERATIONAL',
-            actorType: 'SYSTEM',
-            failedNotificationId: event.id,
-            emailDeliveryReportId: report.id,
-            errorCode: failureCode,
+            templateVersion: EMAIL_TEMPLATE_VERSION,
+            renderedContent: rendered as unknown as Prisma.InputJsonValue,
+            metadata: {
+              templateCode: 'I-09',
+              audience: 'ADMIN',
+              destinationType: 'SHARED_OPERATIONAL',
+              actorType: 'SYSTEM',
+              failedNotificationId: event.id,
+              emailDeliveryReportId: report.id,
+              errorCode: failureCode,
+            },
           },
-        },
+        });
+      }
+      return report;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const raced = await prisma.emailDeliveryReport.findUnique({
+        where: { providerEventId: input.providerEventId },
       });
+      if (raced) return raced;
     }
-    return report;
-  });
+    throw error;
+  }
 };
 
 export const isValidEmailDeliverySignature = (rawBody: Buffer, signature: string | undefined) => {

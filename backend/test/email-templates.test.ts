@@ -60,4 +60,17 @@ describe('NOTIF-01 versioned e-mail template registry', () => {
       expect(emailTemplateRegistry[code].subject).toContain('[reference_courte]');
     }
   });
+  it('renders English customer acknowledgements when requested', () => {
+    const rendered = renderEmailTemplate('E-22', {
+      prenom_contact: 'Aline',
+      objet_demande: 'Portrait session',
+      reference_contact: 'CONTACT-TEST',
+      date_reception: '1 August 2026 at 18:00',
+    }, 'en');
+
+    expect(rendered.locale).toBe('en');
+    expect(rendered.subject).toBe('We received your message — CONTACT-TEST');
+    expect(rendered.text).toContain('Hello Aline,');
+    expect(rendered.text).not.toContain('Bonjour');
+  });
 });

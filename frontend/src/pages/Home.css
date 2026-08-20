@@ -163,6 +163,12 @@
   margin-bottom: 1rem;
 }
 
+.home-services .home-section-label,
+.home-packs .home-section-label,
+.home-testimonials .home-section-label {
+  color: var(--c-gold-text-on-light);
+}
+
 .heading-separator {
   width: 60px;
   height: 4px;
@@ -343,7 +349,7 @@
 .home-pack-price {
   font-size: 2.25rem;
   font-weight: 800;
-  color: var(--c-gold);
+  color: var(--c-gold-text-on-light);
 }
 
 .home-pack-meta {
@@ -476,7 +482,7 @@
 
 .author-info span {
   font-size: 0.85rem;
-  color: var(--c-gold);
+  color: var(--c-gold-text-on-light);
   font-weight: 600;
 }
 

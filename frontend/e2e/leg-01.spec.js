@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-test('LEG-01 publie la version du 31 juillet et les quatre sections normatives', async ({ page }) => {
+test('LEG-01 publie la version OWNER du 11 août et les quatre sections normatives', async ({ page }) => {
   await page.goto('/mentions-legales', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 11 août 2026')).toBeVisible();
   const headings = page.locator('.legal-content-wrap > .legal-section > h2');
   await expect(headings).toHaveText([
     '1. Éditeur et propriété intellectuelle',
@@ -17,22 +17,17 @@ test('LEG-01 publie la version du 31 juillet et les quatre sections normatives',
   await expect(page.getByText(/compétence exclusive des tribunaux matériellement compétents du ressort de Douala/)).toBeVisible();
 
   await page.goto('/confidentialite', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Dernière mise à jour : 31 juillet 2026')).toBeVisible();
+  await expect(page.getByText('Dernière mise à jour : 11 août 2026')).toBeVisible();
 });
 
-test('LEG-01 conserve les informations vérifiées sans débordement mobile', async ({ page }) => {
+test('LEG-01 reste fidèle à la source OWNER sans débordement mobile', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/mentions-legales', { waitUntil: 'domcontentloaded' });
-  const main = page.locator('#main-content');
 
-  await expect(page.getByText('Cité des Palmiers, Douala, Cameroun')).toBeVisible();
-  await expect(main.getByRole('link', { name: '+237 673 026 654' })).toHaveAttribute('href', 'tel:+237673026654');
-  await expect(main.getByRole('link', { name: 'info@gsplus.vip' })).toHaveAttribute('href', 'mailto:info@gsplus.vip');
-  await expect(page.getByText('Hetzner Online GmbH')).toBeVisible();
-  await expect(page.getByText(/numéro RCCM et identifiant fiscal/)).toBeVisible();
-  await expect(page.getByText(/Aucun numéro, nom ou renseignement juridique non vérifié/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'conditions générales de vente' })).toHaveAttribute('href', '/cgv');
-  await expect(page.getByRole('link', { name: 'politique de confidentialité' })).toHaveAttribute('href', '/confidentialite');
+  await expect(page.getByText(/Golden Studio Plus est l’éditeur du site/)).toBeVisible();
+  await expect(page.getByText(/Les informations, services et tarifs figurant sur le site sont fournis à titre indicatif/)).toBeVisible();
+  await expect(page.getByText(/Le présent site est soumis au droit camerounais/)).toBeVisible();
+  await expect(page.getByText(/Consultez les conditions générales de vente et la politique de confidentialité/)).toBeVisible();
 
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,

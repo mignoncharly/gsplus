@@ -1,9 +1,11 @@
+import { getStoredLocale } from './i18n.js';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export const apiFetch = async (path, options = {}) => {
   const isFormData = options.body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    'Accept-Language': getStoredLocale(),
     ...(options.headers || {}),
   };
 
@@ -66,7 +68,7 @@ export const mediaUrl = (url) => {
 export const createReservation = async (data) => {
   const payload = await apiFetch('/api/reservations', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, locale: getStoredLocale() }),
   });
   return payload.data;
 };
@@ -90,10 +92,18 @@ export const getAdminMe = async () => {
   return payload.data;
 };
 
+export const changeAdminPassword = async (data) => {
+  const payload = await apiFetch('/api/admin/password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
 export const submitContact = async (data) => {
   const payload = await apiFetch('/api/contact', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, locale: getStoredLocale() }),
   });
   return payload.data;
 };
@@ -101,7 +111,7 @@ export const submitContact = async (data) => {
 export const submitB2BInquiry = async (data) => {
   const payload = await apiFetch('/api/b2b-inquiries', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, locale: getStoredLocale() }),
   });
   return payload.data;
 };
@@ -109,7 +119,7 @@ export const submitB2BInquiry = async (data) => {
 export const submitQuoteRequest = async (data) => {
   const payload = await apiFetch('/api/quote-requests', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, locale: getStoredLocale() }),
   });
   return payload.data;
 };
