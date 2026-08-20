@@ -2,7 +2,7 @@
 
 Date: 20 August 2026 (UTC)
 
-Runtime revision: `b2944ea`
+Runtime revision: `37d8164`
 
 Branch: `codex/phase3-catalogue-20260820`
 
@@ -29,7 +29,7 @@ Disposition: **deployed; Phase 3 technical and OWNER editorial gates passed**
 
 ## Automated evidence
 
-- Backend: 24 files, 181/181 tests; TypeScript build and Prisma schema validation passed.
+- Backend after publication hardening: 24 files, 182/182 tests; TypeScript build and Prisma schema validation passed.
 - Migration rehearsal: isolated database applied all 35 migrations successfully; strict publication tests reject missing/unknown taxonomy and incomplete enabled locales.
 - Frontend: 99/99 tests; ESLint, client-only assertion, Vite build, 11 public/3 private prerenders, performance budgets, and tracker audit passed.
 - Phase 3 contracts cover exact eight-section FR/EN membership, two benefits, canonical API locale selection, CONTACT-only Identité Standard CTA, Classic Propre OWNER fields, and absence of frontend slug-derived commercial copy.
@@ -40,7 +40,7 @@ Disposition: **deployed; Phase 3 technical and OWNER editorial gates passed**
 - Post-apply reconciliation: 35/35 found, zero commercial mismatches, zero taxonomy mismatches, zero locale mismatches, and 2/2 benefits present.
 - OWNER approval was recorded at `2026-08-20T19:37:33.818Z` for all 70 package-version FR/EN locale records and all 4 benefit FR/EN locale records. The transaction changed approval metadata only and published 0 versions.
 - Approval workflow revision `65c6308` first required exact 35/35 package, taxonomy, locale, and 2/2 benefit reconciliation; it also made migration re-runs preserve existing approval timestamps.
-- Backend restarted from revision `b2944ea` at 19:19:45 UTC with PID `369635`.
+- Initial Phase 3 backend deployment used revision `b2944ea`; the hardened runtime revision `37d8164` restarted at 19:51:54 UTC with Node PID `419092`.
 - `https://gsplus.vip/api/health` returned `status: ok`.
 - Live aggregate catalogue returned 35 packages, 8 taxonomy sections, and 2 benefits. Identité Standard returned `CONTACT`, null duration, and the versioned English name “Standard ID”; Classic Propre returned 18,000 FCFA and “Livraison sous 48 à 72 heures”.
 - Nginx serves `assets/index-DRyxIe36.js`, SHA-256 `3507a7575a5549c87191726cd0e3c022897aabacbfa76cbb2d267458aa071503`.
@@ -48,6 +48,7 @@ Disposition: **deployed; Phase 3 technical and OWNER editorial gates passed**
 - Post-approval reconciliation reports 0 pending package locales, 0 pending benefit locales, and `ownerSignOff: APPROVED`; an immediate repeat returned `ALREADY_APPROVED`.
 - Audit event `cmt1x9wuo0000truugf0z30nh` is the sole `CatalogueRelease/PHASE3_OWNER_APPROVAL_2026-08-20` approval record, attributed to the active OWNER and recording source hash, scope, timestamp, and `publicationsPerformed: 0`.
 - The live `/api/catalogue` response exposes the common approval timestamp on package and benefit locales while retaining 35 packages, 8 taxonomy sections, and 2 benefits.
+- Runtime hardening independently rejects benefit publication if either enabled locale lacks `approvedAt`; exact package-to-section membership and all FR/EN section labels are pinned in automated and live Chromium/WebKit acceptance.
 
 ## Phase 3 exit gate
 

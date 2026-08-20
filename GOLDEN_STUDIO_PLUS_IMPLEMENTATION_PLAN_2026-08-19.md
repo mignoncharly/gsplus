@@ -5,6 +5,8 @@ Source: `docs/Rapport_tests_nouvelle_version_Golden_Studio_Plus_2026-08-16.pdf`
 Scope analysed: current workspace, including its existing uncommitted changes
 Purpose: close the new acceptance findings without regressing the reservation, payment, notification, legal, and calendar guarantees already present
 
+Execution update — 20 August 2026: **Phase 3 is complete in production.** Findings `TAR-01` and `TAR-02` are closed by the versioned catalogue release, explicit OWNER approval, publication hardening, and production replay recorded in `GOLDEN_STUDIO_PLUS_PHASE_3_FINDING_CLOSURE_2026-08-20.md`.
+
 ## 1. Executive decision
 
 The report must not be implemented as if the current workspace were identical to the version tested on 15–16 August. The code has moved since that campaign.
@@ -20,7 +22,7 @@ The current workspace already contains credible implementations for:
 
 Those items are not closed until their migrations and code are deployed and the production acceptance scenarios are replayed. They should be treated as **implemented locally / awaiting deployment proof**, not rebuilt from scratch.
 
-The principal gaps still visible in the current code are:
+The principal gaps visible when this plan was written were:
 
 1. internal reasons are still reused directly in client e-mails (`MAIL-02`);
 2. studio cancellation still builds client copy such as “Remboursement de … à traiter” before the operation starts (`MAIL-03`);
@@ -83,8 +85,8 @@ The repository has extensive pre-existing modified, deleted, and untracked files
 | `CAL-01` entered proposal is cleared | Implemented locally for exact available slots; semantic decision required | controlled `freeDate`/`freeTime`, request gate, and `p1-02.spec.js` exist; flow still accepts only a server-bookable exact slot and holds it like a standard slot | 2 |
 | `CAL-02` admin reschedule/block edit resets | Implemented locally; production proof required | controlled `AdminActionDialog`, Douala conversion, durable reschedule commands, conflict checks, and block update service exist | 2 |
 | Happy Hours maximum six per day | Implemented server-side; concurrency proof to add | availability and `assertBookableSlot` count reservations plus live intents under a booking-day lock | 2 |
-| `TAR-01` incomplete/incoherent public taxonomy | Open | five filter keys; `categoryKey()` uses text matching; no admin-managed category entity | 3 |
-| `TAR-02` catalogue divergence and wrong CTA | Open | frontend contains hard-coded English/editorial enrichments; `packageCtaLabel()` special-cases `identite-standard` as bookable | 3 |
+| `TAR-01` incomplete/incoherent public taxonomy | **Closed in production** | Eight stable admin-managed keys, exact FR/EN labels and 35-package membership are versioned and production-proven | 3 |
+| `TAR-02` catalogue divergence and wrong CTA | **Closed in production** | Public API/card share one localized projection; slug copy/CTA exceptions are removed; production proves 31 direct and 4 contact offers | 3 |
 | `PAY-01` no manageable financial task | Partially implemented | backend model, dedupe, refund command, evidence, and notifications exist; no financial-task list/detail UI or dedicated queue endpoint | 4 |
 | Fake admin deep links | Open | notification links use `/admin?reservation=<database-id>` and `/admin?lead=<database-id>`; dashboard reads neither query | 4 |
 | `MAIL-04` editorial defects | Open | optional B2B organisation renders “Non renseignée”; internal templates expose raw enums/operators; duration text uses mechanical “heure(s)” | 4 |
@@ -245,6 +247,8 @@ Add an integration test that creates six blocking reservations/intents for one H
 
 **Findings:** `TAR-01`, `TAR-02`.
 
+**Status — 20 August 2026:** **complete and deployed.** Exact closure evidence, revisions, tests, OWNER sign-off, and rollback are recorded in `GOLDEN_STUDIO_PLUS_PHASE_3_FINDING_CLOSURE_2026-08-20.md`.
+
 ### 3.1 Replace heuristic categories with an authoritative taxonomy
 
 Create an admin-managed, ordered taxonomy representing the eight approved public sections:
@@ -302,6 +306,8 @@ Use the existing official catalogue import/verification scripts to create a revi
 - All 35 tariffs and two benefits are attributable to an approved version.
 - Eight public sections exist and have exact FR/EN membership.
 - No slug-specific commercial copy or CTA rule remains in the frontend.
+
+Closure: **all Phase 3 exit requirements met in production**; `TAR-01` and `TAR-02` closed on 20 August 2026.
 
 ## Phase 4 — Financial operations, real admin destinations, and editorial cleanup
 

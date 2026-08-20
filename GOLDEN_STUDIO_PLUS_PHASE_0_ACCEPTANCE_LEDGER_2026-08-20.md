@@ -51,3 +51,7 @@ Rule: an item remains open or awaiting proof until both its automated and produc
 ## Sign-off rule
 
 Owner sign-off must name the deployed commit, deployment timestamp, 32/32 migration result, linked automated run, linked production evidence, and the chosen rollback point. “Implemented locally” and “previously validated in production” are not closure states for this candidate.
+
+## Later-phase supersession
+
+The table above remains the immutable Phase 0 candidate snapshot. `TAR-01` and `TAR-02` were subsequently closed by the deployed Phase 3 release on 20 August 2026. The authoritative closure evidence is `GOLDEN_STUDIO_PLUS_PHASE_3_FINDING_CLOSURE_2026-08-20.md`; this supersession does not retroactively alter the Phase 0 evidence or sign-off state.
