@@ -307,6 +307,7 @@ const deliverToCalCom = async (
       method: 'POST',
       body: JSON.stringify({
         start: reservation.startAt.toISOString(),
+        rescheduledBy: reservation.snapshot?.notificationEmail ?? reservation.snapshot?.email ?? env.ADMIN_NOTIFICATION_EMAIL,
         reschedulingReason: `Reservation ${reservation.reference} rescheduled`,
       }),
     });

@@ -28,6 +28,8 @@
     "qa:phase17": "node scripts/run-phase17-production-qa.mjs",
     "qa:phase17-reconcile": "node scripts/reconcile-phase17-production-qa.mjs",
     "qa:phase7:readiness": "node scripts/check-phase7-production-readiness.mjs --production",
+    "qa:phase7:execute": "node scripts/run-phase7-production-acceptance.mjs --execute-production",
+    "qa:phase7:reconcile": "node scripts/reconcile-phase7-production-acceptance.mjs --write-evidence",
     "catalogue:phase3": "tsx scripts/reconcile-phase3-catalogue.ts"
   },
   "keywords": [],

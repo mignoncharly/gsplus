@@ -271,6 +271,7 @@ describe('Calendar sync reliability', () => {
     });
     expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
       start: '2030-01-16T12:00:00.000Z',
+      rescheduledBy: 'calendar@example.test',
       reschedulingReason: expect.stringContaining('rescheduled'),
     });
     expect(updated).toMatchObject({
