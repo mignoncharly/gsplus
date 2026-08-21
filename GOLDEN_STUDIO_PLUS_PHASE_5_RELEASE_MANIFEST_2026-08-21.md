@@ -2,7 +2,7 @@
 
 **Release date:** 21 August 2026
 **Branch:** `codex/phase5-accessibility-20260821`
-**Implementation revision:** `c9a8c3c`
+**Implementation revisions:** local `c9a8c3c`; published `57397e6`
 **Production host:** `https://gsplus.vip`
 
 ## Released scope
@@ -43,4 +43,4 @@
 | Heading order contains no unexplained level jump | Route matrix over Services, Portfolio, Corporate, Contact, and Creative Services | Passed |
 | Interactive targets meet 44 px and the WhatsApp FAB overlaps none | Control-size scan plus five-width keyboard/dialog/final-action matrix | Passed |
 
-Phase 5 is closed in production. Phase 6 may proceed from revision `c9a8c3c` plus this release-record commit.
+Phase 5 is closed in production. Phase 6 may proceed from the published `codex/phase5-accessibility-20260821` branch tip containing this release record.
