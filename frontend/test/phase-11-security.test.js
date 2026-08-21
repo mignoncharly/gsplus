@@ -91,7 +91,9 @@ test('CSP permits every generated JSON-LD block by hash without allowing arbitra
 });
 
 test('static and uploaded files are read-only through Nginx', () => {
-  assert.equal((nginx.match(/limit_except GET HEAD/g) ?? []).length, 2);
+  assert.equal((nginx.match(/limit_except GET HEAD/g) ?? []).length, 3);
+  assert.ok(nginx.includes('location ^~ /admin/ {'));
+  assert.ok(nginx.includes('try_files ' + String.fromCharCode(36) + 'uri.html /admin.html;'));
   assert.match(nginx, /location \/uploads\/ \{[\s\S]*autoindex off;/);
   assert.match(nginx, /error_page 404 \/404\.html;/);
 });
