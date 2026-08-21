@@ -2,6 +2,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { NotificationStatus, Prisma } from '../generated/prisma/client.js';
 import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from '../emails/templates.js';
+import { adminReservationUrl } from '../utils/admin-links.js';
 
 const maskPhone = (phone: string) => `•••• ${phone.slice(-3)}`;
 const maskEmail = (email: string | null) => {
@@ -45,7 +46,7 @@ export const recordMissingReservationSnapshot = async (reservationId: string, co
       identites: `Snapshot absent; profil courant ${reservation.customer.firstName} ${reservation.customer.lastName}`,
       emails_masques: maskEmail(reservation.customer.email),
       champ_concerne: `ReservationSnapshot absent — contexte ${context}`,
-      lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${reservation.id}`,
+      lien_admin_reservation: adminReservationUrl(reservation.reference),
     });
     await tx.notificationEvent.upsert({
       where: { idempotencyKey: `integrity-incident:${incident.id}:I-10:email` },

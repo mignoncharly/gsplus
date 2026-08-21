@@ -1,4 +1,4 @@
-export const EMAIL_TEMPLATE_VERSION = '2026-07-30';
+export const EMAIL_TEMPLATE_VERSION = '2026-08-20-phase4';
 
 export const EMAIL_TEMPLATE_CODES = [
   'E-01', 'E-02', 'E-03', 'E-04', 'E-04A', 'E-04B', 'E-05', 'E-06', 'E-07',
@@ -278,7 +278,7 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
     'Pour transmettre une précision, répondez à cet e-mail en conservant la référence dans l’objet.', 'Golden Studio Plus',
   ]),
   'E-23': external('E-23', 'Votre demande professionnelle a bien été reçue — [reference_b2b]', 'Les informations transmises ont été enregistrées pour étude.', [
-    'Bonjour [nom_contact],', 'Nous avons bien reçu votre demande professionnelle au nom de [organisation].',
+    'Bonjour [nom_contact],', 'Nous avons bien reçu votre demande professionnelle[organisation_phrase].',
     'Objet : [objet_demande]', 'Référence : [reference_b2b]', 'Date de réception : [date_reception], heure de Douala',
     'Cet accusé ne constitue pas encore une acceptation commerciale ni une confirmation de disponibilité.', 'Golden Studio Plus',
   ]),
@@ -287,7 +287,7 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
     'Téléphone : [telephone_e164]', 'E-mail : [email_client]', 'Prestation : [nom_prestation]',
     'Créneau : [date_seance], [heure_debut]–[heure_fin], heure de Douala', 'Montant : [montant_fcfa] FCFA',
     'Paiement : [statut_paiement]', 'Opérateur : [operateur_paiement]', 'Référence transmise : [reference_paiement_masquee]',
-    'Réservation : PENDING', 'Lien d’administration : [lien_admin_reservation]',
+    'Réservation : en attente de confirmation', 'Lien d’administration : [lien_admin_reservation]',
   ]),
   'I-02': internal('I-02', '[ACTION] Paiement à vérifier — [reference_courte]', 'Une nouvelle référence de paiement a été ajoutée à une réservation existante.', [
     'Une nouvelle référence de paiement doit être vérifiée manuellement.', 'Réservation : [reference_courte]', 'Client : [nom_client]',
@@ -338,7 +338,7 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
     'Champ réécrit ou partagé : [champ_concerne]', 'Lien d’administration : [lien_admin_reservation]',
   ]),
   'I-11': internal('I-11', 'Récapitulatif opérationnel — [date_douala]', 'Demandes en attente, séances à venir et anomalies à traiter.', [
-    'Voici le récapitulatif opérationnel du [date_douala].', 'Demandes PENDING : [nombre_pending]',
+    'Voici le récapitulatif opérationnel du [date_douala].', 'Demandes en attente : [nombre_pending]',
     'Paiements à vérifier : [nombre_paiements]', 'Paiements vérifiés sans décision : [nombre_decisions]',
     'Remboursements à traiter : [nombre_remboursements]', 'Séances du lendemain : [nombre_seances_demain]',
     'Échecs Cal.com : [nombre_calcom]', 'Échecs WhatsApp : [nombre_whatsapp]', 'E-mails non distribués : [nombre_bounces]',
@@ -429,7 +429,7 @@ const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDe
     'Hello [prenom_contact],', 'We received your message.', 'Subject: [objet_demande]', 'Reference: [reference_contact]', 'Received on: [date_reception], Douala time', 'To provide further details, reply to this email and keep the reference in the subject line.', 'Golden Studio Plus',
   ]),
   'E-23': external('E-23', 'We received your business enquiry — [reference_b2b]', 'The information you submitted has been recorded for review.', [
-    'Hello [nom_contact],', 'We received your business enquiry on behalf of [organisation].', 'Subject: [objet_demande]', 'Reference: [reference_b2b]', 'Received on: [date_reception], Douala time', 'This acknowledgement is not yet a commercial acceptance or availability confirmation.', 'Golden Studio Plus',
+    'Hello [nom_contact],', 'We received your business enquiry[organisation_phrase].', 'Subject: [objet_demande]', 'Reference: [reference_b2b]', 'Received on: [date_reception], Douala time', 'This acknowledgement is not yet a commercial acceptance or availability confirmation.', 'Golden Studio Plus',
   ]),
 };
 
@@ -442,6 +442,7 @@ const escapeHtml = (value: string) => value
 
 const replaceVariables = (value: string, variables: Record<string, string>) =>
   value.replace(/\[([a-z0-9_]+)]/g, (_placeholder, name: string) => variables[name]);
+const OPTIONAL_TEMPLATE_VARIABLES = new Set(['organisation_phrase']);
 
 export const renderEmailTemplate = (
   code: EmailTemplateCode,
@@ -451,7 +452,7 @@ export const renderEmailTemplate = (
   const template = locale === 'en' ? englishTemplateRegistry[code] ?? emailTemplateRegistry[code] : emailTemplateRegistry[code];
   const variables = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value)]));
   for (const required of template.requiredVariables) {
-    if (!variables[required]?.trim()) throw new Error(`EMAIL_TEMPLATE_VARIABLE_MISSING:${code}:${required}`);
+    if (!variables[required]?.trim() && !OPTIONAL_TEMPLATE_VARIABLES.has(required)) throw new Error(`EMAIL_TEMPLATE_VARIABLE_MISSING:${code}:${required}`);
   }
 
   const subject = replaceVariables(template.subject, variables);

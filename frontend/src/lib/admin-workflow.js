@@ -1,6 +1,6 @@
 import { statusLabel } from './status-labels.js';
 
-export { statusLabel } from './status-labels.js';
+export { paymentMethodLabel, statusLabel } from './status-labels.js';
 
 const RESERVATION_ACTIONS = {
   PENDING_CONFIRMATION: [

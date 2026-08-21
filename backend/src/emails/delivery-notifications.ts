@@ -1,8 +1,8 @@
-import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { Prisma, ReservationStatus } from '../generated/prisma/client.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
 import { resolveReservationNotificationEmail } from '../services/reservation-notification-overrides.js';
+import { adminReservationUrl } from '../utils/admin-links.js';
 import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from './templates.js';
 
 const formatDate = (date: Date, locale: 'fr' | 'en' = 'fr') => new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'fr-CM', {
@@ -62,7 +62,7 @@ export const queueReservationDeliveryNotification = async (deliveryId: string) =
       reservationVersion: delivery.reservationVersionAtPublish,
       verifiedAt: delivery.verifiedAt.toISOString(),
       expiresAt: delivery.expiresAt.toISOString(),
-      adminUrl: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${reservation.id}`,
+      adminUrl: adminReservationUrl(reservation.reference),
     },
   } satisfies Prisma.NotificationEventUncheckedCreateInput;
   try {

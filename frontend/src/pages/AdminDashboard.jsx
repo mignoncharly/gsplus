@@ -69,6 +69,7 @@ import {
   isReservationEndReached,
   isTemporalOverrideTransition,
   paymentActions,
+  paymentMethodLabel,
   reservationActions,
   statusLabel,
   transitionActorLabel,
@@ -92,6 +93,9 @@ const AdminActionDialog = React.lazy(() => import('../components/AdminActionDial
 const AdminPackagesPanel = React.lazy(() => import('../components/AdminPackagesPanel'));
 const AdminDataGovernancePanel = React.lazy(() => import('../components/AdminDataGovernancePanel'));
 const AdminMediaRightsPanel = React.lazy(() => import('../components/AdminMediaRightsPanel'));
+const AdminFinanceRoute = React.lazy(() => import('../components/AdminFinanceRoute'));
+const AdminDeepLinkResolver = React.lazy(() => import('../components/AdminDeepLinkResolver'));
+const AdminLeadsPanel = React.lazy(() => import('../components/AdminLeadsPanel'));
 
 const dateTime = formatBusinessDateTime;
 const monthKey = currentBusinessMonthKey();
@@ -178,12 +182,14 @@ const AdminDashboard = () => {
   const busyActionKeysRef = useRef(new Set());
   const tabRefreshInFlightRef = useRef(new Map());
   const reservationSearchReferenceRef = useRef('');
+  const leadCardRefs = useRef(new Map());
 
   const [reservations, setReservations] = useState([]);
   const [reservationReferenceQuery, setReservationReferenceQuery] = useState('');
   const [reservationSearchResults, setReservationSearchResults] = useState(null);
   const [reservationSearchSubmitting, setReservationSearchSubmitting] = useState(false);
   const [leads, setLeads] = useState([]);
+  const [financeDestinationId, setFinanceDestinationId] = useState('');
   const [packs, setPacks] = useState([]);
   const [media, setMedia] = useState([]);
   const [blocks, setBlocks] = useState([]);
@@ -222,6 +228,8 @@ const AdminDashboard = () => {
           setReservationSearchResults(searchItems);
         } else if (tab === 'leads') {
           setLeads(await getAdminLeads());
+        } else if (tab === 'finance') {
+          return;
         } else if (tab === 'tarifs') {
           setPacks(await getAdminPackages());
         } else if (tab === 'availability') {
@@ -957,6 +965,7 @@ const AdminDashboard = () => {
     ['overview', 'Vue ensemble', Calendar],
     ['reservations', 'Réservations', Users],
     ['leads', 'Leads', Briefcase],
+    ...(adminUser?.role === 'OWNER' ? [['finance', 'Remboursements', DollarSign]] : []),
     ['tarifs', 'Tarifs', DollarSign],
     ['availability', 'Disponibilités', Ban],
     ['portfolio', 'Portfolio', ImageIcon],
@@ -974,6 +983,19 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-layout">
+      <React.Suspense fallback={null}>
+        <AdminDeepLinkResolver
+          adminRole={adminUser?.role}
+          reservationRef={reservationSearchReferenceRef}
+          openTab={setActiveTab}
+          feedback={setFeedback}
+          setQuery={setReservationReferenceQuery}
+          setResults={setReservationSearchResults}
+          setReservation={setSelectedRes}
+          setLeadItems={setLeads}
+          setFinance={setFinanceDestinationId}
+        />
+      </React.Suspense>
       <header className="admin-mobile-header">
         <button
           ref={sidebarToggleRef}
@@ -1136,7 +1158,7 @@ const AdminDashboard = () => {
                 <div className="admin-stat-card">
                   <div className="admin-stat-icon-wrap"><Briefcase size={24} /></div>
                   <div className="admin-stat-num">{leads.length}</div>
-                  <div className="admin-stat-label">Demandes B2B</div>
+                  <div className="admin-stat-label">Demandes</div>
                 </div>
               </div>
 
@@ -1328,56 +1350,15 @@ const AdminDashboard = () => {
             </Motion.div>
           )}
 
-          {activeTab === 'leads' && (
-            <Motion.div 
-              key="leads"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Demandes <span>B2B / Leads</span></h1>
-              </div>
+          {activeTab === 'finance' && adminUser?.role === 'OWNER' && (
+            <AdminFinanceRoute destinationId={financeDestinationId} busy={Boolean(busyActions['finance:Engagement du remboursement'] || busyActions['finance:Finalisation du remboursement'])} openActionDialog={openActionDialog} runAction={runAction} setFeedback={setFeedback} />
+          )}
 
-              <div className="admin-card">
-                {leads.length === 0 && (
-                  <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
-                    Aucune demande B2B reçue pour le moment.
-                  </p>
-                )}
-                {leads.map((lead) => (
-                  <div key={lead.id} className="admin-lead-card">
-                    <div className="admin-lead-header">
-                      <div>
-                        <h3>{lead.company || lead.name}</h3>
-                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', margin: 0 }}>
-                          {lead.email || 'Pas d\'email'} | {lead.phone || 'Pas de téléphone'}
-                        </p>
-                      </div>
-                      <div className="admin-lead-badges">
-                        {pill(lead.type || 'B2B')}
-                        {pill(lead.status)}
-                      </div>
-                    </div>
-                    <p style={{ color: '#fff', fontSize: '0.95rem', marginBottom: '1rem' }}>
-                      <strong>Sujet :</strong> {lead.subject || lead.source}
-                    </p>
-                    <div className="admin-lead-message">{lead.message}</div>
-                    <div className="admin-action-row">
-                      {['IN_PROGRESS', 'WON', 'LOST', 'ARCHIVED'].map((status) => (
-                        <button 
-                          key={status} 
-                          className="btn btn-secondary admin-sm-btn" 
-                          onClick={() => updateLeadStatus(lead, status)}
-                        >
-                          {statusLabel(status)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {activeTab === 'leads' && (
+            <Motion.div key="leads" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement des demandes...</div>}>
+                <AdminLeadsPanel leads={leads} cardRefs={leadCardRefs} onStatusChange={updateLeadStatus} />
+              </React.Suspense>
             </Motion.div>
           )}
 
@@ -1628,6 +1609,8 @@ const AdminDashboard = () => {
           <div className="admin-modal-backdrop" onClick={() => setSelectedRes(null)}>
             <Motion.div 
               className="admin-modal-content"
+              tabIndex="-1"
+              autoFocus
               onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1670,7 +1653,7 @@ const AdminDashboard = () => {
               {selectedRes.payments?.[0] && (
                 <div className="admin-modal-block">
                   <strong>Détails du Paiement Mobile</strong>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>Méthode : {selectedRes.payments[0].method || 'Non renseignée'}</p>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>Méthode : {paymentMethodLabel(selectedRes.payments[0].method)}</p>
                   <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>Réf. transaction : {selectedRes.payments[0].transactionRef || 'Non fournie'}</p>
                   <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>N° de Paiement : {selectedRes.payments[0].paymentPhone || 'Non spécifié'}</p>
                 </div>

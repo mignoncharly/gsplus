@@ -56,6 +56,10 @@ export const STATUS_LABELS = Object.freeze({
   'AUCUN PAIEMENT': 'Aucun paiement',
 });
 
+export const PAYMENT_METHOD_LABELS = Object.freeze({ mtn_momo: 'MTN MoMo', orange_money: 'Orange Money' });
+
+export const paymentMethodLabel = (method) => PAYMENT_METHOD_LABELS[String(method || '').trim()] || 'Mode non communiqué';
+
 export const statusLabel = (status) => {
   const code = String(status || '').trim();
   if (!code) return '—';

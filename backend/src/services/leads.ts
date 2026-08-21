@@ -2,6 +2,7 @@ import { queueLeadCreatedNotification } from '../emails/notifications.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { LeadType } from '../generated/prisma/enums.js';
 import { prisma } from '../db/prisma.js';
+import { allocateLeadReference } from '../utils/lead-reference.js';
 
 type LeadSubmission = {
   submissionKey: string;
@@ -20,10 +21,17 @@ type LeadSubmission = {
 
 export const createLeadSubmission = async (submission: LeadSubmission) => {
   const submissionKey = `${submission.source}:${submission.submissionKey}`;
+  const existing = await prisma.lead.findUnique({ where: { submissionKey } });
+  if (existing) {
+    await queueLeadCreatedNotification(existing.id);
+    return existing;
+  }
+  const reference = await allocateLeadReference(submission.type, async (candidate) => Boolean(await prisma.lead.findUnique({ where: { reference: candidate }, select: { id: true } })));
   const lead = await prisma.lead.upsert({
     where: { submissionKey },
     update: {},
     create: {
+      reference,
       submissionKey,
       type: submission.type,
       locale: submission.locale,

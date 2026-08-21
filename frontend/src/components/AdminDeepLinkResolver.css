@@ -1,0 +1,2 @@
+.admin-row-selected { outline: 2px solid var(--c-gold); outline-offset: -2px; }
+.admin-lead-card:focus { outline: 3px solid var(--c-gold); outline-offset: 3px; }

@@ -138,7 +138,7 @@ describe('NOTIF-01 completion, deliverables and permanent bounces', () => {
     expect(events[0]).toMatchObject({
       reservationId: reservation.id,
       type: 'booking_completed_followup_customer',
-      templateVersion: '2026-07-30',
+      templateVersion: '2026-08-20-phase4',
     });
     expect(events[0].renderedContent).toMatchObject({ code: 'E-18', audience: 'customer' });
     expect((events[0].renderedContent as { text: string }).text).toContain('48 heures ouvrées');

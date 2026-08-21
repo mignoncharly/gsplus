@@ -298,8 +298,12 @@ describe('lead capture', () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(first.body.data.id).toBe(second.body.data.id);
+    expect(first.body.data.reference).toMatch(/^CONTACT-\d{6}-[A-Z2-9]{4}$/);
     expect(await prisma.lead.count({ where: { submissionKey: `contact_form:${submissionKey}` } })).toBe(1);
     expect(await prisma.notificationEvent.count({ where: { leadId: first.body.data.id } })).toBe(2);
+    const agent = await loginAdmin();
+    const detail = await agent.get(`/api/admin/leads/${first.body.data.reference}`).expect(200);
+    expect(detail.body.data).toMatchObject({ id: first.body.data.id, reference: first.body.data.reference });
   });
 
   it('deduplicates concurrent B2B submissions and queues one notification per audience', async () => {
@@ -1302,6 +1306,7 @@ describe('P0-04 payment and reservation decisions', () => {
         transactionRef: 'STAFF-P0-04-002',
       })
       .expect(403);
+    const financialQueueResponse = await staff.get('/api/admin/financial-tasks');
     const addPaymentResponse = await staff
       .post(`/api/admin/reservations/${reservation.id}/payments`)
       .send({
@@ -1313,7 +1318,7 @@ describe('P0-04 payment and reservation decisions', () => {
       })
       .expect(403);
 
-    for (const response of [paymentResponse, confirmResponse, rejectResponse, combinedResponse, addPaymentResponse]) {
+    for (const response of [paymentResponse, confirmResponse, rejectResponse, combinedResponse, financialQueueResponse, addPaymentResponse]) {
       expect(response.body.error.code).toBe('ADMIN_PERMISSION_REQUIRED');
     }
   });
@@ -1398,6 +1403,16 @@ describe('P0-04 payment and reservation decisions', () => {
       })
       .expect(200);
 
+    const pendingTask = await prisma.financialTask.findFirstOrThrow({ where: { reservationId: reservation.id } });
+    const queue = await agent.get(`/api/admin/financial-tasks?status=PENDING&reservationReference=${reservation.reference}&limit=1`).expect(200);
+    expect(queue.body.meta).toMatchObject({ total: 1, limit: 1, offset: 0 });
+    expect(queue.body.meta.operators).toContainEqual({ id: pendingTask.createdById, name: 'Test Admin' });
+    expect(queue.body.data[0]).toMatchObject({ id: pendingTask.id, status: 'PENDING', reservation: { reference: reservation.reference }, payment: { id: payment.id } });
+    const taskDetail = await agent.get(`/api/admin/financial-tasks/${pendingTask.id}`).expect(200);
+    expect(taskDetail.body.data.dedupeKey).toBe(pendingTask.dedupeKey);
+    const reservationByReference = await agent.get(`/api/admin/reservations/${reservation.reference}`).expect(200);
+    expect(reservationByReference.body.data.id).toBe(reservation.id);
+
     const engageCommandId = randomUUID();
     const engageBody = {
       commandId: engageCommandId,
@@ -1424,7 +1439,14 @@ describe('P0-04 payment and reservation decisions', () => {
       .expect(200);
     expect(replay.body.data).toMatchObject({ commandId: engageCommandId, replayed: true });
 
-    const completed = await agent
+    await prisma.financialTask.update({ where: { id: pendingTask.id }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    const overdueQueue = await agent
+      .get(`/api/admin/financial-tasks?overdue=true&operatorId=${pendingTask.createdById}`)
+      .expect(200);
+    expect(overdueQueue.body.data).toHaveLength(1);
+    expect(overdueQueue.body.data[0]).toMatchObject({ id: pendingTask.id, status: 'IN_PROGRESS' });
+
+    await agent
       .patch(`/api/admin/payments/${payment.id}/refund`)
       .send({
         commandId: randomUUID(),
@@ -1432,9 +1454,25 @@ describe('P0-04 payment and reservation decisions', () => {
         status: PaymentStatus.REFUNDED,
         refundAmount: payment.amount,
         channel: 'MTN Mobile Money',
-        providerReference: 'API-REFUND-FINAL-7294',
-        reason: 'Preuve opérateur confirmée',
+        providerReference: '',
+        reason: 'Preuve opérateur absente',
       })
+      .expect(400);
+    expect(await prisma.financialTask.findUniqueOrThrow({ where: { id: pendingTask.id } })).toMatchObject({ status: 'IN_PROGRESS', proof: null });
+
+    const completeCommandId = randomUUID();
+    const completeBody = {
+      commandId: completeCommandId,
+      expectedVersion: engaged.body.data.version,
+      status: PaymentStatus.REFUNDED,
+      refundAmount: payment.amount,
+      channel: 'MTN Mobile Money',
+      providerReference: 'API-REFUND-FINAL-7294',
+      reason: 'Preuve opérateur confirmée',
+    };
+    const completed = await agent
+      .patch(`/api/admin/payments/${payment.id}/refund`)
+      .send(completeBody)
       .expect(200);
     expect(completed.body.data).toMatchObject({
       status: PaymentStatus.REFUNDED,
@@ -1444,6 +1482,11 @@ describe('P0-04 payment and reservation decisions', () => {
         providerReference: 'API-REFUND-FINAL-7294',
       },
     });
+    const completionReplay = await agent
+      .patch(`/api/admin/payments/${payment.id}/refund`)
+      .send(completeBody)
+      .expect(200);
+    expect(completionReplay.body.data).toMatchObject({ commandId: completeCommandId, replayed: true });
     expect(
       await prisma.notificationEvent.count({
         where: { reservationId: reservation.id, templateCode: { in: ['E-07', 'I-06', 'E-20', 'E-21'] } },

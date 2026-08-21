@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { HttpError } from '../errors/http-error.js';
 import { NotificationStatus, Prisma } from '../generated/prisma/client.js';
+import { adminReservationUrl } from '../utils/admin-links.js';
 import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from './templates.js';
 
 export type EmailDeliveryReportStatus = 'DELIVERED' | 'TEMPORARY_FAILURE' | 'PERMANENT_FAILURE';
@@ -146,7 +147,7 @@ export const handleEmailDeliveryReport = async (input: EmailDeliveryReportInput)
           objet_email: storedSubject(event.renderedContent),
           code_smtp: failureCode,
           message_retour: safeMessage,
-          lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${event.reservation.id}`,
+          lien_admin_reservation: adminReservationUrl(event.reservation.reference),
         });
         await tx.notificationEvent.upsert({
           where: { idempotencyKey: `notification:${event.id}:I-09:permanent-bounce` },

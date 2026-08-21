@@ -51,9 +51,7 @@ const AppLayout = () => {
             <Route path="/services" element={<Services />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/reservation" element={<Reservation />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/login" element={<AdminDashboard />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/services-creatifs" element={<CreativeServices />} />
             <Route path="/a-propos" element={<About />} />
             <Route path="/contact" element={<Contact />} />

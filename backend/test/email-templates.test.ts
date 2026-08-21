@@ -17,7 +17,7 @@ const EXPECTED_CODES = [
 
 describe('NOTIF-01 versioned e-mail template registry', () => {
   it('contains every normative external and internal template exactly once', () => {
-    expect(EMAIL_TEMPLATE_VERSION).toBe('2026-07-30');
+    expect(EMAIL_TEMPLATE_VERSION).toBe('2026-08-20-phase4');
     expect(EMAIL_TEMPLATE_CODES).toEqual(EXPECTED_CODES);
     expect(Object.keys(emailTemplateRegistry).sort()).toEqual([...EXPECTED_CODES].sort());
   });
@@ -60,6 +60,18 @@ describe('NOTIF-01 versioned e-mail template registry', () => {
       expect(emailTemplateRegistry[code].subject).toContain('[reference_courte]');
     }
   });
+  it('suppresses the complete optional organisation phrase in both customer locales', () => {
+    const common = { nom_contact: 'Aline', organisation_phrase: '', objet_demande: 'Portrait', reference_b2b: 'B2B-260820-ABCD', date_reception: '20 août 2026' };
+    const french = renderEmailTemplate('E-23', common, 'fr');
+    const english = renderEmailTemplate('E-23', common, 'en');
+    expect(french.text).toContain('demande professionnelle.');
+    expect(english.text).toContain('business enquiry.');
+    expect(french.text).not.toMatch(/Non renseignée|au nom de/);
+    expect(english.text).not.toMatch(/Not provided|on behalf of/);
+    expect(renderEmailTemplate('E-23', { ...common, organisation_phrase: ' au nom de Studio Test' }, 'fr').text).toContain('au nom de Studio Test.');
+    expect(renderEmailTemplate('E-23', { ...common, organisation_phrase: ' on behalf of Studio Test' }, 'en').text).toContain('on behalf of Studio Test.');
+  });
+
   it('renders English customer acknowledgements when requested', () => {
     const rendered = renderEmailTemplate('E-22', {
       prenom_contact: 'Aline',

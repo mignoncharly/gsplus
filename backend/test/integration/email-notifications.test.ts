@@ -105,8 +105,8 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const customer = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', type: 'booking_received_customer' },
     });
-    expect(customer).toMatchObject({ templateCode: 'E-01', templateVersion: '2026-07-30' });
-    expect(customer.renderedContent).toMatchObject({ code: 'E-01', version: '2026-07-30', audience: 'customer' });
+    expect(customer).toMatchObject({ templateCode: 'E-01', templateVersion: '2026-08-20-phase4' });
+    expect(customer.renderedContent).toMatchObject({ code: 'E-01', version: '2026-08-20-phase4', audience: 'customer' });
     const stored = customer.renderedContent as { subject: string; text: string; html: string };
     expect(stored.subject).toContain(reservation.reference);
     expect(stored.text).toContain('n’est pas encore définitivement confirmée');
@@ -121,7 +121,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const admin = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', type: 'booking_received_admin' },
     });
-    expect(admin).toMatchObject({ templateCode: 'I-01', templateVersion: '2026-07-30' });
+    expect(admin).toMatchObject({ templateCode: 'I-01', templateVersion: '2026-08-20-phase4' });
     expect(admin.renderedContent).toMatchObject({ code: 'I-01', audience: 'admin' });
   });
 
@@ -136,7 +136,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const delayed = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', type: 'payment_verified_customer' },
     });
-    expect(delayed).toMatchObject({ templateCode: 'E-03', templateVersion: '2026-07-30' });
+    expect(delayed).toMatchObject({ templateCode: 'E-03', templateVersion: '2026-08-20-phase4' });
     expect(delayed.renderedContent).toMatchObject({ code: 'E-03', audience: 'customer' });
 
     const confirmed = await prisma.reservation.update({
@@ -152,7 +152,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const confirmation = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', type: 'booking_confirmed_customer' },
     });
-    expect(confirmation).toMatchObject({ templateCode: 'E-05', templateVersion: '2026-07-30' });
+    expect(confirmation).toMatchObject({ templateCode: 'E-05', templateVersion: '2026-08-20-phase4' });
     expect(confirmation.renderedContent).toMatchObject({ code: 'E-05', audience: 'customer' });
   });
 
@@ -172,7 +172,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const clientEvent = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', templateCode: code },
     });
-    expect(clientEvent).toMatchObject({ templateCode: code, templateVersion: '2026-07-30' });
+    expect(clientEvent).toMatchObject({ templateCode: code, templateVersion: '2026-08-20-phase4' });
     expect(clientEvent.renderedContent).toMatchObject({ code, audience: 'customer' });
     expect(clientEvent.nextAttemptAt?.toISOString() ?? null).toBe(
       delayed ? '2026-08-01T18:30:00.000Z' : null,
@@ -236,7 +236,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const event = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', type: 'booking_rescheduled_customer' },
     });
-    expect(event).toMatchObject({ templateCode: 'E-09', templateVersion: '2026-07-30' });
+    expect(event).toMatchObject({ templateCode: 'E-09', templateVersion: '2026-08-20-phase4' });
     expect(event.renderedContent).toMatchObject({ code: 'E-09', audience: 'customer' });
     const render = event.renderedContent as { text: string };
     expect(render.text).toContain('4 février 2030');
@@ -257,7 +257,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     const event = await prisma.notificationEvent.findFirstOrThrow({
       where: { reservationId: reservation.id, channel: 'email', templateCode: code },
     });
-    expect(event).toMatchObject({ templateCode: code, templateVersion: '2026-07-30' });
+    expect(event).toMatchObject({ templateCode: code, templateVersion: '2026-08-20-phase4' });
     expect(event.renderedContent).toMatchObject({ code, audience: 'customer' });
   });
 
@@ -349,7 +349,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
       where: { channel: 'email', templateCode: 'I-11' },
     });
     expect(digests).toHaveLength(1);
-    expect(digests[0]).toMatchObject({ templateVersion: '2026-07-30', type: 'daily_operations_digest_admin' });
+    expect(digests[0]).toMatchObject({ templateVersion: '2026-08-20-phase4', type: 'daily_operations_digest_admin' });
     expect(digests[0].renderedContent).toMatchObject({ code: 'I-11', audience: 'admin' });
   });
 
@@ -375,7 +375,7 @@ describe('NOTIF-01 immutable normative e-mails', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
       reservationId: null,
-      templateVersion: '2026-07-30',
+      templateVersion: '2026-08-20-phase4',
       type: 'data_integrity_incident_admin',
     });
     expect(events[0].renderedContent).toMatchObject({ code: 'I-10', audience: 'admin' });

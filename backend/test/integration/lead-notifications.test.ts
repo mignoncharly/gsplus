@@ -39,13 +39,13 @@ describe('NOTIF-01 lead acknowledgements', () => {
     expect(events).toHaveLength(2);
     expect(events.find((event) => event.recipient === submission.email)).toMatchObject({
       templateCode: code,
-      templateVersion: '2026-07-30',
+      templateVersion: '2026-08-20-phase4',
       renderedContent: { code, audience: 'customer' },
     });
     expect(events.find((event) => event.recipient !== submission.email)).toMatchObject({
       type: 'lead_created_admin',
       templateCode: 'I-12',
-      templateVersion: '2026-07-30',
+      templateVersion: '2026-08-20-phase4',
       renderedContent: { code: 'I-12', audience: 'admin' },
     });
     const customerRender = events.find((event) => event.recipient === submission.email)?.renderedContent as {
@@ -54,5 +54,8 @@ describe('NOTIF-01 lead acknowledgements', () => {
     };
     expect(customerRender.subject).toMatch(/CONTACT-|B2B-/);
     expect(customerRender.text).toContain('Aline Lead');
+    expect(customerRender.subject).toContain(lead.reference);
+    const adminRender = events.find((event) => event.recipient !== submission.email)?.renderedContent as { text: string };
+    expect(adminRender.text).toContain(`/admin/leads/${lead.reference}`);
   });
 });

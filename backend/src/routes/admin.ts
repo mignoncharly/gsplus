@@ -84,6 +84,7 @@ import {
   validatePackageVersion,
 } from '../services/packages.js';
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
+import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
 import { transitionReservationStatus } from '../services/status-transitions.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
@@ -97,6 +98,7 @@ import {
   customerDecisionPreviewSchema,
   idParamsSchema,
   leadUpdateSchema,
+  financialTaskListQuerySchema,
   listQuerySchema,
   mediaUpdateSchema,
   mediaUploadSchema,
@@ -392,8 +394,8 @@ router.get(
   validate('params', idParamsSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const reservation = await prisma.reservation.findUnique({
-      where: { id },
+    const reservation = await prisma.reservation.findFirst({
+      where: { OR: [{ id }, { reference: id.toUpperCase() }] },
       include: {
         customer: true,
         snapshot: true,
@@ -855,6 +857,17 @@ router.get(
   }),
 );
 
+router.get(
+  '/leads/:id',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    const id = routeParam(req.params.id);
+    const lead = await prisma.lead.findFirst({ where: { OR: [{ id }, { reference: id.toUpperCase() }] } });
+    if (!lead) throw notFound('Lead not found');
+    res.json({ data: lead });
+  }),
+);
+
 router.patch(
   '/leads/:id',
   validate('params', idParamsSchema),
@@ -1169,6 +1182,25 @@ router.patch(
         calendarSync: null,
       },
     });
+  }),
+);
+
+router.get(
+  '/financial-tasks',
+  validate('query', financialTaskListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'REFUND_MANAGE');
+    const result = await listFinancialTasks(res.locals.validated.query);
+    res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset, operators: result.operators } });
+  }),
+);
+
+router.get(
+  '/financial-tasks/:id',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'REFUND_MANAGE');
+    res.json({ data: await getFinancialTask(routeParam(req.params.id)) });
   }),
 );
 

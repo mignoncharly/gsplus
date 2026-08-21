@@ -56,11 +56,22 @@ export const reservationIdParamsSchema = z.object({
   reservationId: cuid,
 });
 
+const queryBoolean = z.preprocess((value) => value === 'true' || value === true ? true : value === 'false' || value === false ? false : value, z.boolean());
+
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
   status: z.string().trim().min(1).optional(),
   reference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
+});
+
+export const financialTaskListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED']).optional(),
+  overdue: queryBoolean.optional(),
+  reservationReference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
+  operatorId: cuid.optional(),
 });
 
 export const availabilityQuerySchema = z

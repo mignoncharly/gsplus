@@ -11,6 +11,8 @@ import { resolveReservationNotificationEmail } from '../services/reservation-not
 import { Prisma } from '../generated/prisma/client.js';
 import { LeadType, NotificationStatus, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { normalizeE164Phone } from '../utils/phone.js';
+import { adminFinanceUrl, adminLeadUrl, adminReservationUrl } from '../utils/admin-links.js';
+import { financialTaskStatusLabel, formatRelativeBusinessDuration, paymentMethodLabel, paymentStatusLabel, reservationStatusLabel } from '../utils/business-display.js';
 import {
   enqueueInternalEmailNotification,
   type InternalNotificationDestination,
@@ -101,7 +103,7 @@ const reservationContact = (reservation: ReservationContactSource) => {
   if (!reservation.snapshot) throw new Error('RESERVATION_SNAPSHOT_MISSING');
   return {
     firstName: reservation.snapshot.firstName,
-    locale: reservation.snapshot.locale === 'en' ? 'en' : 'fr',
+    locale: (reservation.snapshot.locale === 'en' ? 'en' : 'fr') as 'en' | 'fr',
     lastName: reservation.snapshot.lastName,
     phone: reservation.snapshot.notificationPhoneE164,
     email: reservation.snapshot.notificationEmail ?? reservation.snapshot.email,
@@ -146,13 +148,6 @@ const maskReference = (reference: string | null | undefined) => {
   return `•••• ${reference.slice(-4)}`;
 };
 
-const paymentLabel = (status: PaymentStatus | undefined, locale: string = 'fr') => {
-  const labels = locale === 'en'
-    ? { [PaymentStatus.PENDING]: 'Awaiting verification', [PaymentStatus.PAYMENT_INFO_REQUIRED]: 'Additional information required', [PaymentStatus.VERIFICATION_BLOCKED]: 'Verification temporarily blocked', [PaymentStatus.VERIFIED]: 'Verified', [PaymentStatus.PAID]: 'Paid', [PaymentStatus.REJECTED]: 'Rejected', [PaymentStatus.FAILED]: 'Failed', [PaymentStatus.EXPIRED]: 'Expired', [PaymentStatus.REFUND_PENDING]: 'Refund in progress', [PaymentStatus.REFUNDED]: 'Refunded' }
-    : { [PaymentStatus.PENDING]: 'En attente de vérification', [PaymentStatus.PAYMENT_INFO_REQUIRED]: 'Information complémentaire requise', [PaymentStatus.VERIFICATION_BLOCKED]: 'Vérification temporairement bloquée', [PaymentStatus.VERIFIED]: 'Vérifié', [PaymentStatus.PAID]: 'Payé', [PaymentStatus.REJECTED]: 'Rejeté', [PaymentStatus.FAILED]: 'Échec', [PaymentStatus.EXPIRED]: 'Expiré', [PaymentStatus.REFUND_PENDING]: 'Remboursement en cours', [PaymentStatus.REFUNDED]: 'Remboursé' };
-  return labels[status ?? PaymentStatus.PENDING];
-};
-
 const reservationEmailVariables = (
   reservation: ReservationEmailSource,
   overrides: EmailTemplateVariables = {},
@@ -170,11 +165,11 @@ const reservationEmailVariables = (
     montant_fcfa: formatAmount(contact.amount, contact.locale),
     telephone_e164: contact.phone,
     email_client: contact.email ?? (contact.locale === 'en' ? 'Not provided' : 'Non renseigné'),
-    statut_paiement: payment?.status ?? PaymentStatus.PENDING,
-    statut_paiement_libelle: paymentLabel(payment?.status, contact.locale),
-    operateur_paiement: payment?.method ?? (contact.locale === 'en' ? 'Not provided' : 'Non renseigné'),
+    statut_paiement: paymentStatusLabel(payment?.status, contact.locale),
+    statut_paiement_libelle: paymentStatusLabel(payment?.status, contact.locale),
+    operateur_paiement: paymentMethodLabel(payment?.method, contact.locale),
     reference_paiement_masquee: maskReference(payment?.transactionRef),
-    lien_admin_reservation: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?reservation=${reservation.id}`,
+    lien_admin_reservation: adminReservationUrl(reservation.reference),
     adresse_ou_instruction_acces: 'Golden Studio Plus, Douala',
     ...overrides,
   };
@@ -902,7 +897,7 @@ export const enqueueCalendarSyncFailureAlert = async (input: {
     idempotencyKey: `calendar:${input.calendarSyncLogId}:I-07:email`,
     metadata: { templateCode: 'I-07', calendarSyncLogId: input.calendarSyncLogId, error: input.error },
     variables: {
-      statut_reservation: reservation.status,
+      statut_reservation: reservationStatusLabel(reservation.status),
       code_erreur: input.error,
       message_erreur: 'Échec définitif après trois tentatives',
       identifiant_calcom_ou_absent: 'Absent ou non confirmé',
@@ -1063,9 +1058,10 @@ export const queueReservationStatusNotification = async (
       variables: {
         montant_remboursement_fcfa: formatAmount(financialTask.amount),
         canal_remboursement: financialTask.channel ?? 'À définir',
-        statut_remboursement: financialTask.status,
+        statut_remboursement: financialTaskStatusLabel(financialTask.status),
         motif_ou_erreur: financialTask.reason,
         echeance_interne: formatDateTime(financialTask.dueAt),
+        lien_admin_reservation: adminFinanceUrl(financialTask.id),
       },
     }));
   }
@@ -1148,10 +1144,7 @@ export const queueCancellationNotifications = async (
     : policy.refundableAmount > 0
       ? 'booking_cancelled_customer_refund'
       : 'booking_cancelled_customer_no_refund';
-  const leadHours = policy.leadTimeMs / (60 * 60 * 1000);
-  const leadLabel = leadHours >= 0
-    ? `${leadHours.toFixed(leadHours % 1 === 0 ? 0 : 1)} heure(s) avant la séance`
-    : `${Math.abs(leadHours).toFixed(1)} heure(s) après le début prévu`;
+  const leadLabel = formatRelativeBusinessDuration(policy.leadTimeMs, contact.locale);
   const metadata = {
     templateCode: code,
     ...(context.commandId ? { commandId: context.commandId } : {}),
@@ -1348,7 +1341,6 @@ export const queueRescheduleRequestNotifications = async (
     where: { reservationId: reservation.id, status: 'ACCEPTED' },
   });
   const contact = reservationContact(reservation);
-  const leadHours = (request.oldStartAt.getTime() - request.requestedAt.getTime()) / (60 * 60 * 1000);
   const metadata = {
     rescheduleRequestId: request.id,
     ...(context.commandId ? { commandId: context.commandId } : {}),
@@ -1357,9 +1349,7 @@ export const queueRescheduleRequestNotifications = async (
     ancien_creneau: rescheduleSlot(request.oldStartAt, request.oldEndAt),
     nouveau_creneau_demande: rescheduleSlot(request.requestedStartAt, request.requestedEndAt),
     nouveau_creneau: rescheduleSlot(request.requestedStartAt, request.requestedEndAt),
-    delai_avant_seance: leadHours >= 0
-      ? `${leadHours.toFixed(leadHours % 1 === 0 ? 0 : 1)} heure(s) avant la séance`
-      : `${Math.abs(leadHours).toFixed(1)} heure(s) après le début prévu`,
+    delai_avant_seance: formatRelativeBusinessDuration(request.oldStartAt.getTime() - request.requestedAt.getTime(), contact.locale),
     nombre_reports: String(acceptedCount),
   };
   const jobs: Array<Promise<unknown>> = [];
@@ -1638,7 +1628,7 @@ export const queuePaymentVerifiedNotification = async (
     actor: context.actor,
     variables: {
       duree_attente: '30 minutes',
-      statut_reservation: reservation.status,
+      statut_reservation: reservationStatusLabel(reservation.status),
       date_expiration: formatDateTime(reservation.expiresAt ?? new Date((context.now ?? new Date()).getTime() + 24 * 60 * 60 * 1000)),
     },
   }));
@@ -1670,7 +1660,7 @@ export const queuePaymentAddedNotifications = async (
   const contact = reservationContact(reservation);
   const variables: EmailTemplateVariables = {
     montant_fcfa: formatAmount(payment.amount),
-    operateur_paiement: payment.method,
+    operateur_paiement: paymentMethodLabel(payment.method, contact.locale),
     reference_paiement_masquee: maskReference(payment.transactionRef),
     date_transmission: formatDateTime(payment.createdAt),
   };
@@ -1788,7 +1778,7 @@ export const queuePaymentStatusNotifications = async (
       actor: context.actor,
       variables: {
         duree_attente: '30 minutes',
-        statut_reservation: reservation.status,
+        statut_reservation: reservationStatusLabel(reservation.status),
         date_expiration: formatDateTime(deadline),
       },
     }));
@@ -1800,10 +1790,10 @@ export const queuePaymentStatusNotifications = async (
 export const queueLeadCreatedNotification = async (leadId: string) => {
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
-  const prefix = lead.type === LeadType.CONTACT ? 'CONTACT' : 'B2B';
-  const reference = `${prefix}-${lead.id.slice(-8).toUpperCase()}`;
+  const reference = lead.reference;
   const date = formatDateTime(lead.createdAt);
-  const organization = lead.company ?? 'Non renseignée';
+  const organization = lead.company ?? 'Organisation non communiquée';
+  const organizationPhrase = lead.company ? (lead.locale === 'en' ? ` on behalf of ${lead.company}` : ` au nom de ${lead.company}`) : '';
   const subject = lead.subject ?? lead.source ?? 'Demande d’information';
   const customerCode: EmailTemplateCode = lead.type === LeadType.CONTACT ? 'E-22' : 'E-23';
   const customerVariables: EmailTemplateVariables = customerCode === 'E-22'
@@ -1816,6 +1806,7 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
     : {
         nom_contact: lead.name,
         organisation: organization,
+        organisation_phrase: organizationPhrase,
         objet_demande: subject,
         reference_b2b: reference,
         date_reception: date,
@@ -1835,17 +1826,17 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
     }));
   }
   const adminRendered = renderEmailTemplate('I-12', {
-    type_demande: lead.type,
+    type_demande: lead.type === LeadType.CONTACT ? 'Contact' : lead.type === LeadType.B2B ? 'Demande professionnelle' : 'Demande de devis',
     organisation_ou_nom: lead.company ?? lead.name,
     reference_demande: reference,
     nom_contact: lead.name,
     organisation: organization,
-    telephone_e164: lead.phone ?? 'Non renseigné',
-    email_contact: lead.email ?? 'Non renseigné',
+    telephone_e164: lead.phone ?? 'Non communiqué',
+    email_contact: lead.email ?? 'Non communiqué',
     objet_demande: subject,
     priorite: lead.type === LeadType.CONTACT ? 'Normale' : 'Haute',
     resume_message: lead.message,
-    lien_admin_demande: `${env.CLIENT_ORIGINS[0] ?? 'https://gsplus.vip'}/admin?lead=${lead.id}`,
+    lien_admin_demande: adminLeadUrl(lead.reference),
   });
   jobs.push(enqueueInternalEmailNotification({
     leadId,

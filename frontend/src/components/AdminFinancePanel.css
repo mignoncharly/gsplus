@@ -1,0 +1,12 @@
+.admin-finance-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 1rem; align-items: end; margin-bottom: 1.5rem; }
+.admin-finance-overdue { min-height: 44px; display: flex; align-items: center; gap: .65rem; }
+.admin-finance-summary,.admin-pagination,.admin-finance-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.admin-overdue { color: #ffb4a8; display: flex; align-items: center; gap: .25rem; margin-top: .35rem; }
+.admin-finance-detail { margin-top: 1.5rem; }
+.admin-finance-detail:focus { outline: 3px solid var(--c-gold); outline-offset: 3px; }
+.admin-finance-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 1rem; margin: 1.5rem 0; }
+.admin-finance-grid div { padding: 1rem; background: rgba(255,255,255,.045); border-radius: .75rem; }
+.admin-finance-grid dt { color: rgba(255,255,255,.6); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+.admin-finance-grid dd { margin: .4rem 0 0; overflow-wrap: anywhere; }
+.admin-finance-grid a { color: var(--c-gold-light); display: inline-flex; align-items: center; gap: .35rem; }
+@media (max-width:640px) { .admin-finance-summary,.admin-finance-detail-heading { align-items: flex-start; flex-direction: column; } }

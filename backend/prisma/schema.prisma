@@ -811,6 +811,7 @@ model ReservationDelivery {
 
 model Lead {
   id                String              @id @default(cuid())
+  reference         String              @unique
   submissionKey     String?             @unique
   type              LeadType
   status            LeadStatus          @default(NEW)

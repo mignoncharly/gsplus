@@ -161,6 +161,25 @@ export const getAdminLeads = async () => {
   return payload.data;
 };
 
+export const getAdminLead = async (reference) => {
+  const payload = await apiFetch(`/api/admin/leads/${encodeURIComponent(reference)}`);
+  return payload.data;
+};
+
+export const getAdminFinancialTasks = async (filters = {}) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  const payload = await apiFetch(`/api/admin/financial-tasks?${params.toString()}`);
+  return { items: payload.data, meta: payload.meta };
+};
+
+export const getAdminFinancialTask = async (id) => {
+  const payload = await apiFetch(`/api/admin/financial-tasks/${encodeURIComponent(id)}`);
+  return payload.data;
+};
+
 export const getAdminReservations = async ({ reference } = {}) => {
   const params = new URLSearchParams();
   if (reference?.trim()) params.set('reference', reference.trim().toUpperCase());
@@ -237,6 +256,14 @@ export const archiveAdminPackage = async (id, data) => {
 
 export const verifyAdminPayment = async (id, data) => {
   const payload = await apiFetch(`/api/admin/payments/${id}/verify`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return payload.data;
+};
+
+export const refundAdminPayment = async (id, data) => {
+  const payload = await apiFetch(`/api/admin/payments/${id}/refund`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
