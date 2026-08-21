@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 const packageFixtures = [
-  { id: 'phase9-classic', slug: 'classic-propre', name: 'Classic Propre', category: 'Portrait', price: 20000, durationMin: 60, isRange: false, isPromo: false, sortOrder: 10 },
-  { id: 'phase9-signature', slug: 'pack-signature', name: 'Pack Signature', category: 'Portrait', price: 35000, durationMin: 120, isRange: false, isPromo: false, sortOrder: 20 },
-  { id: 'phase9-duo', slug: 'duo-couple', name: 'Duo Couple', category: 'Famille', price: 30000, durationMin: 90, isRange: false, isPromo: false, sortOrder: 30 },
-  { id: 'phase9-premariage', slug: 'pre-mariage-decouverte', name: 'Pre-mariage Decouverte', category: 'Fiancailles & Pre-mariage', price: 40000, durationMin: 120, isRange: true, isPromo: false, sortOrder: 40 },
+  { id: 'phase9-classic', slug: 'classic-propre', name: 'Classic Propre', category: 'Portrait', price: 20000, durationMin: 60, bookingMode: 'DIRECT', inclusions: ['Idéal pour un profil professionnel'], isRange: false, isPromo: false, sortOrder: 10 },
+  { id: 'phase9-signature', slug: 'pack-signature', name: 'Pack Signature', category: 'Portrait', price: 35000, durationMin: 120, bookingMode: 'DIRECT', isRange: false, isPromo: false, sortOrder: 20 },
+  { id: 'phase9-duo', slug: 'duo-couple', name: 'Duo Couple', category: 'Famille', price: 30000, durationMin: 90, bookingMode: 'DIRECT', isRange: false, isPromo: false, sortOrder: 30 },
+  { id: 'phase9-premariage', taxonomyKey: 'fiancailles-pre-mariage', slug: 'pre-mariage-decouverte', name: 'Pre-mariage Decouverte', category: 'Fiancailles & Pre-mariage', price: 40000, durationMin: 120, bookingMode: 'DIRECT', isRange: true, isPromo: false, sortOrder: 40 },
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
         contentType: 'application/json',
         body: JSON.stringify({ data: packageFixtures }),
       });
+    }
+    if (url.pathname === '/api/catalogue') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { packages: packageFixtures, taxonomy: [{ key: 'fiancailles-pre-mariage', sortOrder: 1, locales: [{ locale: 'fr', label: 'Fiançailles & Pré-mariage', isEnabled: true }] }], benefits: [] } }) });
     }
     if (url.pathname === '/api/admin/me') {
       return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'UNAUTHORIZED' } }) });
@@ -41,7 +44,7 @@ test('August 2026 OWNER legal pages are mutually linked and publish the normativ
     await expect(page.getByRole('heading', { name: new RegExp(heading) })).toBeVisible();
   }
   await expect(page.getByText(/portabilité des données/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Conditions de Vente', exact: true })).toHaveAttribute('href', '/cgv');
+  await expect(page.getByRole('link', { name: 'Conditions de Vente', exact: true })).toHaveAttribute('href', '/fr/cgv');
 
   await page.getByRole('link', { name: 'Mentions légales', exact: true }).click();
   await expect(page).toHaveURL(/\/mentions-legales$/);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from '../components/LocalizedLink.jsx';
 import { useLocale } from '../lib/i18n.js';
 
 const NotFound = () => {

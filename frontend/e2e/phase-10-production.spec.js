@@ -5,17 +5,28 @@ const productionOrigin = process.env.PLAYWRIGHT_BASE_URL;
 test.skip(!productionOrigin, 'Production smoke runs only when PLAYWRIGHT_BASE_URL is explicitly provided.');
 
 const routes = [
-  '/',
-  '/services',
-  '/portfolio',
-  '/reservation',
-  '/services-creatifs',
-  '/a-propos',
-  '/contact',
-  '/corporate',
-  '/mentions-legales',
-  '/confidentialite',
-  '/cgv',
+  "/fr",
+  "/fr/services",
+  "/fr/portfolio",
+  "/fr/reservation",
+  "/fr/services-creatifs",
+  "/fr/a-propos",
+  "/fr/contact",
+  "/fr/corporate",
+  "/fr/mentions-legales",
+  "/fr/confidentialite",
+  "/fr/cgv",
+  "/en",
+  "/en/services",
+  "/en/portfolio",
+  "/en/reservation",
+  "/en/services-creatifs",
+  "/en/a-propos",
+  "/en/contact",
+  "/en/corporate",
+  "/en/mentions-legales",
+  "/en/confidentialite",
+  "/en/cgv"
 ];
 
 const tagContent = (html, pattern) => html.match(pattern)?.[1];
@@ -29,7 +40,7 @@ test('all indexable routes return unique crawlable metadata in raw HTML', async 
     expect(response.status(), route).toBe(200);
     expect(response.headers()['content-type'], route).toContain('text/html');
     const html = await response.text();
-    const canonical = `${productionOrigin}${route === '/' ? '' : route}`;
+    const canonical = `${productionOrigin}${route}`;
     const title = tagContent(html, /<title>([^<]+)<\/title>/);
     const description = tagContent(html, /<meta name="description" content="([^"]+)"/);
 

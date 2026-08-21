@@ -2,11 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  COMPATIBILITY_ROUTE_PATHS,
+  getLocalBusinessSchema,
   getRouteMetadata,
   INDEXABLE_ROUTES,
-  LOCAL_BUSINESS_SCHEMA,
   PRIVATE_ROUTE_PATHS,
+  SITE_ORIGIN,
 } from '../src/content/site-metadata.js';
+import { localizedPath } from '../src/lib/locale-routes.js';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = resolve(process.env.PHASE10_DIST_DIR || resolve(projectRoot, 'dist'));
@@ -23,6 +26,12 @@ export const escapeHtml = (value) => String(value)
 
 export const safeJson = (value) => JSON.stringify(value).replaceAll('<', '\\u003c');
 
+const alternateTags = (metadata) => metadata.alternates ? [
+  `    <link rel="alternate" hreflang="fr" href="${escapeHtml(metadata.alternates.fr)}" />`,
+  `    <link rel="alternate" hreflang="en" href="${escapeHtml(metadata.alternates.en)}" />`,
+  `    <link rel="alternate" hreflang="x-default" href="${escapeHtml(metadata.alternates.xDefault)}" />`,
+] : [];
+
 export const renderSeoBlock = (metadata) => {
   const common = [
     '<!-- phase10-seo-start -->',
@@ -31,11 +40,14 @@ export const renderSeoBlock = (metadata) => {
     `    <meta name="robots" content="${escapeHtml(metadata.robots)}" />`,
   ];
 
+  if (metadata.canonical) common.push(`    <link rel="canonical" href="${escapeHtml(metadata.canonical)}" />`);
+  common.push(...alternateTags(metadata));
+
   if (metadata.indexable) {
     common.push(
-      `    <link rel="canonical" href="${escapeHtml(metadata.canonical)}" />`,
       '    <meta property="og:type" content="website" />',
-      '    <meta property="og:locale" content="fr_FR" />',
+      `    <meta property="og:locale" content="${metadata.locale === 'en' ? 'en_US' : 'fr_FR'}" />`,
+      `    <meta property="og:locale:alternate" content="${metadata.locale === 'en' ? 'fr_FR' : 'en_US'}" />`,
       '    <meta property="og:site_name" content="Golden Studio Plus" />',
       `    <meta property="og:title" content="${escapeHtml(metadata.title)}" />`,
       `    <meta property="og:description" content="${escapeHtml(metadata.description)}" />`,
@@ -51,7 +63,7 @@ export const renderSeoBlock = (metadata) => {
       `    <meta name="twitter:description" content="${escapeHtml(metadata.description)}" />`,
       `    <meta name="twitter:image" content="${escapeHtml(metadata.image)}" />`,
       `    <meta name="twitter:image:alt" content="${escapeHtml(metadata.imageAlt)}" />`,
-      `    <script id="local-business-schema" type="application/ld+json">${safeJson(LOCAL_BUSINESS_SCHEMA)}</script>`,
+      `    <script id="local-business-schema" type="application/ld+json">${safeJson(getLocalBusinessSchema(metadata))}</script>`,
     );
   }
 
@@ -60,15 +72,16 @@ export const renderSeoBlock = (metadata) => {
 };
 
 export const renderStaticShell = (metadata) => {
+  const locale = metadata.locale || 'fr';
   const links = metadata.indexable
     ? [
-        ['/', 'Accueil'],
-        ['/services', 'Services'],
-        ['/portfolio', 'Portfolio'],
-        ['/reservation', 'Réservation'],
-        ['/contact', 'Contact'],
+        [localizedPath(locale, '/'), locale === 'en' ? 'Home' : 'Accueil'],
+        [localizedPath(locale, '/services'), 'Services'],
+        [localizedPath(locale, '/portfolio'), 'Portfolio'],
+        [localizedPath(locale, '/reservation'), locale === 'en' ? 'Booking' : 'Réservation'],
+        [localizedPath(locale, '/contact'), 'Contact'],
       ]
-    : [['/', 'Retour à l’accueil']];
+    : [[localizedPath(locale, '/'), locale === 'en' ? 'Back to home' : 'Retour à l’accueil']];
 
   return [
     '<section id="phase10-static-shell" class="crawl-shell">',
@@ -76,7 +89,7 @@ export const renderStaticShell = (metadata) => {
     '        <p class="crawl-shell__brand">Golden Studio Plus</p>',
     `        <h1>${escapeHtml(metadata.heading)}</h1>`,
     `        <p>${escapeHtml(metadata.summary)}</p>`,
-    '        <nav aria-label="Pages principales">',
+    `        <nav aria-label="${locale === 'en' ? 'Main pages' : 'Pages principales'}">`,
     ...links.map(([href, label]) => `          <a href="${href}">${escapeHtml(label)}</a>`),
     '        </nav>',
     '      </div>',
@@ -91,10 +104,11 @@ export const renderRouteDocument = (template, pathname) => {
   }
 
   let html = template
+    .replace(/<html lang="[^"]+">/, `<html lang="${metadata.locale}">`)
     .replace(seoBlockPattern, renderSeoBlock(metadata))
     .replace(shellPattern, renderStaticShell(metadata));
 
-  if (pathname !== '/') html = html.replace(heroPreloadPattern, '');
+  if (metadata.basePath !== '/') html = html.replace(heroPreloadPattern, '');
   return html;
 };
 
@@ -103,11 +117,27 @@ const outputPathForRoute = (pathname) => {
   return resolve(distDir, `${pathname.slice(1)}.html`);
 };
 
+export const renderSitemap = () => {
+  const entries = INDEXABLE_ROUTES.map((route) => {
+    const metadata = getRouteMetadata(route.path);
+    return [
+      '  <url>',
+      `    <loc>${metadata.canonical}</loc>`,
+      `    <xhtml:link rel="alternate" hreflang="fr" href="${metadata.alternates.fr}" />`,
+      `    <xhtml:link rel="alternate" hreflang="en" href="${metadata.alternates.en}" />`,
+      `    <xhtml:link rel="alternate" hreflang="x-default" href="${metadata.alternates.xDefault}" />`,
+      '  </url>',
+    ].join('\n');
+  });
+  return ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">', ...entries, '</urlset>', ''].join('\n');
+};
+
 export const prerender = async () => {
   const templatePath = resolve(distDir, 'index.html');
   const template = await readFile(templatePath, 'utf8');
   const routes = [
     ...INDEXABLE_ROUTES.map(({ path }) => path),
+    ...COMPATIBILITY_ROUTE_PATHS,
     ...PRIVATE_ROUTE_PATHS,
   ];
 
@@ -118,14 +148,11 @@ export const prerender = async () => {
   }
 
   await writeFile(resolve(distDir, '404.html'), renderRouteDocument(template, '/__not-found__'), 'utf8');
-  await writeFile(
-    resolve(distDir, 'route-manifest.json'),
-    `${JSON.stringify({ generatedAt: new Date().toISOString(), routes }, null, 2)}\n`,
-    'utf8',
-  );
+  await writeFile(resolve(distDir, 'sitemap.xml'), renderSitemap(), 'utf8');
+  await writeFile(resolve(distDir, 'route-manifest.json'), `${JSON.stringify({ generatedAt: new Date().toISOString(), routes }, null, 2)}\n`, 'utf8');
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   await prerender();
-  console.log(`Generated ${INDEXABLE_ROUTES.length} indexable documents, ${PRIVATE_ROUTE_PATHS.length} private documents, and 404.html.`);
+  console.log(`Generated ${INDEXABLE_ROUTES.length} localized indexable documents, ${COMPATIBILITY_ROUTE_PATHS.length} compatibility documents, ${PRIVATE_ROUTE_PATHS.length} private documents, sitemap.xml, and 404.html.`);
 }

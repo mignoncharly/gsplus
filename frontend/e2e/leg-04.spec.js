@@ -5,7 +5,7 @@ const json = (route, body, status = 200) =>
 
 const packageFixture = {
   id: 'leg-04-pack', slug: 'leg-04-pack', name: 'Portrait LEG-04', category: 'Portrait',
-  price: 25000, durationMin: 60, isRange: false, isPromo: false, sortOrder: 1,
+  price: 25000, durationMin: 60, bookingMode: 'DIRECT', isRange: false, isPromo: false, sortOrder: 1,
 };
 
 const installPublicApi = async (page) => {
@@ -91,8 +91,8 @@ test('LEG-04 présente quatre choix séparés et ne pré-coche aucun consentemen
   await expect(page.getByLabel(/informations liées à ma réservation sur WhatsApp/)).not.toBeChecked();
   await expect(page.getByLabel(/offres, actualités et communications promotionnelles/)).not.toBeChecked();
   await expect(page.getByLabel(/Je reconnais avoir pris connaissance/)).not.toBeChecked();
-  await expect(page.getByRole('link', { name: 'Conditions générales de vente' })).toHaveAttribute('href', '/cgv');
-  await expect(page.getByRole('link', { name: 'Politique de confidentialité' })).toHaveAttribute('href', '/confidentialite');
+  await expect(page.getByRole('link', { name: 'Conditions générales de vente' })).toHaveAttribute('href', '/fr/cgv');
+  await expect(page.getByRole('link', { name: 'Politique de confidentialité' })).toHaveAttribute('href', '/fr/confidentialite');
   const widths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });

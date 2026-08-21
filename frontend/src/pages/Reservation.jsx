@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { lazy, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import Link from '../components/LocalizedLink.jsx';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -41,6 +42,8 @@ import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/
 import { bookingMessages, useLocale } from '../lib/i18n.js';
 import ActionAvailabilityHint from '../components/ActionAvailabilityHint';
 import './Reservation.css';
+
+const LocalizedDateFields = lazy(() => import('../components/LocalizedDateFields.jsx'));
 
 const ReservationConsentFields = React.lazy(() => import('../components/ReservationConsentFields'));
 
@@ -99,6 +102,7 @@ const Reservation = () => {
   const [freeTime, setFreeTime] = useState('');
   const [checkResult, setCheckResult] = useState(null);
   const [minFreeDate] = useState(() => addBusinessDays(businessDateKey(), 1));
+  const [maxFreeDate] = useState(() => addBusinessDays(businessDateKey(), 366));
   const slotRequestGate = useRef(createLatestRequestGate());
   const slotRequestInFlight = useRef(false);
   useEffect(() => {
@@ -474,7 +478,7 @@ const Reservation = () => {
     }
   };
 
-  const formatSelectedDate = formatBusinessDateKey;
+  const formatSelectedDate = (dateKey) => formatBusinessDateKey(dateKey, locale);
 
   return (
     <div className="reservation-page">
@@ -707,19 +711,7 @@ const Reservation = () => {
                     </p>
 
                     <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <label htmlFor="booking-free-date" style={{ fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Date souhaitée', 'Preferred date')}</label>
-                        <input 
-                          id="booking-free-date"
-                          name="preferredDate"
-                          type="date"
-                          required 
-                          className="form-input" 
-                          value={freeDate} 
-                          onChange={e => { setFreeDate(e.target.value); clearVerifiedSelection(); }}
-                          min={minFreeDate}
-                        />
-                      </div>
+                      <LocalizedDateFields id="booking-free-date" name="preferredDate" label={t('Date souhaitée', 'Preferred date')} value={freeDate} onChange={(dateKey) => { setFreeDate(dateKey); clearVerifiedSelection(); }} min={minFreeDate} max={maxFreeDate} required />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <label htmlFor="booking-free-time" style={{ fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Heure souhaitée', 'Preferred time')}</label>
                         <input 
@@ -871,8 +863,7 @@ const Reservation = () => {
                 
                 <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
                   <div>
-                    <label htmlFor="booking-birth-date" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Date de naissance (Optionnel)', 'Date of birth (optional)')}</label>
-                    <input id="booking-birth-date" name="birthDate" autoComplete="bday" type="date" className="form-input" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})} />
+                    <LocalizedDateFields id="booking-birth-date" name="birthDate" label={t('Date de naissance (Optionnel)', 'Date of birth (optional)')} value={formData.birthDate} onChange={(dateKey) => setFormData({ ...formData, birthDate: dateKey })} min="1900-01-01" max={businessDateKey()} />
                   </div>
                   <div>
                     <label htmlFor="booking-gender" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Genre', 'Gender')} *</label>

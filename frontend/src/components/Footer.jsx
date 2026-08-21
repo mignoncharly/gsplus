@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from './LocalizedLink.jsx';
 import { Camera, Mail, MapPin, MessageSquareText, Phone, Share2 } from 'lucide-react';
 import { safeExternalHttpsUrl } from '../lib/external-links';
 import { shareSite } from '../lib/share-site';

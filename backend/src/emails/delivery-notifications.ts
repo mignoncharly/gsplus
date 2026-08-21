@@ -3,12 +3,9 @@ import { Prisma, ReservationStatus } from '../generated/prisma/client.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
 import { resolveReservationNotificationEmail } from '../services/reservation-notification-overrides.js';
 import { adminReservationUrl } from '../utils/admin-links.js';
+import { formatBusinessDate } from '../utils/business-time.js';
 import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from './templates.js';
 
-const formatDate = (date: Date, locale: 'fr' | 'en' = 'fr') => new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'fr-CM', {
-  dateStyle: 'long',
-  timeZone: 'Africa/Douala',
-}).format(date);
 
 export const queueReservationDeliveryNotification = async (deliveryId: string) => {
   const delivery = await prisma.reservationDelivery.findUnique({
@@ -45,7 +42,7 @@ export const queueReservationDeliveryNotification = async (deliveryId: string) =
     reference_courte: reservation.reference,
     lien_livraison: delivery.deliveryUrl,
     instruction_acces: delivery.accessInstruction,
-    date_limite_acces: formatDate(delivery.expiresAt, reservation.snapshot.locale === 'en' ? 'en' : 'fr'),
+    date_limite_acces: formatBusinessDate(delivery.expiresAt, reservation.snapshot.locale === 'en' ? 'en' : 'fr'),
   }, reservation.snapshot.locale === 'en' ? 'en' : 'fr');
   const data = {
     reservationId: reservation.id,

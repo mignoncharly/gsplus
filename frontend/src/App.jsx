@@ -2,11 +2,13 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import Footer from './components/Footer';
+import LocaleProvider from './components/LocaleProvider.jsx';
 import ScrollManager from './components/ScrollManager';
 import RouteMetadata from './components/RouteMetadata';
 import WhatsAppFab from './components/WhatsAppFab';
 import './index.css';
-import { useLocale } from './lib/i18n';
+import { SUPPORTED_LOCALES, useLocale } from './lib/i18n';
+import { localizedPath } from './lib/locale-routes.js';
 
 const Header = lazy(() => import('./components/Header'));
 const Home = lazy(() => import('./pages/Home'));
@@ -22,6 +24,12 @@ const Legal = lazy(() => import('./pages/Legal'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+
+const publicRoutes = [
+  ['/', Home], ['/services', Services], ['/portfolio', Portfolio], ['/reservation', Reservation],
+  ['/services-creatifs', CreativeServices], ['/a-propos', About], ['/contact', Contact],
+  ['/corporate', Corporate], ['/mentions-legales', Legal], ['/confidentialite', Privacy], ['/cgv', Terms],
+];
 
 const RouteLoading = () => {
   const { t } = useLocale();
@@ -47,24 +55,16 @@ const AppLayout = () => {
       <main id="main-content" tabIndex="-1" style={{ minHeight: '80vh' }}>
         <Suspense fallback={<RouteLoading />}>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/reservation" element={<Reservation />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
-            <Route path="/services-creatifs" element={<CreativeServices />} />
-            <Route path="/a-propos" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/corporate" element={<Corporate />} />
-            <Route path="/mentions-legales" element={<Legal />} />
-            <Route path="/confidentialite" element={<Privacy />} />
-            <Route path="/cgv" element={<Terms />} />
+            {SUPPORTED_LOCALES.flatMap((locale) => publicRoutes.map(([basePath, Component]) => (
+              <Route key={`${locale}:${basePath}`} path={localizedPath(locale, basePath)} element={<Component />} />
+            )))}
+            {publicRoutes.map(([basePath, Component]) => <Route key={`legacy:${basePath}`} path={basePath} element={<Component />} />)}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>
       {!isAdmin && <Footer />}
-
       {!isAdmin && <WhatsAppFab />}
     </>
   );
@@ -72,11 +72,13 @@ const AppLayout = () => {
 
 function App() {
   return (
-    <MotionConfig reducedMotion="user">
-      <Router>
-        <AppLayout />
-      </Router>
-    </MotionConfig>
+    <Router>
+      <LocaleProvider>
+        <MotionConfig reducedMotion="user">
+          <AppLayout />
+        </MotionConfig>
+      </LocaleProvider>
+    </Router>
   );
 }
 

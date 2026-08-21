@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import LanguageSwitcher from './LanguageSwitcher';
+import Link from './LocalizedLink.jsx';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { useLocale } from '../lib/i18n.js';
+import { baseRoutePath } from '../lib/locale-routes.js';
 import './Header.css';
 
 
@@ -14,6 +16,7 @@ const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const activePath = baseRoutePath(location.pathname);
   const toggleRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -69,7 +72,7 @@ const Header = () => {
           <img src="/images/optimized/brand-logo-160.webp" srcSet="/images/optimized/brand-logo-160.webp 160w, /images/optimized/brand-logo-320.webp 320w" sizes="160px" width="160" height="160" alt="" className="brand-logo" decoding="async" />
         </Link>
         <nav className="nav-desktop" aria-label={t('navigation')}>
-          {navLinks.map((link) => <Link key={link.path} to={link.path} aria-current={location.pathname === link.path ? 'page' : undefined} className={location.pathname === link.path ? 'active' : ''} onClick={closeMenu}>{link.name}</Link>)}
+          {navLinks.map((link) => <Link key={link.path} to={link.path} aria-current={activePath === link.path ? 'page' : undefined} className={activePath === link.path ? 'active' : ''} onClick={closeMenu}>{link.name}</Link>)}
           <LanguageSwitcher compact />
           <Link to="/reservation" className="btn btn-primary btn-sm" onClick={closeMenu}>{t('book')}</Link>
         </nav>
@@ -86,7 +89,7 @@ const Header = () => {
                 <LanguageSwitcher compact />
               </div>
               <nav className="nav-mobile-content" aria-label={t('mobileNavigation')}>
-                {navLinks.map((link) => <Link key={link.path} to={link.path} aria-current={location.pathname === link.path ? 'page' : undefined} className={location.pathname === link.path ? 'active' : ''} onClick={closeMenu}>{link.name}</Link>)}
+                {navLinks.map((link) => <Link key={link.path} to={link.path} aria-current={activePath === link.path ? 'page' : undefined} className={activePath === link.path ? 'active' : ''} onClick={closeMenu}>{link.name}</Link>)}
                 <Link to="/reservation" className="btn btn-primary" onClick={closeMenu}>{t('book')}</Link>
               </nav>
             </Motion.div>

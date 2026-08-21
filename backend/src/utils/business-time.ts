@@ -1,4 +1,7 @@
 export const BUSINESS_TIME_ZONE = 'Africa/Douala';
+export type BusinessLocale = 'fr' | 'en';
+
+export const businessLocaleTag = (locale: string = 'fr') => (locale === 'en' ? 'en-GB' : 'fr-CM');
 
 // Africa/Douala is UTC+01:00 year-round. Keeping the conversion here makes
 // browser/server timezone settings irrelevant while the IANA zone remains the
@@ -102,8 +105,24 @@ export const businessDayWindow = (date: string) => ({
   end: businessLocalToInstant(addBusinessDays(date, 1)),
 });
 
-export const formatBusinessDateTime = (instant: Date) =>
-  new Intl.DateTimeFormat('fr-CM', {
+export const formatBusinessDate = (instant: Date, locale: string = 'fr') =>
+  new Intl.DateTimeFormat(businessLocaleTag(locale), {
+    dateStyle: 'long',
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(instant);
+
+export const formatBusinessTime = (instant: Date, locale: string = 'fr') => {
+  const value = new Intl.DateTimeFormat(businessLocaleTag(locale), {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: BUSINESS_TIME_ZONE,
+  }).format(instant);
+  return locale === 'fr' ? value.replace(':', ' h ') : value;
+};
+
+export const formatBusinessDateTime = (instant: Date, locale: string = 'fr') =>
+  new Intl.DateTimeFormat(businessLocaleTag(locale), {
     dateStyle: 'full',
     timeStyle: 'short',
     timeZone: BUSINESS_TIME_ZONE,

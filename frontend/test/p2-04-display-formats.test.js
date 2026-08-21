@@ -23,7 +23,8 @@ test('P2-04 centralise les statuts et les termes français affichés', () => {
 
 test('P2-04 applique les formatteurs FCFA et Douala dans le code et dans les dates', () => {
   assert.match(formatFcfa(50000), /^50\D?000 FCFA$/u);
-  assert.equal(formatBusinessDateKey('2026-08-08'), 'Sam 8 Août');
+  assert.match(formatBusinessDateKey('2026-08-08'), /sam.*8.*août.*2026/i);
+  assert.match(formatBusinessDateKey('2026-08-08', 'en'), /Sat.*8.*August.*2026/i);
 
   const doualaMidnight = formatBusinessDateTime('2026-08-08T23:30:00.000Z');
   assert.match(doualaMidnight, /9 août 2026/i);

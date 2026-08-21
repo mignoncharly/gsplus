@@ -7,6 +7,7 @@ const packageFixture = {
   category: 'Portrait',
   price: 50000,
   durationMin: 60,
+  bookingMode: 'DIRECT',
   isRange: false,
   isPromo: false,
   sortOrder: 10,
@@ -75,6 +76,13 @@ const installApi = async (page, options = {}) => {
   return calls;
 };
 
+const setPreferredDate = async (page, date) => {
+  const [year, month, day] = date.split('-').map(String);
+  await page.getByLabel('Année').selectOption(year);
+  await page.getByLabel('Mois').selectOption(String(Number(month)));
+  await page.getByLabel('Jour').selectOption(String(Number(day)));
+};
+
 const openFreeMode = async (page) => {
   await page.goto('/reservation', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('button', { name: /Continuer/ })).toBeEnabled();
@@ -91,10 +99,10 @@ test('custom proposal keeps its values, blocks duplicate recording and preserves
   const calls = await installApi(page, { intentDelay: 300 });
   await openFreeMode(page);
 
-  const date = page.getByLabel('Date souhaitée');
+  const date = page.locator('input[name="preferredDate"]');
   const time = page.getByLabel('Heure souhaitée');
   const verify = page.getByRole('button', { name: 'Enregistrer cette proposition' });
-  await date.fill('2027-08-04');
+  await setPreferredDate(page, '2027-08-04');
   await time.fill('10:00');
   await verify.focus();
   await verify.evaluate((button) => {
@@ -135,11 +143,11 @@ test('editing the proposal invalidates a stale intent response', async ({ page }
   await installApi(page, { intentDelay: 200 });
   await openFreeMode(page);
 
-  const date = page.getByLabel('Date souhaitée');
-  await date.fill('2027-08-04');
+  const date = page.locator('input[name="preferredDate"]');
+  await setPreferredDate(page, '2027-08-04');
   await page.getByLabel('Heure souhaitée').fill('10:00');
   await page.getByRole('button', { name: 'Enregistrer cette proposition' }).click({ noWaitAfter: true });
-  await date.fill('2027-08-05');
+  await page.getByLabel('Jour').selectOption('5');
 
   await page.waitForTimeout(300);
   await expect(date).toHaveValue('2027-08-05');
@@ -151,12 +159,11 @@ test('custom proposal accepts an off-grid request without claiming availability'
   const calls = await installApi(page);
   await openFreeMode(page);
 
-  const date = page.getByLabel('Date souhaitée');
   const time = page.getByLabel('Heure souhaitée');
   const record = page.getByRole('button', { name: 'Enregistrer cette proposition' });
 
   await time.fill('10:15');
-  await date.fill('2027-08-04');
+  await setPreferredDate(page, '2027-08-04');
   await record.click();
   await expect(page.getByText('Proposition enregistrée — non confirmée')).toBeVisible();
   await expect(page.getByText(/ne bloque pas l.agenda/)).toBeVisible();

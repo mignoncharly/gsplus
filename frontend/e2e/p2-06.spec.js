@@ -38,6 +38,7 @@ const installApi = async (page, { authenticated = false } = {}) => {
         : json(route, { error: { message: 'Non authentifié' } }, 401);
     }
     if (path === '/api/availability') return json(route, { data: { days: [] } });
+    if (path === '/api/packages') return json(route, { data: [1, 2, 3].map((index) => ({ id: `p2-06-${index}`, slug: `p2-06-${index}`, name: `Pack P2-06 ${index}`, category: 'Portrait', price: 25000, durationMin: 60, bookingMode: 'DIRECT', isRange: false, isPromo: false, sortOrder: index })) });
     return json(route, { data: [] });
   });
 };

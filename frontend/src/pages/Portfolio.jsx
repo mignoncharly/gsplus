@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Sparkles, CalendarCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from '../components/LocalizedLink.jsx';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { getPortfolioMedia, mediaUrl } from '../lib/api';
 import { PORTFOLIO_CATEGORIES, curatePortfolioMedia, responsiveImageData } from '../lib/portfolio-media';

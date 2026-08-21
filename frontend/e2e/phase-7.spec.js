@@ -219,12 +219,12 @@ test('footer exposes only genuine contact, business and official social actions'
   await expect(footer.getByRole('link', { name: 'Suivre Golden Studio Plus sur Instagram' })).toHaveAttribute('href', 'https://www.instagram.com/goldenstudioplus/');
   await expect(footer.getByRole('link', { name: 'Suivre Golden Studio Plus sur Facebook' })).toHaveAttribute('href', 'https://www.facebook.com/people/Golden-Studio-Plus/61574353412752/');
   await expect(footer.getByRole('link', { name: /LinkedIn/ })).toHaveCount(0);
-  await expect(footer.getByRole('link', { name: 'Voir le portfolio Golden Studio Plus' })).toHaveAttribute('href', '/portfolio');
-  await expect(footer.getByRole('link', { name: 'Demander un devis pour un service créatif' })).toHaveAttribute('href', '/services-creatifs#devis-creatif');
+  await expect(footer.getByRole('link', { name: 'Voir le portfolio Golden Studio Plus' })).toHaveAttribute('href', '/fr/portfolio');
+  await expect(footer.getByRole('link', { name: 'Demander un devis pour un service créatif' })).toHaveAttribute('href', '/fr/services-creatifs#devis-creatif');
 
   await footer.getByRole('button', { name: 'Partager le site Golden Studio Plus' }).click();
   await expect(footer.getByRole('status')).toHaveText('Lien copié dans le presse-papiers.');
-  await expect.poll(() => page.evaluate(() => window.__copiedSiteUrl)).toBe('https://gsplus.vip/services');
+  await expect.poll(() => page.evaluate(() => window.__copiedSiteUrl)).toBe('https://gsplus.vip/fr/services');
 });
 
 test('Design and Impression galleries show every approved responsive realization', async ({ page }) => {

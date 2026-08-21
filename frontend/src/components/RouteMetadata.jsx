@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getRouteMetadata, LOCAL_BUSINESS_SCHEMA } from '../content/site-metadata';
+import { getLocalBusinessSchema, getRouteMetadata } from '../content/site-metadata';
 import { useLocale } from '../lib/i18n.js';
 
 const upsertMeta = (selector, attributes) => {
@@ -29,9 +29,21 @@ const upsertCanonical = (href) => {
   canonical.setAttribute('href', href);
 };
 
-const updateStructuredData = (enabled) => {
+const updateAlternates = (alternates) => {
+  document.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((tag) => tag.remove());
+  if (!alternates) return;
+  for (const [language, href] of [['fr', alternates.fr], ['en', alternates.en], ['x-default', alternates.xDefault]]) {
+    const link = document.createElement('link');
+    link.rel = 'alternate';
+    link.hreflang = language;
+    link.href = href;
+    document.head.appendChild(link);
+  }
+};
+
+const updateStructuredData = (metadata) => {
   let script = document.getElementById('local-business-schema');
-  if (!enabled) {
+  if (!metadata.indexable) {
     script?.remove();
     return;
   }
@@ -41,7 +53,7 @@ const updateStructuredData = (enabled) => {
     script.type = 'application/ld+json';
     document.head.appendChild(script);
   }
-  script.textContent = JSON.stringify(LOCAL_BUSINESS_SCHEMA);
+  script.textContent = JSON.stringify(getLocalBusinessSchema(metadata));
 };
 
 const RouteMetadata = () => {
@@ -50,7 +62,7 @@ const RouteMetadata = () => {
 
   useEffect(() => {
     const metadata = getRouteMetadata(pathname, locale);
-    document.documentElement.lang = locale;
+    document.documentElement.lang = metadata.locale;
     document.title = metadata.title;
 
     upsertMeta('meta[name="description"]', { name: 'description', content: metadata.description });
@@ -58,7 +70,8 @@ const RouteMetadata = () => {
 
     if (metadata.indexable) {
       upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
-      upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: locale === 'en' ? 'en_US' : 'fr_FR' });
+      upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: metadata.locale === 'en' ? 'en_US' : 'fr_FR' });
+      upsertMeta('meta[property="og:locale:alternate"]', { property: 'og:locale:alternate', content: metadata.locale === 'en' ? 'fr_FR' : 'en_US' });
       upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'Golden Studio Plus' });
       upsertMeta('meta[property="og:title"]', { property: 'og:title', content: metadata.title });
       upsertMeta('meta[property="og:description"]', { property: 'og:description', content: metadata.description });
@@ -85,7 +98,8 @@ const RouteMetadata = () => {
     }
 
     upsertCanonical(metadata.canonical);
-    updateStructuredData(metadata.indexable);
+    updateAlternates(metadata.alternates);
+    updateStructuredData(metadata);
   }, [locale, pathname]);
 
   return null;

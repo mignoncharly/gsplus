@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from '../components/LocalizedLink.jsx';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Camera, Palette, Printer, Image as ImageIcon, FileText, LayoutTemplate, Shirt, BookOpen, Frame, CheckCircle2, Clock3, Images, MessageCircle, Sparkles, Send } from 'lucide-react';
 import { getCatalogue, submitQuoteRequest } from '../lib/api';

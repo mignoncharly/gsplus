@@ -1,17 +1,94 @@
 import { expect, test } from '@playwright/test';
 
 const indexableRoutes = [
-  ['/', 'https://gsplus.vip'],
-  ['/services', 'https://gsplus.vip/services'],
-  ['/portfolio', 'https://gsplus.vip/portfolio'],
-  ['/reservation', 'https://gsplus.vip/reservation'],
-  ['/services-creatifs', 'https://gsplus.vip/services-creatifs'],
-  ['/a-propos', 'https://gsplus.vip/a-propos'],
-  ['/contact', 'https://gsplus.vip/contact'],
-  ['/corporate', 'https://gsplus.vip/corporate'],
-  ['/mentions-legales', 'https://gsplus.vip/mentions-legales'],
-  ['/confidentialite', 'https://gsplus.vip/confidentialite'],
-  ['/cgv', 'https://gsplus.vip/cgv'],
+  [
+    "/fr",
+    "https://gsplus.vip/fr"
+  ],
+  [
+    "/fr/services",
+    "https://gsplus.vip/fr/services"
+  ],
+  [
+    "/fr/portfolio",
+    "https://gsplus.vip/fr/portfolio"
+  ],
+  [
+    "/fr/reservation",
+    "https://gsplus.vip/fr/reservation"
+  ],
+  [
+    "/fr/services-creatifs",
+    "https://gsplus.vip/fr/services-creatifs"
+  ],
+  [
+    "/fr/a-propos",
+    "https://gsplus.vip/fr/a-propos"
+  ],
+  [
+    "/fr/contact",
+    "https://gsplus.vip/fr/contact"
+  ],
+  [
+    "/fr/corporate",
+    "https://gsplus.vip/fr/corporate"
+  ],
+  [
+    "/fr/mentions-legales",
+    "https://gsplus.vip/fr/mentions-legales"
+  ],
+  [
+    "/fr/confidentialite",
+    "https://gsplus.vip/fr/confidentialite"
+  ],
+  [
+    "/fr/cgv",
+    "https://gsplus.vip/fr/cgv"
+  ],
+  [
+    "/en",
+    "https://gsplus.vip/en"
+  ],
+  [
+    "/en/services",
+    "https://gsplus.vip/en/services"
+  ],
+  [
+    "/en/portfolio",
+    "https://gsplus.vip/en/portfolio"
+  ],
+  [
+    "/en/reservation",
+    "https://gsplus.vip/en/reservation"
+  ],
+  [
+    "/en/services-creatifs",
+    "https://gsplus.vip/en/services-creatifs"
+  ],
+  [
+    "/en/a-propos",
+    "https://gsplus.vip/en/a-propos"
+  ],
+  [
+    "/en/contact",
+    "https://gsplus.vip/en/contact"
+  ],
+  [
+    "/en/corporate",
+    "https://gsplus.vip/en/corporate"
+  ],
+  [
+    "/en/mentions-legales",
+    "https://gsplus.vip/en/mentions-legales"
+  ],
+  [
+    "/en/confidentialite",
+    "https://gsplus.vip/en/confidentialite"
+  ],
+  [
+    "/en/cgv",
+    "https://gsplus.vip/en/cgv"
+  ]
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -57,7 +134,7 @@ test('admin and missing routes are noindex and admin stays out of public route r
     if (request.resourceType() === 'script') pageScripts.push(request.url());
   });
 
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/fr', { waitUntil: 'networkidle' });
   expect(pageScripts.join('\n')).not.toMatch(/AdminDashboard/);
 
   await page.goto('/admin', { waitUntil: 'domcontentloaded' });
@@ -73,7 +150,7 @@ test('admin and missing routes are noindex and admin stays out of public route r
 
 test('reduced-motion preference removes smooth scrolling and backdrop blur', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/fr', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.header')).toBeVisible();
 
   const styles = await page.evaluate(() => {

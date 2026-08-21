@@ -21,14 +21,14 @@ test('every indexable route has unique metadata on the canonical origin', () => 
   const titles = new Set();
   const descriptions = new Set();
 
-  assert.equal(INDEXABLE_ROUTES.length, 11);
+  assert.equal(INDEXABLE_ROUTES.length, 22);
   for (const route of INDEXABLE_ROUTES) {
     const metadata = getRouteMetadata(route.path);
     assert.equal(metadata.indexable, true);
     assert.equal(metadata.canonical, `${SITE_ORIGIN}${route.path === '/' ? '' : route.path}`);
     assert.match(metadata.robots, /^index, follow/);
     assert.equal(metadata.image, SITE_ORIGIN + SOCIAL_IMAGE_PATH);
-    assert.equal(metadata.imageAlt, SOCIAL_IMAGE_ALT);
+    assert.equal(metadata.imageAlt, route.locale === 'en' ? 'Golden Studio Plus — premium photo studio in Douala' : SOCIAL_IMAGE_ALT);
     assert.equal(metadata.imageWidth, SOCIAL_IMAGE_WIDTH);
     assert.equal(metadata.imageHeight, SOCIAL_IMAGE_HEIGHT);
     assert.ok(metadata.title.length >= 30 && metadata.title.length <= 70, route.path);
@@ -73,10 +73,10 @@ test('LocalBusiness data contains only published studio particulars', () => {
 
 test('build generator emits crawlable route HTML and noindex private HTML', () => {
   const template = source('index.html');
-  const services = renderRouteDocument(template, '/services');
+  const services = renderRouteDocument(template, '/fr/services');
   assert.match(services, /<title>Séances photo et packs à Douala/);
-  assert.match(services, /<link rel="canonical" href="https:\/\/gsplus\.vip\/services"/);
-  assert.match(services, /<meta property="og:url" content="https:\/\/gsplus\.vip\/services"/);
+  assert.match(services, /<link rel="canonical" href="https:\/\/gsplus\.vip\/fr\/services"/);
+  assert.match(services, /<meta property="og:url" content="https:\/\/gsplus\.vip\/fr\/services"/);
   assert.match(services, /<meta property="og:image" content="https:\/\/gsplus\.vip\/images\/og-golden-studio-plus-2026\.jpg"/);
   assert.match(services, /<meta property="og:image:width" content="1200"/);
   assert.match(services, /<meta property="og:image:height" content="630"/);
@@ -85,7 +85,7 @@ test('build generator emits crawlable route HTML and noindex private HTML', () =
   assert.match(services, /<h1>Séances photo et packs<\/h1>/);
   assert.doesNotMatch(services, /rel="preload" as="image"[^>]+hero-banner/);
 
-  const home = renderRouteDocument(template, '/');
+  const home = renderRouteDocument(template, '/fr');
   assert.match(home, /rel="preload" as="image"[^>]+hero-banner/);
 
   const admin = renderRouteDocument(template, '/admin');

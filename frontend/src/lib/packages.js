@@ -43,11 +43,12 @@ export const normalizeFrenchPackageName = (name = '') => name.replace(/\bMaterni
 
 export const packageView = (pack, locale = 'fr') => {
   const localized = localizedRecord(pack.locales, locale);
+  const packageName = localized?.name ?? pack.name;
   const sourceDelivery = localized?.deliveryLabel?.trim() || pack.deliveryLabel?.trim() || deliveryLabel(locale);
   const options = localized?.options && typeof localized.options === 'object' ? localized.options : pack.options;
   const view = {
     ...pack,
-    name: localized?.name ?? pack.name,
+    name: locale === 'fr' ? normalizeFrenchPackageName(packageName) : packageName,
     description: localized?.description ?? pack.description,
     content: localized?.content ?? pack.content,
     inclusions: localized?.inclusions ?? pack.inclusions,

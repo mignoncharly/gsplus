@@ -23,9 +23,9 @@ test('les pages juridiques chargent exclusivement les trois nouvelles sources OW
 
 test('le parcours de réservation expose les trois documents et sépare les consentements', () => {
   const consent = source('src/components/ReservationConsentFields.jsx');
-  assert.match(consent, /href="\/mentions-legales"/);
-  assert.match(consent, /href="\/cgv"/);
-  assert.match(consent, /href="\/confidentialite"/);
+  assert.match(consent, /to="\/mentions-legales"/);
+  assert.match(consent, /to="\/cgv"/);
+  assert.match(consent, /to="\/confidentialite"/);
   assert.match(consent, /booking-image-consent/);
   assert.match(consent, /booking-whatsapp-consent/);
   assert.match(consent, /booking-whatsapp-marketing-consent/);

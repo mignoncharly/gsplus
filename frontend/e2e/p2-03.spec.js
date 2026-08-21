@@ -17,7 +17,7 @@ test('P2-03 makes disabled progression and unavailable slots explicit on mobile'
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/packages') return json(route, { data: [{
       id: 'p2-03-pack', slug: 'p2-03-pack', name: 'Pack P2-03', category: 'Portrait',
-      price: 50000, durationMin: 60, isRange: false, isPromo: false, sortOrder: 1,
+      price: 50000, durationMin: 60, bookingMode: 'DIRECT', isRange: false, isPromo: false, sortOrder: 1,
     }] });
     if (path === '/api/availability') return json(route, { data: { days: [{
       date: '2027-08-10', isClosed: false, slots: [

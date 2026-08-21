@@ -1,5 +1,5 @@
 import { createElement, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from '../components/LocalizedLink.jsx';
 import { motion as Motion } from 'framer-motion';
 import { ArrowRight, BriefcaseBusiness, CalendarCheck, Camera, CheckCircle2, Clock3, Images, Palette, Sparkles, Star, Users } from 'lucide-react';
 import { getPackages } from '../lib/api';

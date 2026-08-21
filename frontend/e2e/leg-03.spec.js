@@ -96,8 +96,8 @@ test('LEG-03 reste lisible à 320 pixels et relie les documents associés', asyn
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/cgv', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('link', { name: 'mentions légales' })).toHaveAttribute('href', '/mentions-legales');
-  await expect(page.getByRole('link', { name: 'Confidentialité' }).last()).toHaveAttribute('href', '/confidentialite');
+  await expect(page.getByRole('link', { name: 'mentions légales' })).toHaveAttribute('href', '/fr/mentions-legales');
+  await expect(page.getByRole('link', { name: 'Confidentialité' }).last()).toHaveAttribute('href', '/fr/confidentialite');
   await expect(page.getByText(/fichiers bruts, essais, réglages et autres éléments de travail intermédiaires/)).toBeVisible();
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,

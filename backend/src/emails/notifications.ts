@@ -13,6 +13,7 @@ import { LeadType, NotificationStatus, PaymentStatus, ReservationStatus } from '
 import { normalizeE164Phone } from '../utils/phone.js';
 import { adminFinanceUrl, adminLeadUrl, adminReservationUrl } from '../utils/admin-links.js';
 import { financialTaskStatusLabel, formatRelativeBusinessDuration, paymentMethodLabel, paymentStatusLabel, reservationStatusLabel } from '../utils/business-display.js';
+import { businessLocaleTag, formatBusinessDate, formatBusinessDateTime, formatBusinessTime } from '../utils/business-time.js';
 import {
   enqueueInternalEmailNotification,
   type InternalNotificationDestination,
@@ -82,12 +83,7 @@ const escapeHtml = (value: string) =>
     .replaceAll("'", '&#39;');
 
 const paragraphs = (lines: string[]) => lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
-const formatDateTime = (date: Date) =>
-  new Intl.DateTimeFormat('fr-CM', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-    timeZone: 'Africa/Douala',
-  }).format(date);
+const formatDateTime = (date: Date) => formatBusinessDateTime(date);
 const formatPrice = (amount: number) => `${amount.toLocaleString('fr-CM')} FCFA`;
 
 const getNotificationEvent = (id: string) =>
@@ -131,18 +127,9 @@ type ReservationEmailSource = ReservationContactSource & {
   }>;
 };
 
-const emailLocaleTag = (locale: string) => locale === 'en' ? 'en-GB' : 'fr-CM';
-const formatDate = (date: Date, locale: string = 'fr') => new Intl.DateTimeFormat(emailLocaleTag(locale), {
-  dateStyle: 'long',
-  timeZone: 'Africa/Douala',
-}).format(date);
-const formatTime = (date: Date, locale: string = 'fr') => {
-  const value = new Intl.DateTimeFormat(emailLocaleTag(locale), {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Africa/Douala',
-  }).format(date);
-  return locale === 'fr' ? value.replace(':', ' h ') : value;
-};
-const formatAmount = (amount: number, locale: string = 'fr') => amount.toLocaleString(emailLocaleTag(locale));
+const formatDate = formatBusinessDate;
+const formatTime = formatBusinessTime;
+const formatAmount = (amount: number, locale: string = 'fr') => amount.toLocaleString(businessLocaleTag(locale));
 const maskReference = (reference: string | null | undefined) => {
   if (!reference) return 'Not provided';
   return `•••• ${reference.slice(-4)}`;

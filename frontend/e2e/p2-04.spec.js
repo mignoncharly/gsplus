@@ -15,7 +15,7 @@ test('P2-04 affiche les accents, la date française et la devise FCFA uniformes'
       name: 'Maternite Bebe Fiancailles',
       category: 'Maternite',
       price: 50000,
-      durationMin: 60,
+      durationMin: 60, bookingMode: 'DIRECT',
       isRange: false,
       isPromo: false,
       sortOrder: 1,
@@ -43,5 +43,5 @@ test('P2-04 affiche les accents, la date française et la devise FCFA uniformes'
 
   await dateCard.click();
   await page.locator('.slot-available').click();
-  await expect(page.getByText('Le Mar 10 Août de 10:00', { exact: false })).toBeVisible();
+  await expect(page.getByText(/Le mar.*10.*août.*2027 de 10:00/i, { exact: false })).toBeVisible();
 });

@@ -5,6 +5,8 @@ import termsEn from '../../../docs/new docs/cgv.en.txt?raw';
 import legalNoticeEn from '../../../docs/new docs/mentions legales.en.txt?raw';
 import privacyEn from '../../../docs/new docs/politique de confidentialite.en.txt?raw';
 
+export const ENGLISH_AUTHORITY_NOTICE = 'This English translation is provided for convenience. The French version remains authoritative.';
+
 export const OWNER_LEGAL_DOCUMENTS = Object.freeze({
   terms,
   legalNotice,

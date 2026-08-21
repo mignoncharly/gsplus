@@ -23,6 +23,8 @@ const mobilePathGroups = [
   ['/corporate', '/contact', '/reservation'],
 ];
 
+const localizedHref = (href) => href.startsWith('/admin') ? href : href === '/' ? '/fr' : `/fr${href}`;
+
 const pathWithHash = (url) => {
   const parsed = new URL(url);
   return parsed.pathname + parsed.hash;
@@ -35,23 +37,23 @@ const expectTopAndMainFocus = async (page) => {
 
 const activateDesktopLinks = async (page, paths) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/cgv', { waitUntil: 'domcontentloaded' });
+  await page.goto('/fr/cgv', { waitUntil: 'domcontentloaded' });
   for (const href of paths) {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.locator(`.nav-desktop a[href="${href}"]`).click();
-    await expect.poll(() => pathWithHash(page.url())).toBe(href);
+    await page.locator(`.nav-desktop a[href="${localizedHref(href)}"]`).click();
+    await expect.poll(() => pathWithHash(page.url())).toBe(localizedHref(href));
     await expectTopAndMainFocus(page);
   }
 };
 
 const activateFooterLinks = async (page, paths) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/contact', { waitUntil: 'domcontentloaded' });
+  await page.goto('/fr/contact', { waitUntil: 'domcontentloaded' });
   for (const href of paths) {
     const footer = page.locator('footer');
     await footer.scrollIntoViewIfNeeded();
-    await footer.locator(`a[href="${href}"]`).first().click();
-    await expect.poll(() => pathWithHash(page.url())).toBe(href);
+    await footer.locator(`a[href="${localizedHref(href)}"]`).first().click();
+    await expect.poll(() => pathWithHash(page.url())).toBe(localizedHref(href));
 
     if (href.includes('#')) {
       await expect(page.locator('#devis-creatif')).toBeFocused();
@@ -64,12 +66,12 @@ const activateFooterLinks = async (page, paths) => {
 
 const activateMobileLinks = async (page, paths) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/cgv', { waitUntil: 'domcontentloaded' });
+  await page.goto('/fr/cgv', { waitUntil: 'domcontentloaded' });
   for (const href of paths) {
     await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
     await page.getByRole('navigation', { name: 'Navigation mobile' })
-      .locator(`a[href="${href}"]`).click();
-    await expect.poll(() => pathWithHash(page.url())).toBe(href);
+      .locator(`a[href="${localizedHref(href)}"]`).click();
+    await expect.poll(() => pathWithHash(page.url())).toBe(localizedHref(href));
     await expectTopAndMainFocus(page);
   }
 };
@@ -85,7 +87,7 @@ test.beforeEach(async ({ page }) => {
 
 test('P2-05 remet en haut, restaure le retour et focalise le contenu', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/fr', { waitUntil: 'domcontentloaded' });
   await page.locator('footer').waitFor();
   await page.locator('footer').scrollIntoViewIfNeeded();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
@@ -95,7 +97,7 @@ test('P2-05 remet en haut, restaure le retour et focalise le contenu', async ({ 
   await expectTopAndMainFocus(page);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/fr$/);
   await expect(page.locator('#main-content')).toBeFocused();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 });
