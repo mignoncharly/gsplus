@@ -5,6 +5,9 @@ import { prisma } from '../db/prisma.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { ReservationStatus } from '../generated/prisma/enums.js';
 import { enqueueCalendarSyncFailureAlert } from '../emails/notifications.js';
+import { adminReservationUrl } from '../utils/admin-links.js';
+import { paymentMethodLabel, type DisplayLocale } from '../utils/business-display.js';
+import { formatBusinessDateTime } from '../utils/business-time.js';
 import { recordMissingReservationSnapshot } from './integrity-incidents.js';
 
 const CALCOM_PROVIDER = 'cal_com';
@@ -136,8 +139,58 @@ const calComBookingId = (data: unknown) => {
 const reservationForCalendar = (reservationId: string) =>
   prisma.reservation.findUnique({
     where: { id: reservationId },
-    include: { customer: true, package: true, packageVersion: true, snapshot: true },
+    include: {
+      customer: true,
+      package: true,
+      packageVersion: true,
+      snapshot: true,
+      payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
   });
+
+const calendarLocale = (locale: string): DisplayLocale => locale === 'en' ? 'en' : 'fr';
+const compactCalendarText = (value: string, maxLength: number) =>
+  value.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+
+const calendarPresentation = (reservation: CalendarReservation) => {
+  if (!reservation.snapshot) throw new Error('CALENDAR_RESERVATION_SNAPSHOT_MISSING');
+  const snapshot = reservation.snapshot;
+  const locale = calendarLocale(snapshot.locale);
+  const clientName = compactCalendarText(`${snapshot.firstName} ${snapshot.lastName}`, 80);
+  const packageName = compactCalendarText(snapshot.packageName, 100);
+  const payment = reservation.payments[0];
+
+  const attendeeName = compactCalendarText(
+    `${reservation.reference} — ${packageName} — ${clientName}`,
+    200,
+  );
+  const startDouala = formatBusinessDateTime(reservation.startAt, locale);
+  const endDouala = formatBusinessDateTime(reservation.endAt, locale);
+  const paymentLabel = paymentMethodLabel(payment?.method, locale);
+  const adminUrl = adminReservationUrl(reservation.reference);
+  const operationalNotes = locale === 'en'
+    ? 'Open the protected admin record for payment status and approved operational details.'
+    : 'Ouvrir la fiche admin protégée pour le statut du paiement et les détails opérationnels approuvés.';
+  const bookingNotes = locale === 'en'
+    ? `Reference: ${reservation.reference}\nStart (Douala): ${startDouala}\nEnd (Douala): ${endDouala}\nPhone: ${snapshot.notificationPhoneE164}\nPayment: ${paymentLabel}\nAdmin: ${adminUrl}\n${operationalNotes}`
+    : `Référence : ${reservation.reference}\nDébut (Douala) : ${startDouala}\nFin (Douala) : ${endDouala}\nTéléphone : ${snapshot.notificationPhoneE164}\nPaiement : ${paymentLabel}\nAdmin : ${adminUrl}\n${operationalNotes}`;
+
+  return {
+    locale,
+    attendeeName,
+    bookingNotes,
+    metadata: {
+      gspReference: reservation.reference,
+      gspPackage: packageName,
+      gspStartDouala: startDouala,
+      gspEndDouala: endDouala,
+      gspPhone: snapshot.notificationPhoneE164,
+      gspPaymentLabel: paymentLabel,
+      gspAdminUrl: adminUrl,
+      gspOperationalNotes: operationalNotes,
+    },
+  };
+};
 
 const latestActiveCalendarEvent = async (reservationId: string) => {
   const latest = await prisma.calendarSyncLog.findFirst({
@@ -265,6 +318,7 @@ const deliverToCalCom = async (
   }
 
   const eventTypeId = await resolveCalComEventTypeId(snapshot.durationMin);
+  const presentation = calendarPresentation(reservation);
   const response = await calComRequest('/bookings', {
     method: 'POST',
     body: JSON.stringify({
@@ -272,17 +326,22 @@ const deliverToCalCom = async (
       eventTypeId,
       lengthInMinutes: snapshot.durationMin,
       attendee: {
-        name: `${snapshot.firstName} ${snapshot.lastName}`,
+        name: presentation.attendeeName,
         email: snapshot.notificationEmail ?? snapshot.email ?? env.ADMIN_NOTIFICATION_EMAIL,
         timeZone: env.CALCOM_TIME_ZONE,
         phoneNumber: snapshot.notificationPhoneE164,
-        language: 'fr',
+        language: presentation.locale,
+      },
+      bookingFieldsResponses: {
+        title: presentation.attendeeName,
+        notes: presentation.bookingNotes,
       },
       metadata: {
         reservationId: reservation.id,
         reference: reservation.reference,
         gspCalendarKey: context.idempotencyKey,
         gspPayloadHash: context.payloadHash,
+        ...presentation.metadata,
       },
     }),
   });
@@ -314,8 +373,10 @@ const operationPayload = (
   startAt: reservation.startAt.toISOString(),
   endAt: reservation.endAt.toISOString(),
   durationMin: reservation.snapshot?.durationMin ?? null,
+  locale: reservation.snapshot ? calendarLocale(reservation.snapshot.locale) : null,
   notificationEmail: reservation.snapshot?.notificationEmail ?? reservation.snapshot?.email ?? null,
   notificationPhoneE164: reservation.snapshot?.notificationPhoneE164 ?? null,
+  paymentMethod: reservation.payments[0]?.method ?? null,
   timeZone: env.CALCOM_TIME_ZONE,
 });
 

@@ -3,7 +3,7 @@
 **Release date:** 21 August 2026
 **Branch:** `codex/phase6-multilingual-dates-20260821`
 **Production host:** `https://gsplus.vip`
-**Status:** application deployed; root-owned Nginx CSP activation pending
+**Status:** complete; application and root-owned Nginx CSP deployed
 
 ## Released scope
 
@@ -22,6 +22,7 @@
 - Backend was rebuilt and gracefully recycled through its `Restart=always` systemd policy; PID changed from `1324739` to `1582611` and local health returned `{"status":"ok","service":"golden-studio-plus-api"}`.
 - Production returns 22 localized sitemap entries and all six localized raw-HTML SEO checks pass in Chromium and WebKit.
 - No database schema, migration, or production-data mutation was required.
+- Privileged Nginx activation completed after removing the accidentally duplicated enabled filename; syntax validation and reload passed, and the live CSP exposes both localized JSON-LD hashes.
 
 ## Verification evidence
 
@@ -39,17 +40,8 @@
 | No public legal page exposes editorial vocabulary | Shared approved authority notice plus unit and Chromium/WebKit page assertions | Passed |
 | French and English have stable URLs, canonicals, alternates, prerendered HTML, and sitemap entries | 22 generated documents, reciprocal hreflang assertions, and live raw-HTML production checks | Passed |
 | English booking displays English date labels and submits the correct Douala instant | Chromium/WebKit booking test with Month/Day/Year controls and captured API payload | Passed |
-| CSP permits both localized JSON-LD documents | Validated config contains both generated SHA-256 hashes; active root-owned Nginx file still contains the previous hash | Pending privileged activation |
+| CSP permits both localized JSON-LD documents | Root-owned site replaced; `nginx -t` and reload passed; live `/fr` header contains both generated hashes | Passed |
 
-## Required privileged activation
+## Privileged activation completed
 
-The application user cannot overwrite `/etc/nginx` or reload Nginx without interactive root authentication. A privileged operator must run:
-
-```bash
-sudo cp /var/www/goldenstudioplus/docs/goldenstudioplus-nginx-phase11.conf /etc/nginx/sites-available/goldenstudioplus
-sudo cp /var/www/goldenstudioplus/docs/goldenstudioplus-nginx-phase11.conf /etc/nginx/sites-enabled/goldenstudioplus
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Then verify the production `Content-Security-Policy` includes both `sha256-mXrHd274Pe4j55OVKQMd35ztM8fym1sMUg2jwdyIvm8=` and `sha256-79Qo2Zr09XreThhQcmDTXccVXgxUFVwAwZrxqavQz18=`. Phase 6 closes only after that host-level activation.
+On 21 August 2026 the privileged operator replaced the active site file, removed the duplicate enabled filename that initially caused a duplicate-listen validation error, passed `nginx -t`, and reloaded Nginx successfully. A live `HEAD /fr` response now contains both localized JSON-LD hashes: `sha256-mXrHd274Pe4j55OVKQMd35ztM8fym1sMUg2jwdyIvm8=` and `sha256-79Qo2Zr09XreThhQcmDTXccVXgxUFVwAwZrxqavQz18=`. Phase 6 is complete.

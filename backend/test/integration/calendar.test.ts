@@ -19,7 +19,10 @@ const resetDatabase = async () => {
   await prisma.adminUser.deleteMany();
 };
 
-const seedConfirmedReservation = async () => {
+const seedConfirmedReservation = async ({
+  locale = 'en',
+  paymentMethod = 'orange_money',
+}: { locale?: 'fr' | 'en'; paymentMethod?: string } = {}) => {
   const { prisma } = await import('../../src/db/prisma.js');
   const { ReservationStatus } = await import('../../src/generated/prisma/client.js');
 
@@ -63,9 +66,20 @@ const seedConfirmedReservation = async () => {
       endAt: new Date('2030-01-15T11:00:00.000Z'),
       status: ReservationStatus.CONFIRMED,
       acceptedTermsAt: new Date(),
+      notes: 'PRIVATE INTERNAL NOTE',
+      extraInfo: 'UNRESTRICTED CUSTOMER NOTE',
+      payments: {
+        create: {
+          amount: pack.price,
+          method: paymentMethod,
+          transactionRef: `CALENDAR-${Date.now()}`,
+          paymentPhone: customer.phone,
+        },
+      },
       snapshot: {
         create: {
           firstName: customer.firstName,
+          locale,
           lastName: customer.lastName,
           phoneRaw: customer.phone,
           phoneE164: customer.phone,
@@ -107,6 +121,7 @@ beforeEach(async () => {
   process.env.CALCOM_EVENT_TYPE_ID = '';
   process.env.CALCOM_TIME_ZONE = 'Africa/Douala';
 
+  process.env.CLIENT_ORIGIN = 'https://gsplus.vip';
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   await resetDatabase();
@@ -144,12 +159,36 @@ describe('Calendar sync reliability', () => {
       start: '2030-01-15T10:00:00.000Z',
       eventTypeId: 123,
       lengthInMinutes: 60,
-      attendee: { timeZone: 'Africa/Douala' },
+      bookingFieldsResponses: {
+        title: `${reservation.reference} — Calendar Package — Calendar Client`,
+        notes: expect.stringContaining(`Reference: ${reservation.reference}`),
+      },
+      attendee: {
+        name: `${reservation.reference} — Calendar Package — Calendar Client`,
+        email: 'calendar@example.test',
+        timeZone: 'Africa/Douala',
+        phoneNumber: '+237699333333',
+        language: 'en',
+      },
       metadata: {
         reservationId: reservation.id,
+        reference: reservation.reference,
         gspCalendarKey: `reservation:${reservation.id}:v1:calendar:create`,
+        gspReference: reservation.reference,
+        gspPackage: 'Calendar Package',
+        gspStartDouala: 'Tuesday, 15 January 2030 at 11:00',
+        gspEndDouala: 'Tuesday, 15 January 2030 at 12:00',
+        gspPhone: '+237699333333',
+        gspPaymentLabel: 'Orange Money',
+        gspAdminUrl: `https://gsplus.vip/admin/reservations/${reservation.reference}`,
+        gspOperationalNotes: 'Open the protected admin record for payment status and approved operational details.',
       },
     });
+    expect(body).not.toHaveProperty('title');
+    expect(JSON.stringify(body)).not.toContain('PRIVATE INTERNAL NOTE');
+    expect(JSON.stringify(body)).not.toContain('UNRESTRICTED CUSTOMER NOTE');
+    expect(Object.keys(body.metadata).every((key) => key.length <= 40)).toBe(true);
+    expect(Object.values(body.metadata).every((value) => String(value).length <= 500)).toBe(true);
     expect(log).toMatchObject({
       provider: 'cal_com',
       action: 'CREATE',
@@ -162,6 +201,36 @@ describe('Calendar sync reliability', () => {
     });
     expect(log.payloadHash).toMatch(/^[a-f0-9]{64}$/);
     expect(log.syncedAt).toBeInstanceOf(Date);
+  });
+
+  it('uses the frozen French snapshot locale for attendee copy and supported booking fields', async () => {
+    process.env.CALCOM_API_KEY = 'test-calcom-key';
+    process.env.CALCOM_EVENT_TYPE_ID = '123';
+    const reservation = await seedConfirmedReservation({ locale: 'fr', paymentMethod: 'mtn_momo' });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () => JSON.stringify({ data: { uid: 'cal-booking-fr-1' } }),
+    });
+
+    const { syncReservationToCalendar } = await import('../../src/services/calendar.js');
+    await syncReservationToCalendar(reservation.id);
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    expect(body.attendee).toMatchObject({ language: 'fr', timeZone: 'Africa/Douala' });
+    expect(body.bookingFieldsResponses.title).toBe(
+      `${reservation.reference} — Calendar Package — Calendar Client`,
+    );
+    expect(body.bookingFieldsResponses.notes).toContain(`Référence : ${reservation.reference}`);
+    expect(body.bookingFieldsResponses.notes).toContain('Début (Douala) : mardi 15 janvier 2030 à 11:00');
+    expect(body.bookingFieldsResponses.notes).toContain('Paiement : MTN MoMo');
+    expect(body.metadata).toMatchObject({
+      gspStartDouala: 'mardi 15 janvier 2030 à 11:00',
+      gspEndDouala: 'mardi 15 janvier 2030 à 12:00',
+      gspOperationalNotes: 'Ouvrir la fiche admin protégée pour le statut du paiement et les détails opérationnels approuvés.',
+    });
+    expect(JSON.stringify(body)).not.toContain('PRIVATE INTERNAL NOTE');
+    expect(JSON.stringify(body)).not.toContain('UNRESTRICTED CUSTOMER NOTE');
   });
 
   it('uses the current booking API contract and excludes unsupported reschedule metadata', async () => {
