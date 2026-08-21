@@ -12,6 +12,7 @@ const packageFixture = {
   category: 'Portrait',
   price: 50000,
   durationMin: 60,
+  bookingMode: 'DIRECT',
   isRange: false,
   isPromo: false,
   sortOrder: 10,

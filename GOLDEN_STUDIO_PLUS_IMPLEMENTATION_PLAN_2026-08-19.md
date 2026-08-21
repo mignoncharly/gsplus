@@ -91,10 +91,10 @@ The repository has extensive pre-existing modified, deleted, and untracked files
 | Fake admin deep links | Open | notification links use `/admin?reservation=<database-id>` and `/admin?lead=<database-id>`; dashboard reads neither query | 4 |
 | `MAIL-04` editorial defects | Open | optional B2B organisation renders “Non renseignée”; internal templates expose raw enums/operators; duration text uses mechanical “heure(s)” | 4 |
 | Aggregated “Demandes B2B” counter | Open | the count uses all leads but is labelled B2B | 4 |
-| `UI-02` low-contrast labels/governance titles | Open | `.home-section-label` lives in the lazily loaded `Home.css`; direct route loads can miss it; governance H3s can inherit the global dark heading colour | 5 |
-| `UI-03` WhatsApp visual identity | Implemented locally | official local mark, `#25D366`, focus ring, safe area, collision and keyboard handling | 5 verification only |
-| 44 px filter targets | Open | service filter buttons use compact inline padding with no minimum block size | 5 |
-| H1 to H3 jumps | Open | service, portfolio, corporate, contact, and creative page structures contain card H3s without a section H2 in several branches | 5 |
+| `UI-02` low-contrast labels/governance titles | **Closed in production** | Shared heading styles and documented dark-surface tokens pass direct/client comparison and public/authenticated axe scans | 5 |
+| `UI-03` WhatsApp visual identity | **Closed in production** | Official mark, brand colour, safe area, keyboard/modal hiding, and collision avoidance pass the five-width production release matrix | 5 verification only |
+| 44 px filter targets | **Closed in production** | Shared and compact public/admin controls have explicit 44 px floors and pass the route control-size scan | 5 |
+| H1 to H3 jumps | **Closed in production** | Named section H2 headings and the public route hierarchy matrix prevent unexplained level jumps | 5 |
 | English date control can remain French | Open | visible calendar cards are localised, but native `type=date` UI is browser/OS-controlled | 6 |
 | English legal phrase contains `OWNER` | Open | literal phrase remains in `Legal.jsx`, `Privacy.jsx`, and `Terms.jsx` | 6 |
 | hreflang and distinct multilingual canonicals | Open, architectural | locale is stored client-side while FR and EN share the same URL and canonical | 6 |
@@ -382,6 +382,8 @@ Closure: **all Phase 4 exit requirements met in production**; `PAY-01`, fake dee
 - Normal text meets 4.5:1 and large text meets 3:1.
 - Heading order has no unexplained level jump.
 - interactive targets meet the 44 px target and the WhatsApp FAB overlaps none of them.
+
+Closure: **all Phase 5 exit requirements met in production**; `UI-02`, compact touch targets, heading hierarchy, dark-surface contrast, and the `UI-03` WhatsApp overlap verification were closed on 21 August 2026. Deployment and verification evidence is recorded in `GOLDEN_STUDIO_PLUS_PHASE_5_RELEASE_MANIFEST_2026-08-21.md`.
 
 ## Phase 6 — Multilingual URL, legal copy, and date architecture
 
