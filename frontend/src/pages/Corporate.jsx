@@ -126,6 +126,7 @@ const Corporate = () => {
 
       <section className="py-section">
         <div className="container">
+          <h2 className="text-center">{t('Solutions pour votre organisation', 'Solutions for your organisation')}</h2>
           {/* Services B2B Features */}
           <Motion.div 
             className="b2b-features-grid"
@@ -179,7 +180,7 @@ const Corporate = () => {
                     animate={{ opacity: 1, scale: 1 }}
                   >
                     <CheckCircle2 size={56} className="text-gold" style={{ margin: '0 auto' }} />
-                    <h3>{t('Demande envoyée avec succès', 'Request sent successfully')}</h3>
+                    <h2>{t('Demande envoyée avec succès', 'Request sent successfully')}</h2>
                     <p>{t('Notre équipe B2B étudiera attentivement vos besoins et reviendra vers vous avec une proposition sur mesure très rapidement.', 'Our B2B team will carefully review your needs and get back to you shortly with a tailored proposal.')}</p>
                     <button className="btn btn-secondary" onClick={startAnotherRequest}>
                       {t('Nouvelle demande', 'New request')}

@@ -89,17 +89,17 @@ const AdminMediaRightsPanel = ({ media, adminUser, onCreate, onToggle, onRemove 
             />
             <div style={{ padding: '1.5rem' }}>
               <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'block', marginBottom: '0.25rem' }}>{item.title}</strong>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{item.category || 'Sans catégorie'}</p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+              <p style={{ color: 'var(--dark-muted)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{item.category || 'Sans catégorie'}</p>
+              <p style={{ color: 'var(--dark-muted)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
                 {item.width && item.height ? item.width + ' × ' + item.height + ' px' : 'Dimensions inconnues'}
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
+              <p style={{ color: 'var(--dark-muted)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
                 Dérivé principal : {formatBytes(item.fileSize)} · aperçu : {formatBytes(item.thumbnailFileSize)}
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.84rem', marginBottom: '0.35rem' }}>
+              <p style={{ color: 'var(--dark-secondary)', fontSize: '0.84rem', marginBottom: '0.35rem' }}>
                 <strong>Base de droits :</strong> {mediaRightsStatus(item)}
               </p>
-              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', marginBottom: '1rem' }}>
+              <p style={{ color: 'var(--dark-secondary)', fontSize: '0.8rem', marginBottom: '1rem' }}>
                 Référence de réservation : {item.reservation?.reference || 'Catalogue approuvé — sans réservation client'}
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

@@ -31,7 +31,7 @@ const WhatsAppFab = () => {
 
     const update = () => {
       animationFrame = 0;
-      const compactViewport = window.matchMedia('(max-width: 767px)').matches;
+      const compactViewport = window.matchMedia('(max-width: 992px)').matches;
       const activeElement = document.activeElement;
       const focusedKeyboardControl = compactViewport
         && activeElement instanceof HTMLElement
@@ -40,6 +40,7 @@ const WhatsAppFab = () => {
         visualViewport && window.innerHeight - visualViewport.height > 100,
       );
       const keyboardOpen = focusedKeyboardControl || reducedVisualViewport;
+      const modalOpen = Boolean(document.querySelector('[role="dialog"][aria-modal="true"]'));
       const fabBox = fab.getBoundingClientRect();
       const collision = !keyboardOpen && [...document.querySelectorAll(interactiveSelector)].some((element) => (
         element !== fab
@@ -49,7 +50,7 @@ const WhatsAppFab = () => {
       ));
 
       fab.dataset.keyboardOpen = String(keyboardOpen);
-      fab.dataset.obscured = String(keyboardOpen || collision);
+      fab.dataset.obscured = String(keyboardOpen || modalOpen || collision);
     };
 
     const scheduleUpdate = () => {

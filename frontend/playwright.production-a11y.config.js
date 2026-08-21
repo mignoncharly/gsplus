@@ -6,8 +6,8 @@ if (!baseURL) throw new Error('PLAYWRIGHT_BASE_URL is required for production ac
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'phase-7.spec.js',
-  grep: /pass axe/,
+  testMatch: ['phase-7.spec.js', 'phase-5-accessibility.spec.js'],
+  grep: /pass axe|Phase 5 public and authenticated admin views/,
   timeout: 60_000,
   expect: { timeout: 8_000 },
   fullyParallel: false,

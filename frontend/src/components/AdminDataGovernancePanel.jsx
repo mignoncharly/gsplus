@@ -139,7 +139,7 @@ const AdminDataGovernancePanel = ({ governance = { policies: [], requests: [] },
     });
   };
   return (
-    <section aria-labelledby="data-governance-title">
+    <section className="admin-governance-panel" aria-labelledby="data-governance-title">
       <div className="admin-page-header">
         <h1 id="data-governance-title">Données, <span>droits & conservation</span></h1>
         <p>Registre confidentiel réservé au propriétaire.</p>

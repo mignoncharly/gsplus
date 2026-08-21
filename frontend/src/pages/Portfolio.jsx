@@ -20,9 +20,9 @@ const fallbackPortfolio = [
 const englishCategory = (category) => ({ Maternité: 'Maternity', Famille: 'Family', Événementiel: 'Events' })[category] || category;
 
 const copyFor = (locale) => locale === 'en' ? {
-  eyebrow: 'Our work', titlePrefix: 'Our', titleAccent: 'Portfolio', lead: 'Discover a selection of our finest captures. Every image tells a unique story with elegance.', loadError: 'Portfolio API unavailable. Local images are displayed.', all: 'All', enlarge: 'Enlarge', thisImage: 'this image', preview: 'Photography preview', close: 'Close preview', book: 'Book a',
+  eyebrow: 'Our work', titlePrefix: 'Our', titleAccent: 'Portfolio', lead: 'Discover a selection of our finest captures. Every image tells a unique story with elegance.', loadError: 'Portfolio API unavailable. Local images are displayed.', galleryHeading: 'Explore our photography', all: 'All', enlarge: 'Enlarge', thisImage: 'this image', preview: 'Photography preview', close: 'Close preview', book: 'Book a',
 } : {
-  eyebrow: 'Nos réalisations', titlePrefix: 'Notre', titleAccent: 'Portfolio', lead: 'Découvrez une sélection de nos plus belles captures. Chaque image raconte une histoire unique avec élégance.', loadError: 'Portfolio API indisponible. Images locales affichées.', all: 'Tous', enlarge: 'Agrandir', thisImage: 'cette image', preview: 'Aperçu de la photographie', close: 'Fermer l’aperçu', book: 'Réserver un Shooting',
+  eyebrow: 'Nos réalisations', titlePrefix: 'Notre', titleAccent: 'Portfolio', lead: 'Découvrez une sélection de nos plus belles captures. Chaque image raconte une histoire unique avec élégance.', loadError: 'Portfolio API indisponible. Images locales affichées.', galleryHeading: 'Explorer nos photographies', all: 'Tous', enlarge: 'Agrandir', thisImage: 'cette image', preview: 'Aperçu de la photographie', close: 'Fermer l’aperçu', book: 'Réserver un Shooting',
 };
 
 const Portfolio = () => {
@@ -64,7 +64,8 @@ const Portfolio = () => {
       <p className="home-section-label" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}><Sparkles size={16} /> {copy.eyebrow}</p>
       <h1 id="portfolio-title" className="hero-title">{copy.titlePrefix} <span className="text-gold">{copy.titleAccent}</span></h1><p className="portfolio-hero__lead">{copy.lead}</p>
     </Motion.div></div></section>
-    <section className="py-section"><div className="container">
+    <section className="py-section" aria-labelledby="portfolio-gallery-title"><div className="container">
+      <h2 id="portfolio-gallery-title" className="portfolio-section-heading">{copy.galleryHeading}</h2>
       {loadError && <p className="text-center mb-8" style={{ color: 'var(--c-text-muted)' }}>{loadError}</p>}
       <div className="portfolio-filters">{categories.map((category) => <button key={category} type="button" className={`filter-btn ${(category === copy.all ? isAllFilter : filter === category) ? 'active' : ''}`} aria-pressed={category === copy.all ? isAllFilter : filter === category} onClick={() => setFilter(category)}>{category}</button>)}</div>
       <Motion.div className="portfolio-grid" layout><AnimatePresence>{filtered.map((img) => {

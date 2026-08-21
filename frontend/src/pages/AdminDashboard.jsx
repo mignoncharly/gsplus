@@ -878,7 +878,7 @@ const AdminDashboard = () => {
   if (authChecking) {
     return (
       <div className="admin-login-wrapper">
-        <div style={{ color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ color: 'var(--dark-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           <Clock className="animate-spin text-gold" size={32} />
           <p role="status" aria-live="polite">Vérification de la session en cours...</p>
         </div>
@@ -941,7 +941,7 @@ const AdminDashboard = () => {
               <Link 
                 to="/" 
                 style={{ 
-                  color: 'rgba(255, 255, 255, 0.4)', 
+                  color: 'var(--dark-muted)',
                   fontSize: '0.85rem', 
                   textDecoration: 'none', 
                   transition: 'color 0.3s ease',
@@ -1170,7 +1170,7 @@ const AdminDashboard = () => {
                     {apiStatus.message}
                   </p>
                 </div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.95rem', margin: 0 }}>
+                <p style={{ color: 'var(--dark-muted)', fontSize: '0.95rem', margin: 0 }}>
                   Le système contient actuellement {blocks.length} blocage(s) de calendrier, {media.length} média(s) dans la galerie, {packs.length} package(s) tarifaire(s) configuré(s), et {notifications.length} notification(s) envoyée(s).
                 </p>
               </div>
@@ -1191,10 +1191,10 @@ const AdminDashboard = () => {
 
               <div className="admin-card" style={{ maxWidth: '720px' }}>
                 <h2>Modifier le mot de passe</h2>
-                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                <p style={{ color: 'var(--dark-secondary)', marginBottom: '0.5rem' }}>
                   Compte : <strong>{adminUser?.email}</strong>
                 </p>
-                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2rem' }}>
+                <p style={{ color: 'var(--dark-muted)', marginBottom: '2rem' }}>
                   Après la modification, les autres sessions administrateur seront automatiquement déconnectées.
                 </p>
 
@@ -1229,7 +1229,7 @@ const AdminDashboard = () => {
                       aria-describedby="account-password-help"
                       required
                     />
-                    <small id="account-password-help" style={{ display: 'block', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
+                    <small id="account-password-help" style={{ display: 'block', color: 'var(--dark-muted)', marginTop: '0.5rem' }}>
                       Utilisez au moins 12 caractères et un mot de passe différent de l’ancien.
                     </small>
                   </div>
@@ -1411,7 +1411,7 @@ const AdminDashboard = () => {
               <div className="admin-card">
                 <h2>Créneaux Bloqués Actuels</h2>
                 {blocks.length === 0 && (
-                  <p style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
+                  <p style={{ color: 'var(--dark-muted)', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
                     Aucun blocage de calendrier configuré.
                   </p>
                 )}
@@ -1422,7 +1422,7 @@ const AdminDashboard = () => {
                   >
                     <div>
                       <strong style={{ color: '#fff' }}>{dateTime(block.startAt)} — {dateTime(block.endAt)}</strong>
-                      <small style={{ color: 'rgba(255,255,255,0.4)', display: 'block', marginTop: '0.25rem' }}>
+                      <small style={{ color: 'var(--dark-muted)', display: 'block', marginTop: '0.25rem' }}>
                         Motif : {block.reason || 'Non spécifié'}
                       </small>
                     </div>
@@ -1586,7 +1586,7 @@ const AdminDashboard = () => {
                     </tbody>
                   </table>
                   {notifications.length === 0 && (
-                    <p style={{ padding: '2rem 0', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: 0 }}>
+                    <p style={{ padding: '2rem 0', color: 'var(--dark-muted)', textAlign: 'center', margin: 0 }}>
                       Aucune notification journalisée dans le système.
                     </p>
                   )}
@@ -1665,14 +1665,14 @@ const AdminDashboard = () => {
                   <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>
                     Statut de sync : {pill(latestCalendarSync(selectedRes).status)}
                   </p>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)' }}>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'var(--dark-secondary)' }}>
                     Action : {latestCalendarSync(selectedRes).action || '—'} · Tentatives : {latestCalendarSync(selectedRes).attemptCount || 0}
                     {latestCalendarSync(selectedRes).lastAttemptAt ? ` · ${dateTime(latestCalendarSync(selectedRes).lastAttemptAt)}` : ''}
                     {latestCalendarSync(selectedRes).nextAttemptAt ? ` · prochaine tentative ${dateTime(latestCalendarSync(selectedRes).nextAttemptAt)}` : ''}
                     {latestCalendarSync(selectedRes).syncedAt ? ` · synchronisé ${dateTime(latestCalendarSync(selectedRes).syncedAt)}` : ''}
                   </p>
                   {latestCalendarSync(selectedRes).externalEventId && (
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
+                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'var(--dark-muted)' }}>
                       ID d'événement externe : {latestCalendarSync(selectedRes).externalEventId}
                     </p>
                   )}

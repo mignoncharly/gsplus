@@ -105,7 +105,7 @@
 
 .home-hero__lead {
   max-width: 600px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--dark-primary);
   font-size: clamp(1rem, 1.45vw, 1.18rem);
   margin-bottom: 2.2rem;
   line-height: 1.6;
@@ -140,7 +140,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dark-secondary);
   font-weight: 700;
 }
 
@@ -151,16 +151,6 @@
 
 .home-section-heading.center {
   text-align: center;
-}
-
-.home-section-label {
-  display: block;
-  color: var(--c-gold);
-  font-weight: 800;
-  font-size: 0.8rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  margin-bottom: 1rem;
 }
 
 .home-services .home-section-label,
@@ -396,7 +386,7 @@
 }
 
 .home-portfolio__copy p {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dark-secondary);
   font-size: 1.2rem;
   margin: 2rem 0 3.5rem;
   line-height: 1.8;
@@ -512,7 +502,7 @@
 
 .home-final-cta p {
   font-size: 1.35rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--dark-primary);
   margin-bottom: 4rem;
 }
 

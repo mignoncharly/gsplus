@@ -607,7 +607,7 @@ const Reservation = () => {
                 {/* MODE CALENDRIER */}
                 {bookingMode === 'calendar' && (
                   <div>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
+                    <p style={{ color: 'var(--dark-muted)', fontSize: '0.85rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
                       {t('Le studio est ouvert du lundi au samedi de 9 h à 18 h. Faites défiler les jours pour consulter les disponibilités.', 'The studio is open Monday to Saturday, 9:00 to 18:00. Browse the days to view availability.')}
                     </p>
                     
@@ -702,13 +702,13 @@ const Reservation = () => {
                 {/* MODE PROPOSITION LIBRE */}
                 {bookingMode === 'free' && (
                   <div className="booking-free-wrap">
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
+                    <p style={{ color: 'var(--dark-muted)', fontSize: '0.85rem', marginBottom: '1.75rem', lineHeight: 1.5 }}>
                       {t("Proposez l'horaire idéal. Il sera enregistré sans bloquer l'agenda et devra être accepté séparément par le Studio.", 'Suggest your ideal time. It will be recorded without holding the calendar and must be accepted separately by the Studio.')}
                     </p>
 
                     <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <label htmlFor="booking-free-date" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Date souhaitée', 'Preferred date')}</label>
+                        <label htmlFor="booking-free-date" style={{ fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Date souhaitée', 'Preferred date')}</label>
                         <input 
                           id="booking-free-date"
                           name="preferredDate"
@@ -721,7 +721,7 @@ const Reservation = () => {
                         />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <label htmlFor="booking-free-time" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Heure souhaitée', 'Preferred time')}</label>
+                        <label htmlFor="booking-free-time" style={{ fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('Heure souhaitée', 'Preferred time')}</label>
                         <input 
                           id="booking-free-time"
                           name="preferredTime"
@@ -803,7 +803,7 @@ const Reservation = () => {
                     <CheckCircle2 size={24} style={{ color: 'var(--c-gold)', flexShrink: 0 }} />
                     <div>
                       <h4 style={{ color: 'var(--c-gold-light)' }}>{bookingMode === 'free' ? t('Horaire demandé — non confirmé', 'Requested time — not confirmed') : copy.scheduledSession}</h4>
-                      <p style={{ color: 'rgba(255,255,255,0.85)' }}>
+                      <p style={{ color: 'var(--dark-primary)' }}>
                         {bookingMode === 'free' ? t('Demande pour le ', 'Requested for ') : copy.sessionOn}<strong>{formatSelectedDate(formData.date)}</strong> {copy.timeFrom} <strong>{formData.time}</strong> {copy.timeTo} <strong>{getEndTime(formData.time, formData.packDuration)}</strong> ({formData.packDurationLabel})
                       </p>
                     </div>
@@ -846,36 +846,36 @@ const Reservation = () => {
                 
                 <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.25rem', marginTop: '1rem' }}>
                   <div>
-                    <label htmlFor="booking-last-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Nom', 'Last name')} *</label>
+                    <label htmlFor="booking-last-name" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Nom', 'Last name')} *</label>
                     <input id="booking-last-name" name="lastName" autoComplete="family-name" type="text" placeholder={t('Votre nom de famille', 'Your last name')} className="form-input" value={formData.lastName} onChange={e => { setFormData({...formData, lastName: e.target.value}); clearFieldError('lastName'); }} required aria-invalid={Boolean(fieldErrors.lastName)} aria-describedby={fieldErrors.lastName ? 'booking-last-name-error' : undefined} />
                     {fieldErrors.lastName && <p id="booking-last-name-error" className="form-field-error" role="alert">{fieldErrors.lastName}</p>}
                   </div>
                   <div>
-                    <label htmlFor="booking-first-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Prénom', 'First name')} *</label>
+                    <label htmlFor="booking-first-name" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Prénom', 'First name')} *</label>
                     <input id="booking-first-name" name="firstName" autoComplete="given-name" type="text" placeholder={t('Votre prénom', 'Your first name')} className="form-input" value={formData.firstName} onChange={e => { setFormData({...formData, firstName: e.target.value}); clearFieldError('firstName'); }} required aria-invalid={Boolean(fieldErrors.firstName)} aria-describedby={fieldErrors.firstName ? 'booking-first-name-error' : undefined} />
                     {fieldErrors.firstName && <p id="booking-first-name-error" className="form-field-error" role="alert">{fieldErrors.firstName}</p>}
                   </div>
                 </div>
 
                 <div style={{ marginBottom: '1.25rem' }}>
-                  <label htmlFor="booking-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Téléphone (WhatsApp)', 'Phone (WhatsApp)')} *</label>
+                  <label htmlFor="booking-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Téléphone (WhatsApp)', 'Phone (WhatsApp)')} *</label>
                   <input id="booking-phone" name="phone" autoComplete="tel" type="tel" inputMode="tel" placeholder={t('Ex: 640 70 32 49', 'E.g. 640 70 32 49')} className="form-input" value={formData.phone} onChange={e => { setFormData({...formData, phone: e.target.value}); clearFieldError('phone'); }} required aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'booking-phone-error' : undefined} />
                   {fieldErrors.phone && <p id="booking-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <label htmlFor="booking-email" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Adresse email', 'Email address')} *</label>
+                  <label htmlFor="booking-email" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Adresse email', 'Email address')} *</label>
                   <input id="booking-email" name="email" autoComplete="email" type="email" inputMode="email" placeholder={t('Ex: client@exemple.com', 'E.g. client@example.com')} className="form-input" value={formData.email} onChange={e => { setFormData({...formData, email: e.target.value}); clearFieldError('email'); }} required aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'booking-email-error' : undefined} />
                   {fieldErrors.email && <p id="booking-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                 </div>
                 
                 <div className="grid md:grid-cols-2 gap-6" style={{ marginBottom: '1.5rem' }}>
                   <div>
-                    <label htmlFor="booking-birth-date" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Date de naissance (Optionnel)', 'Date of birth (optional)')}</label>
+                    <label htmlFor="booking-birth-date" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Date de naissance (Optionnel)', 'Date of birth (optional)')}</label>
                     <input id="booking-birth-date" name="birthDate" autoComplete="bday" type="date" className="form-input" value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})} />
                   </div>
                   <div>
-                    <label htmlFor="booking-gender" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Genre', 'Gender')} *</label>
+                    <label htmlFor="booking-gender" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Genre', 'Gender')} *</label>
                     <select id="booking-gender" name="gender" autoComplete="sex" className="form-input" value={formData.gender} onChange={e => { setFormData({...formData, gender: e.target.value}); clearFieldError('gender'); }} required aria-invalid={Boolean(fieldErrors.gender)} aria-describedby={fieldErrors.gender ? 'booking-gender-error' : undefined}>
                       <option value="">{t('Sélectionner', 'Select')}</option>
                       <option value="Feminin">{t('Féminin', 'Female')}</option>
@@ -886,7 +886,7 @@ const Reservation = () => {
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <label htmlFor="booking-discovery" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Comment nous avez-vous connus ?', 'How did you hear about us?')}</label>
+                  <label htmlFor="booking-discovery" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Comment nous avez-vous connus ?', 'How did you hear about us?')}</label>
                   <select id="booking-discovery" name="discoveryChannel" autoComplete="off" className="form-input" value={formData.discoveryChannel} onChange={e => setFormData({...formData, discoveryChannel: e.target.value})}>
                     <option value="">{t('Sélectionner un canal de découverte', 'Select a discovery channel')}</option>
                     <option value="Instagram">Instagram</option>
@@ -898,7 +898,7 @@ const Reservation = () => {
                 </div>
 
                 <div style={{ marginBottom: '2rem' }}>
-                  <label htmlFor="booking-notes" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Notes ou demandes spécifiques (Optionnel)', 'Notes or special requests (optional)')}</label>
+                  <label htmlFor="booking-notes" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Notes ou demandes spécifiques (Optionnel)', 'Notes or special requests (optional)')}</label>
                   <textarea id="booking-notes" name="extraInfo" autoComplete="off" placeholder={t("Partagez des détails particuliers (tenues souhaitées, objectifs d'image...)", 'Share any details (outfits, visual objectives, etc.).')} className="form-input" rows="3" value={formData.extraInfo} onChange={e => setFormData({...formData, extraInfo: e.target.value})}></textarea>
                 </div>
                 
@@ -983,7 +983,7 @@ const Reservation = () => {
                     
                     <div style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.01)', padding: '1.5rem', borderRadius: '8px', borderLeft: '3px solid var(--c-gold)' }}>
                       <h4 style={{ color: '#fff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.paymentInstructions}</h4>
-                      <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
+                      <p style={{ fontSize: '0.88rem', color: 'var(--dark-secondary)', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
                         {copy.transferBefore}<strong>{formatFcfa(formData.packPrice)}</strong>{copy.transferAfter}
                       </p>
                       <p style={{ fontSize: '0.88rem', color: 'var(--c-gold-light)', margin: 0, fontWeight: 600 }}>
@@ -1007,7 +1007,7 @@ const Reservation = () => {
                     style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1.5rem', marginBottom: '2rem' }}
                   >
                     <div style={{ marginBottom: '1.25rem' }}>
-                      <label htmlFor="booking-payment-method" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.mobileOperator}</label>
+                      <label htmlFor="booking-payment-method" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.mobileOperator}</label>
                       <select id="booking-payment-method" name="paymentMethod" autoComplete="off" className="form-input" value={formData.paymentMethod} onChange={e => setFormData({...formData, paymentMethod: e.target.value})}>
                         <option value="mtn_momo">MTN Mobile Money</option>
                         <option value="orange_money">Orange Money</option>
@@ -1015,13 +1015,13 @@ const Reservation = () => {
                     </div>
 
                     <div style={{ marginBottom: '1.25rem' }}>
-                      <label htmlFor="booking-payment-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.paymentPhone}</label>
+                      <label htmlFor="booking-payment-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.paymentPhone}</label>
                       <input id="booking-payment-phone" name="paymentPhone" autoComplete="tel" type="tel" inputMode="tel" placeholder={t('Ex. : 640 70 32 49', 'E.g. 640 70 32 49')} className="form-input" value={formData.paymentPhone} onChange={e => { setFormData({...formData, paymentPhone: e.target.value}); clearFieldError('paymentPhone'); }} required aria-invalid={Boolean(fieldErrors.paymentPhone)} aria-describedby={fieldErrors.paymentPhone ? 'booking-payment-phone-error' : undefined} />
                       {fieldErrors.paymentPhone && <p id="booking-payment-phone-error" className="form-field-error" role="alert">{fieldErrors.paymentPhone}</p>}
                     </div>
 
                     <div>
-                      <label htmlFor="booking-transaction-reference" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.transactionReference}</label>
+                      <label htmlFor="booking-transaction-reference" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.transactionReference}</label>
                       <input id="booking-transaction-reference" name="transactionId" autoComplete="off" type="text" placeholder={copy.transactionPlaceholder} className="form-input" value={formData.transactionId} onChange={e => { setFormData({...formData, transactionId: e.target.value}); clearFieldError('transactionRef'); }} required aria-invalid={Boolean(fieldErrors.transactionRef)} aria-describedby={fieldErrors.transactionRef ? 'booking-transaction-reference-error' : undefined} />
                       {fieldErrors.transactionRef && <p id="booking-transaction-reference-error" className="form-field-error" role="alert">{fieldErrors.transactionRef}</p>}
                     </div>

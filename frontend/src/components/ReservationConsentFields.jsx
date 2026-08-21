@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocale } from '../lib/i18n.js';
 
-const cardStyle = { display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' };
+const cardStyle = { display: 'flex', gap: '0.75rem', alignItems: 'flex-start', cursor: 'pointer', fontSize: '0.88rem', color: 'var(--dark-primary)', background: 'rgba(255, 255, 255, 0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' };
 const checkboxStyle = { marginTop: '0.15rem', accentColor: 'var(--c-gold)' };
 const linkStyle = { color: 'var(--c-gold-light)', textDecoration: 'underline' };
 

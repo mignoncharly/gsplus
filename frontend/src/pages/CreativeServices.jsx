@@ -121,6 +121,7 @@ const CreativeServices = () => {
         </Motion.div>
 
         {/* Services Cards Grid */}
+        <h2 className="creative-services-section-title">{t('Nos services créatifs', 'Our creative services')}</h2>
         <div className="creative-services-grid">
           {creativeServices(locale).map((s, index) => (
             <Motion.div 
@@ -157,7 +158,7 @@ const CreativeServices = () => {
               <div className="quote-success-seal">
                 <Check size={36} />
               </div>
-              <h3>{t('Demande envoyée !', 'Request sent!')}</h3>
+              <h2>{t('Demande envoyée !', 'Request sent!')}</h2>
               <p>
                 {t('Nous avons bien reçu votre projet de design créatif. Nos directeurs de création étudient votre demande et vous recontacteront très rapidement sur WhatsApp ou par e-mail.', 'We have received your creative-design project. Our creative directors are reviewing your request and will contact you shortly via WhatsApp or email.')}
               </p>
@@ -178,25 +179,25 @@ const CreativeServices = () => {
                 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="creative-name" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Nom complet ou entreprise *', 'Full name or company *')}</label>
+                    <label htmlFor="creative-name" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Nom complet ou entreprise *', 'Full name or company *')}</label>
                     <input id="creative-name" autoComplete="name" name="name" type="text" placeholder={t('Ex. : Cabinet Alpha ou Eric M.', 'E.g. Alpha Firm or Eric M.')} required className="form-input" onChange={() => clearFieldError('name')} aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'creative-name-error' : undefined} />
                     {fieldErrors.name && <p id="creative-name-error" className="form-field-error" role="alert">{fieldErrors.name}</p>}
                   </div>
                   <div>
-                    <label htmlFor="creative-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Téléphone / WhatsApp *', 'Phone / WhatsApp *')}</label>
+                    <label htmlFor="creative-phone" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Téléphone / WhatsApp *', 'Phone / WhatsApp *')}</label>
                     <input id="creative-phone" autoComplete="tel" name="phone" type="tel" inputMode="tel" placeholder={t('Ex. : 640 70 32 49', 'E.g. 640 70 32 49')} required className="form-input" onChange={() => clearFieldError('phone')} aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'creative-phone-error' : undefined} />
                     {fieldErrors.phone && <p id="creative-phone-error" className="form-field-error" role="alert">{fieldErrors.phone}</p>}
                   </div>
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor="creative-email" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Adresse e-mail (optionnel)', 'Email address (optional)')}</label>
+                  <label htmlFor="creative-email" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Adresse e-mail (optionnel)', 'Email address (optional)')}</label>
                   <input id="creative-email" autoComplete="email" name="email" type="email" inputMode="email" placeholder={t('Ex. : direction@entreprise.com', 'E.g. management@company.com')} className="form-input" onChange={() => clearFieldError('email')} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'creative-email-error' : undefined} />
                   {fieldErrors.email && <p id="creative-email-error" className="form-field-error" role="alert">{fieldErrors.email}</p>}
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor="creative-service" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Service souhaité *', 'Desired service *')}</label>
+                  <label htmlFor="creative-service" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Service souhaité *', 'Desired service *')}</label>
                   <select id="creative-service" name="service" required className="form-input" onChange={() => clearFieldError('service')} aria-invalid={Boolean(fieldErrors.service)} aria-describedby={fieldErrors.service ? 'creative-service-error' : undefined}>
                     <option value="">{t('Quel service vous intéresse ?', 'Which service are you interested in?')}</option>
                     <option value="Retouche & Restauration">{t('Retouche & restauration photo', 'Photo retouching & restoration')}</option>
@@ -209,7 +210,7 @@ const CreativeServices = () => {
                 </div>
                 
                 <div style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor="creative-message" style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Description détaillée du besoin *', 'Detailed description of your needs *')}</label>
+                  <label htmlFor="creative-message" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--dark-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('Description détaillée du besoin *', 'Detailed description of your needs *')}</label>
                   <textarea id="creative-message" name="message" placeholder={t('Décrivez les formats souhaités, vos objectifs de communication, vos délais et votre budget prévisionnel...', 'Describe the desired formats, communication goals, timeline and expected budget...')} required minLength={10} rows="4" className="form-input" onChange={() => clearFieldError('message')} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'creative-message-error' : undefined}></textarea>
                   {fieldErrors.message && <p id="creative-message-error" className="form-field-error" role="alert">{fieldErrors.message}</p>}
                 </div>

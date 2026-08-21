@@ -39,7 +39,7 @@
 }
 
 .creative-services-subtitle {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dark-secondary);
   font-size: 1.05rem;
   max-width: 650px;
   margin: 0 auto;
@@ -47,11 +47,17 @@
 }
 
 /* Creative Services Cards Grid */
+.creative-services-section-title {
+  margin: 4rem 0 2rem;
+  color: var(--dark-primary);
+  text-align: center;
+}
+
 .creative-services-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
-  margin: 4rem 0 5rem;
+  margin: 0 0 5rem;
 }
 
 @media (min-width: 768px) {
@@ -112,7 +118,7 @@
 }
 
 .creative-service-card p {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dark-secondary);
   font-size: 0.92rem;
   line-height: 1.6;
   margin-bottom: 1.25rem;
@@ -163,7 +169,7 @@
 }
 
 .creative-quote-subtitle {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--dark-muted);
   font-size: 0.95rem;
   margin-bottom: 2.5rem;
 }
@@ -236,7 +242,7 @@
 }
 
 .quote-success-wrap p {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--dark-secondary);
   font-size: 1rem;
   line-height: 1.6;
   max-width: 480px;

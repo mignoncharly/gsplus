@@ -293,6 +293,7 @@ const Services = () => {
               key={activeTab}
               id={`services-panel-${activeTab}`}
               role="tabpanel"
+              aria-labelledby={`services-tab-${activeTab}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -301,11 +302,13 @@ const Services = () => {
               {/* === TAB: SHOOTING === */}
               {activeTab === 'shooting' && (
                 <div>
+                  <h2 className="services-panel-heading">{t('Formules et séances photo', 'Photography sessions and packages')}</h2>
                   <div className="flex justify-center gap-4 mb-8" style={{ flexWrap: 'wrap' }}>
                     {shootingCategoriesForLocale(taxonomy, locale).map(cat => (
                       <button
                         key={cat.key}
-                        className={`btn ${shootingFilter === cat.key ? 'btn-primary' : 'btn-secondary glass'}`}
+                        className={`btn service-category-filter ${shootingFilter === cat.key ? 'btn-primary' : 'btn-secondary glass'}`}
+                        aria-pressed={shootingFilter === cat.key}
                         onClick={() => setShootingFilter(cat.key)}
                         style={{ fontSize: '0.8rem', padding: '0.6rem 1.25rem', color: shootingFilter === cat.key ? '#fff' : 'var(--c-forest-dark)' }}
                       >
@@ -433,6 +436,7 @@ const Services = () => {
               {/* === TAB: DESIGN === */}
               {activeTab === 'design' && (
                 <div>
+                  <h2 className="services-panel-heading">{t('Services de design graphique', 'Graphic design services')}</h2>
                   <p className="text-center" style={{ color: 'var(--c-text-muted)', maxWidth: '600px', margin: '0 auto 3rem', fontSize: '1.05rem', lineHeight: '1.8' }}>
                     {t("Bien plus qu’un studio photo. Nous vous accompagnons dans la création de vos supports de communication et produits visuels personnalisés.", 'More than a photo studio, we help you create communication materials and personalised visual products.')}
                   </p>
@@ -484,6 +488,7 @@ const Services = () => {
               {/* === TAB: PRINT === */}
               {activeTab === 'print' && (
                 <div>
+                  <h2 className="services-panel-heading">{t('Impression et produits personnalisés', 'Printing and personalised products')}</h2>
                   <p className="text-center" style={{ color: 'var(--c-text-muted)', maxWidth: '600px', margin: '0 auto 3rem', fontSize: '1.05rem', lineHeight: '1.8' }}>
                     {t("Donnez vie à vos souvenirs et projets grâce à nos services d’impression professionnelle et de produits physiques personnalisés.", 'Bring your memories and projects to life with our professional printing services and personalised physical products.')}
                   </p>

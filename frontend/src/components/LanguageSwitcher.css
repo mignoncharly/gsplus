@@ -9,7 +9,8 @@
 }
 
 .language-switcher button {
-  min-height: 2rem;
+  min-width: 44px;
+  min-height: 44px;
   border: 0;
   border-radius: 999px;
   padding: 0.3rem 0.55rem;

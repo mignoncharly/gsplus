@@ -38,7 +38,7 @@
 
 .portfolio-hero__lead {
   font-size: clamp(1.1rem, 1.5vw, 1.25rem);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--dark-primary);
   line-height: 1.6;
 }
 
@@ -63,6 +63,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   cursor: pointer;
+  min-height: 44px;
   transition: var(--transition-luxe);
   box-shadow: var(--shadow-soft);
 }
@@ -78,6 +79,11 @@
   color: #fff;
   border-color: transparent;
   box-shadow: var(--shadow-gold);
+}
+
+.portfolio-section-heading {
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 /* === Portfolio Grid === */

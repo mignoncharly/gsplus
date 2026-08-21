@@ -1,3 +1,17 @@
+/* Governance is rendered exclusively on the administration dark surface. */
+.admin-governance-panel > .admin-form-card > h2,
+.admin-governance-list :is(h2, h3),
+.admin-governance-policies :is(h2, h3, summary) {
+  color: var(--dark-primary);
+}
+
+.admin-governance-policies summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
 .admin-governance-notice {
   margin-bottom: 1.25rem;
   padding: 1rem 1.1rem;
@@ -30,6 +44,7 @@
 .admin-governance-create-form label,
 .admin-governance-update-form label {
   display: grid;
+  color: var(--dark-accent);
   gap: 0.35rem;
 }
 

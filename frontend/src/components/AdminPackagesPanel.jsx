@@ -181,8 +181,8 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
           <div key={pack.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', padding: '1.5rem 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
             <div>
               <strong style={{ color: '#fff', fontSize: '1.05rem' }}>{pack.name}</strong>
-              <small style={{ color: 'rgba(255,255,255,0.4)', display: 'block', marginTop: '0.25rem' }}>{pack.category}</small>
-              <small style={{ color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: '0.35rem' }}>{formatFcfa(pack.price)} · {pack.bookingMode === 'CONTACT' ? 'sur échange' : `${pack.durationMin} min`} · version {pack.version} · ordre {pack.sortOrder}</small>
+              <small style={{ color: 'var(--dark-muted)', display: 'block', marginTop: '0.25rem' }}>{pack.category}</small>
+              <small style={{ color: 'var(--dark-secondary)', display: 'block', marginTop: '0.35rem' }}>{formatFcfa(pack.price)} · {pack.bookingMode === 'CONTACT' ? 'sur échange' : `${pack.durationMin} min`} · version {pack.version} · ordre {pack.sortOrder}</small>
               <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>{pill(pack.publicationStatus || (pack.isArchived ? 'ARCHIVED' : 'DRAFT'))} {pill(`${packageReferenceCount(pack)} référence(s)`)}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
