@@ -360,6 +360,8 @@ Add a durable unique lead reference instead of synthesising one from the tail of
 - Every internal e-mail link opens its intended record.
 - No placeholder or raw enum appears in human-facing e-mail copy.
 
+Closure: **all Phase 4 exit requirements met in production**; `PAY-01`, fake deep links, `MAIL-04`, and the aggregated lead label were closed on 21 August 2026. Deployment and verification evidence is recorded in `GOLDEN_STUDIO_PLUS_PHASE_4_RELEASE_MANIFEST_2026-08-21.md`.
+
 ## Phase 5 — Accessibility, contrast, hierarchy, and touch targets
 
 **Findings:** `UI-02`, touch targets, heading structure; verification of `UI-03`.
