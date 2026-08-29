@@ -7,6 +7,11 @@ import {
   businessLocalToInstant,
   businessMinutesSinceMidnight,
 } from '../utils/business-time.js';
+import { isWithinSchedule, packageBookingRules, resolveBookingRule, resolveDaySchedule } from './schedule-rules.js';
+
+// The package-rule parser now lives with the other rule resolution, so booking-slots
+// and schedule-rules no longer import each other. Re-exported for existing callers.
+export { packageBookingRules, type PackageBookingRules } from './schedule-rules.js';
 
 export const SLOT_INTERVAL_MIN = 30;
 export const BLOCKING_RESERVATION_STATUSES: ReservationStatus[] = [
@@ -39,34 +44,6 @@ const timeToMinutes = (time: string) => {
   return hours * 60 + minutes;
 };
 
-export type PackageBookingRules = {
-  allowedWeekdays?: number[];
-  opensAt?: string;
-  closesAt?: string;
-  maxReservationsPerDay?: number;
-  requiresFullPayment?: boolean;
-  combinable?: boolean;
-};
-
-export const packageBookingRules = (pack: Pick<Package, 'options'>): PackageBookingRules | null => {
-  const options = pack.options;
-  if (!options || typeof options !== 'object' || Array.isArray(options)) return null;
-  const raw = options.bookingRules;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-
-  return {
-    allowedWeekdays: Array.isArray(raw.allowedWeekdays)
-      ? raw.allowedWeekdays.filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6)
-      : undefined,
-    opensAt: isValidTime(raw.opensAt) ? raw.opensAt : undefined,
-    closesAt: isValidTime(raw.closesAt) ? raw.closesAt : undefined,
-    maxReservationsPerDay: typeof raw.maxReservationsPerDay === 'number' && raw.maxReservationsPerDay > 0
-      ? Math.floor(raw.maxReservationsPerDay)
-      : undefined,
-    requiresFullPayment: raw.requiresFullPayment === true,
-    combinable: raw.combinable === true,
-  };
-};
 
 const bookingDates = (startAt: Date, endAt: Date) => {
   const dates: string[] = [];
@@ -115,24 +92,39 @@ export const assertBookableSlot = async (
     throw new HttpError(409, 'INVALID_SLOT', 'The selected slot is not aligned with the studio schedule.');
   }
 
-  const businessHour = await tx.businessHour.findUnique({ where: { dayOfWeek } });
-  if (!businessHour || businessHour.isClosed) {
-    throw new HttpError(409, 'STUDIO_CLOSED', 'The studio is closed for the selected day.');
+  // The same resolver the public grid uses, so the two cannot disagree about when the
+  // studio is open, which pauses it takes, or which days are exceptions.
+  const [businessHour, exception, globalRule, packageRule] = await Promise.all([
+    tx.businessHour.findUnique({ where: { dayOfWeek } }),
+    tx.scheduleException.findUnique({ where: { date: startDate } }),
+    tx.bookingRule.findFirst({ where: { packageId: null } }),
+    tx.bookingRule.findFirst({ where: { packageId: pack.id } }),
+  ]);
+  const schedule = resolveDaySchedule({ dayOfWeek, businessHour, exception, pack });
+  if (schedule.isClosed) {
+    throw new HttpError(409, 'STUDIO_CLOSED', schedule.reason
+      ? `Le studio est fermé ce jour-là : ${schedule.reason}`
+      : 'The studio is closed for the selected day.');
   }
-
-  const opensMin = Math.max(
-    timeToMinutes(businessHour.opensAt),
-    rules?.opensAt ? timeToMinutes(rules.opensAt) : 0,
-  );
-  const closesMin = Math.min(
-    timeToMinutes(businessHour.closesAt),
-    rules?.closesAt ? timeToMinutes(rules.closesAt) : 24 * 60,
-  );
-  if (startMin < opensMin || endMin > closesMin) {
+  if (startMin < schedule.openMin || endMin > schedule.closeMin) {
     throw new HttpError(409, 'OUTSIDE_BUSINESS_HOURS', 'The selected slot is outside business hours.');
   }
+  if (!isWithinSchedule(schedule, startMin, endMin)) {
+    throw new HttpError(409, 'SCHEDULE_BREAK', 'Le studio observe une pause sur ce créneau.');
+  }
 
-  if (rules?.maxReservationsPerDay) {
+  const effectiveRule = resolveBookingRule({ global: globalRule, packageRule, pack });
+  if (startAt.getTime() - now.getTime() < effectiveRule.minNoticeMinutes * 60_000) {
+    throw new HttpError(409, 'MINIMUM_NOTICE', 'Ce créneau est trop proche pour être réservé.');
+  }
+  if (effectiveRule.horizonDays !== null) {
+    const horizonEnd = businessLocalToInstant(addBusinessDays(businessDateKey(now), effectiveRule.horizonDays + 1));
+    if (startAt >= horizonEnd) {
+      throw new HttpError(409, 'BOOKING_HORIZON', 'Ce créneau dépasse l’horizon de réservation ouvert.');
+    }
+  }
+
+  if (effectiveRule.dailyCapacity) {
     const dayStart = businessLocalToInstant(startDate);
     const dayEnd = businessLocalToInstant(addBusinessDays(startDate, 1));
     const [reservationCount, intentCount] = await Promise.all([
@@ -155,21 +147,25 @@ export const assertBookableSlot = async (
         },
       }),
     ]);
-    if (reservationCount + intentCount >= rules.maxReservationsPerDay) {
+    if (reservationCount + intentCount >= effectiveRule.dailyCapacity) {
       throw new HttpError(409, 'PACKAGE_DAILY_QUOTA_REACHED', 'Le quota quotidien de cette formule est atteint.');
     }
   }
 
+  // A buffer widens the window each probe looks at, keeping a session clear of its
+  // neighbours by the configured margin.
+  const guardStart = new Date(startAt.getTime() - effectiveRule.bufferMinutes * 60_000);
+  const guardEnd = new Date(endAt.getTime() + effectiveRule.bufferMinutes * 60_000);
   const [block, reservation, intent] = await Promise.all([
     tx.availabilityBlock.findFirst({
-      where: { startAt: { lt: endAt }, endAt: { gt: startAt } },
+      where: { startAt: { lt: guardEnd }, endAt: { gt: guardStart } },
       orderBy: { startAt: 'asc' },
     }),
     tx.reservation.findFirst({
       where: {
         id: options.excludeReservationId ? { not: options.excludeReservationId } : undefined,
-        startAt: { lt: endAt },
-        endAt: { gt: startAt },
+        startAt: { lt: guardEnd },
+        endAt: { gt: guardStart },
         ...blockingReservationWhere(now),
       },
       orderBy: { startAt: 'asc' },
@@ -180,8 +176,8 @@ export const assertBookableSlot = async (
         scheduleKind: ReservationScheduleKind.STANDARD_HOLD,
         reservationId: null,
         expiresAt: { gt: now },
-        startAt: { lt: endAt },
-        endAt: { gt: startAt },
+        startAt: { lt: guardEnd },
+        endAt: { gt: guardStart },
       },
       orderBy: { startAt: 'asc' },
     }),

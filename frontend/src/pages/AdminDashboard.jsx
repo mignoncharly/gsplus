@@ -93,6 +93,7 @@ const AdminLeadsPanel = React.lazy(() => import('../components/AdminLeadsPanel')
 const AdminReservationRecord = React.lazy(() => import('../components/AdminReservationRecord'));
 const AdminOverviewPanel = React.lazy(() => import('../components/AdminOverviewPanel'));
 const AdminReservationsPanel = React.lazy(() => import('../components/AdminReservationsPanel'));
+const AdminPlanningPanel = React.lazy(() => import('../components/AdminPlanningPanel'));
 
 const dateTime = formatBusinessDateTime;
 
@@ -745,17 +746,27 @@ const AdminDashboard = () => {
     });
   };
 
-  const createBlock = async (event) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const success = await runAction('Blocage calendrier', () => createAdminAvailabilityBlock({
-      startAt: doualaLocalDateTimeToIso(form.get('startAt')),
-      endAt: doualaLocalDateTimeToIso(form.get('endAt')),
-      reason: form.get('reason') || undefined,
-    }));
-    resetFormAfterSuccess(formElement, success);
-  };
+  // The planning panel creates a block through the shared action dialog, like every
+  // other scheduling change, instead of a bare inline form.
+  const createBlockDialog = () => openActionDialog({
+    title: 'Bloquer un créneau',
+    summary: 'Indisponibilité ponctuelle du studio',
+    consequence: 'Les créneaux couverts disparaîtront immédiatement de la disponibilité publique.',
+    confirmLabel: 'Bloquer ces créneaux',
+    fields: [
+      { name: 'startAt', label: 'Début à Douala', type: 'datetime-local', required: true },
+      { name: 'endAt', label: 'Fin à Douala', type: 'datetime-local', required: true },
+      { name: 'reason', label: 'Raison / motif', defaultValue: '' },
+    ],
+    onConfirm: async (values) => {
+      let startAt; let endAt;
+      try { startAt = doualaLocalDateTimeToIso(values.startAt); endAt = doualaLocalDateTimeToIso(values.endAt); }
+      catch { throw new Error('Les dates du blocage sont invalides.'); }
+      await runDialogAction('Blocage calendrier', () => createAdminAvailabilityBlock({
+        startAt, endAt, reason: values.reason.trim() || undefined,
+      }));
+    },
+  });
 
   const editBlock = (item) => openActionDialog({
     title: 'Modifier le blocage calendrier', summary: dateTime(item.startAt) + ' → ' + dateTime(item.endAt),
@@ -1304,73 +1315,17 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'availability' && (
-            <Motion.div 
-              key="availability"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Disponibilités & <span>Blocages</span></h1>
-              </div>
-
-              <div className="admin-card" style={{ marginBottom: '2.5rem' }}>
-                <h2>Créer un Blocage Temporaire</h2>
-                <form onSubmit={createBlock} className="admin-form-grid">
-                  <div>
-                    <label htmlFor="availability-start" className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Début (heure de Douala) *</label>
-                    <input id="availability-start" autoComplete="off" name="startAt" type="datetime-local" required className="form-input" />
-                  </div>
-                  <div>
-                    <label htmlFor="availability-end" className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Fin (heure de Douala) *</label>
-                    <input id="availability-end" autoComplete="off" name="endAt" type="datetime-local" required className="form-input" />
-                  </div>
-                  <div>
-                    <label htmlFor="availability-reason" className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Raison / Motif</label>
-                    <input id="availability-reason" autoComplete="off" name="reason" type="text" placeholder="Ex: Maintenance, Congés" className="form-input" />
-                  </div>
-                  <button className="btn btn-primary" style={{ padding: '0.9rem', width: '100%' }}>
-                    Bloquer ces créneaux
-                  </button>
-                </form>
-              </div>
-
-              <div className="admin-card">
-                <h2>Créneaux Bloqués Actuels</h2>
-                {blocks.length === 0 && (
-                  <p style={{ color: 'var(--dark-muted)', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
-                    Aucun blocage de calendrier configuré.
-                  </p>
-                )}
-                {blocks.map((block) => (
-                  <div 
-                    key={block.id} 
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '1.25rem 0' }}
-                  >
-                    <div>
-                      <strong style={{ color: '#fff' }}>{dateTime(block.startAt)} — {dateTime(block.endAt)}</strong>
-                      <small style={{ color: 'var(--dark-muted)', display: 'block', marginTop: '0.25rem' }}>
-                        Motif : {block.reason || 'Non spécifié'}
-                      </small>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn btn-secondary admin-sm-btn"
-                        onClick={() => editBlock(block)}
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        className="btn btn-secondary admin-sm-btn text-danger"
-                        onClick={() => removeAvailabilityBlock(block)}
-                      >
-                        <Trash2 size={14} /> Supprimer
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <Motion.div key="availability" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement du planning…</div>}>
+                <AdminPlanningPanel
+                  openActionDialog={openActionDialog}
+                  runAction={runAction}
+                  blocks={blocks}
+                  onCreateBlock={createBlockDialog}
+                  onEditBlock={editBlock}
+                  onDeleteBlock={removeAvailabilityBlock}
+                />
+              </React.Suspense>
             </Motion.div>
           )}
 

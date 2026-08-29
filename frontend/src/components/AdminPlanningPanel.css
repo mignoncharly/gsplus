@@ -1,0 +1,119 @@
+/* Planning and availability rules (ADM-05). Its own stylesheet, loaded only with the
+   panel, so the shared admin shell does not grow. */
+.admin-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+}
+
+.admin-health-grid dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dark-muted);
+  margin-bottom: 0.25rem;
+}
+
+.admin-health-grid dd { margin: 0; color: var(--dark-primary); font-size: 0.95rem; }
+.admin-health-ok { color: #2ecc71; font-weight: 600; }
+.admin-health-warn { color: #e7b95c; font-weight: 600; }
+
+.admin-agenda-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-agenda-controls { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.admin-agenda {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-agenda-day {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-agenda-day.is-today { border-left-color: var(--c-gold); }
+/* A closed day should read as closed at a glance, not as an empty day. */
+.admin-agenda-day.is-closed { opacity: 0.65; border-left-color: #e74c3c; }
+
+.admin-agenda-day__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--dark-primary);
+}
+
+.admin-agenda-day__head span { color: var(--dark-muted); font-size: 0.85rem; }
+.admin-agenda-empty { margin: 0.6rem 0 0; color: var(--dark-muted); font-size: 0.85rem; }
+
+.admin-agenda-entries {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-agenda-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.88rem;
+  color: var(--dark-secondary);
+  border-left: 2px solid transparent;
+}
+
+.admin-agenda-entry strong { color: var(--dark-primary); }
+.admin-agenda-entry--reservation { border-left-color: #4a9ca8; }
+.admin-agenda-entry--hold { border-left-color: #c5923a; }
+.admin-agenda-entry--block { border-left-color: #e74c3c; }
+
+.admin-hours-list {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-hours-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-hours-list li:last-child { border-bottom: 0; }
+.admin-hours-list strong { color: var(--dark-primary); display: block; }
+.admin-hours-list small { color: var(--dark-muted); display: block; margin-top: 0.2rem; }
+
+@media (max-width: 575px) {
+  .admin-agenda-controls { width: 100%; }
+  .admin-agenda-controls .btn { flex: 1 1 auto; }
+  .admin-hours-list li { align-items: flex-start; }
+  .admin-hours-list .btn { width: 100%; justify-content: center; }
+}

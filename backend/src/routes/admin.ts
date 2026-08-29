@@ -86,6 +86,17 @@ import {
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
+import {
+  deleteScheduleException,
+  getCalendarHealth,
+  getPlanningWindow,
+  listBookingRules,
+  listBusinessHours,
+  listScheduleExceptions,
+  upsertBookingRule,
+  upsertBusinessHour,
+  upsertScheduleException,
+} from '../services/scheduling-admin.js';
 import { listReservations } from '../services/reservation-search.js';
 import {
   findDuplicateCandidates,
@@ -102,6 +113,8 @@ import {
   adminPasswordChangeSchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
+  bookingRuleSchema,
+  businessHourUpdateSchema,
   catalogueBenefitCreateSchema,
   catalogueBenefitUpdateSchema,
   catalogueTaxonomyUpdateSchema,
@@ -127,6 +140,7 @@ import {
   paymentDuplicateSchema,
   paymentListQuerySchema,
   paymentVerificationSchema,
+  planningWindowQuerySchema,
   qaNotificationOverrideSchema,
   refundDecisionSchema,
   rescheduleRequestCreateSchema,
@@ -136,6 +150,7 @@ import {
   reservationIdParamsSchema,
   reservationListQuerySchema,
   reservationStatusUpdateSchema,
+  scheduleExceptionSchema,
   verifyAndConfirmSchema,
   withdrawalRequestCreateSchema,
   withdrawalRequestDecisionSchema,
@@ -1452,6 +1467,99 @@ router.post(
       type: notification.type,
     });
     res.status(202).json({ data: notification });
+  }),
+);
+
+// === Phase 5 (ADM-05): the studio owns its own schedule ===
+// Opening hours already existed in the database but nothing wrote them, so changing an
+// opening time meant a developer. Every route here is audited and owner-gated, because
+// a schedule change is immediately visible to the public.
+
+router.get(
+  '/schedule/business-hours',
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    res.json({ data: await listBusinessHours() });
+  }),
+);
+
+router.put(
+  '/schedule/business-hours/:dayOfWeek',
+  validate('body', businessHourUpdateSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const dayOfWeek = Number(routeParam(req.params.dayOfWeek));
+    if (dayOfWeek !== req.body.dayOfWeek) {
+      throw new HttpError(400, 'DAY_MISMATCH', 'Le jour de l’URL et celui du corps diffèrent.');
+    }
+    res.json({ data: await upsertBusinessHour(req.body, admin?.id) });
+  }),
+);
+
+router.get(
+  '/schedule/exceptions',
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    res.json({ data: await listScheduleExceptions(from, to) });
+  }),
+);
+
+router.put(
+  '/schedule/exceptions',
+  validate('body', scheduleExceptionSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    res.json({ data: await upsertScheduleException(req.body, admin?.id) });
+  }),
+);
+
+router.delete(
+  '/schedule/exceptions/:date',
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    await deleteScheduleException(routeParam(req.params.date), admin?.id);
+    res.status(204).send();
+  }),
+);
+
+router.get(
+  '/schedule/booking-rules',
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    res.json({ data: await listBookingRules() });
+  }),
+);
+
+router.put(
+  '/schedule/booking-rules',
+  validate('body', bookingRuleSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    res.json({ data: await upsertBookingRule(req.body, admin?.id) });
+  }),
+);
+
+router.get(
+  '/schedule/planning',
+  validate('query', planningWindowQuerySchema),
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    const { from, to } = res.locals.validated.query;
+    res.json({ data: await getPlanningWindow(from, to) });
+  }),
+);
+
+router.get(
+  '/calendar/health',
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    res.json({ data: await getCalendarHealth() });
   }),
 );
 

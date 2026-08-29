@@ -75,6 +75,39 @@ const repeatable = (schema: z.ZodTypeAny) =>
 
 const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format AAAA-MM-JJ.');
 
+const clockTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Utilisez le format HH:MM.');
+const breakList = z.array(z.object({ start: clockTime, end: clockTime })).max(6).optional();
+
+export const businessHourUpdateSchema = z.object({
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
+  opensAt: clockTime,
+  closesAt: clockTime,
+  isClosed: z.boolean(),
+  breaks: breakList,
+});
+
+export const scheduleExceptionSchema = z.object({
+  date: businessDate,
+  isClosed: z.boolean(),
+  opensAt: clockTime.nullish(),
+  closesAt: clockTime.nullish(),
+  breaks: breakList,
+  reason: requiredString.max(200),
+});
+
+export const bookingRuleSchema = z.object({
+  packageId: z.string().trim().min(1).nullable(),
+  minNoticeMinutes: z.coerce.number().int().min(0).max(60 * 24 * 30).nullable(),
+  horizonDays: z.coerce.number().int().min(1).max(1095).nullable(),
+  dailyCapacity: z.coerce.number().int().min(1).max(100).nullable(),
+  bufferMinutes: z.coerce.number().int().min(0).max(240).nullable(),
+});
+
+export const planningWindowQuerySchema = z.object({
+  from: businessDate,
+  to: businessDate,
+});
+
 export const reservationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),

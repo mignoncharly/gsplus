@@ -3,10 +3,12 @@ import {
   PackageBookingMode,
   ReservationScheduleKind,
   type AvailabilityBlock,
+  type BookingRule,
   type BusinessHour,
   type Package,
   type Reservation,
   type ReservationIntent,
+  type ScheduleException,
 } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
 import {
@@ -20,8 +22,14 @@ import {
   BLOCKING_RESERVATION_STATUSES,
   SLOT_INTERVAL_MIN,
   blockingReservationWhere,
-  packageBookingRules,
 } from './booking-slots.js';
+import {
+  type EffectiveBookingRule,
+  isWithinSchedule,
+  minutesToTime,
+  resolveBookingRule,
+  resolveDaySchedule,
+} from './schedule-rules.js';
 
 type AvailabilityQuery = { from: string; to: string; packageId: string };
 
@@ -31,7 +39,8 @@ type AvailabilitySlot = {
   startAt: string;
   endAt: string;
   available: boolean;
-  reason: 'availability_block' | 'reservation' | 'reservation_intent' | 'package_daily_quota' | null;
+  reason: 'availability_block' | 'reservation' | 'reservation_intent' | 'package_daily_quota'
+    | 'schedule_break' | 'minimum_notice' | 'booking_horizon' | null;
 };
 
 type AvailabilityDay = {
@@ -40,18 +49,8 @@ type AvailabilityDay = {
   opensAt: string | null;
   closesAt: string | null;
   isClosed: boolean;
+  closureReason: string | null;
   slots: AvailabilitySlot[];
-};
-
-const timeToMinutes = (time: string) => {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-const minutesToTime = (minutes: number) => {
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
 };
 
 const overlaps = (startA: Date, endA: Date, startB: Date, endB: Date) => startA < endB && endA > startB;
@@ -72,47 +71,57 @@ const getBlockReason = (
 const buildDaySlots = (
   date: string,
   businessHour: BusinessHour | undefined,
+  exception: ScheduleException | undefined,
+  rule: EffectiveBookingRule,
+  now: Date,
   pack: Package,
   blocks: AvailabilityBlock[],
   reservations: Reservation[],
   intents: ReservationIntent[],
 ): AvailabilityDay => {
   const dayOfWeek = businessDayOfWeek(date);
-  const rules = packageBookingRules(pack);
-  const restrictedDay = Boolean(rules?.allowedWeekdays?.length && !rules.allowedWeekdays.includes(dayOfWeek));
+  // The same resolver the booking transaction uses, so the grid cannot offer a slot
+  // the booking would refuse.
+  const schedule = resolveDaySchedule({ dayOfWeek, businessHour, exception, pack });
 
-  if (!businessHour || businessHour.isClosed || restrictedDay) {
+  if (schedule.isClosed) {
     return {
       date,
       dayOfWeek,
-      opensAt: rules?.opensAt ?? businessHour?.opensAt ?? null,
-      closesAt: rules?.closesAt ?? businessHour?.closesAt ?? null,
+      opensAt: null,
+      closesAt: null,
       isClosed: true,
+      closureReason: schedule.reason,
       slots: [],
     };
   }
 
-  const openMin = Math.max(
-    timeToMinutes(businessHour.opensAt),
-    rules?.opensAt ? timeToMinutes(rules.opensAt) : 0,
-  );
-  const closeMin = Math.min(
-    timeToMinutes(businessHour.closesAt),
-    rules?.closesAt ? timeToMinutes(rules.closesAt) : 24 * 60,
-  );
   const dailyUsage = reservations.filter((item) => item.packageId === pack.id && businessDateKey(item.startAt) === date).length
     + intents.filter((item) => item.packageId === pack.id && businessDateKey(item.startAt) === date).length;
-  const quotaReached = Boolean(rules?.maxReservationsPerDay && dailyUsage >= rules.maxReservationsPerDay);
+  const quotaReached = Boolean(rule.dailyCapacity && dailyUsage >= rule.dailyCapacity);
+  const horizonEnd = rule.horizonDays === null
+    ? null
+    : businessLocalToInstant(addBusinessDays(businessDateKey(now), rule.horizonDays + 1));
   const slots: AvailabilitySlot[] = [];
 
-  for (let startMin = openMin; startMin + pack.durationMin! <= closeMin; startMin += SLOT_INTERVAL_MIN) {
+  for (let startMin = schedule.openMin; startMin + pack.durationMin! <= schedule.closeMin; startMin += SLOT_INTERVAL_MIN) {
     const time = minutesToTime(startMin);
     const endTime = minutesToTime(startMin + pack.durationMin!);
     const slotStart = businessLocalToInstant(date, time);
     const slotEnd = businessLocalToInstant(date, endTime);
-    const reason: AvailabilitySlot['reason'] = quotaReached
-      ? 'package_daily_quota'
-      : getBlockReason(slotStart, slotEnd, blocks, reservations, intents);
+    // A buffer keeps a session clear of the one before and after it.
+    const guardStart = new Date(slotStart.getTime() - rule.bufferMinutes * 60_000);
+    const guardEnd = new Date(slotEnd.getTime() + rule.bufferMinutes * 60_000);
+
+    const reason: AvailabilitySlot['reason'] = !isWithinSchedule(schedule, startMin, startMin + pack.durationMin!)
+      ? 'schedule_break'
+      : slotStart.getTime() - now.getTime() < rule.minNoticeMinutes * 60_000
+        ? 'minimum_notice'
+        : horizonEnd !== null && slotStart >= horizonEnd
+          ? 'booking_horizon'
+          : quotaReached
+            ? 'package_daily_quota'
+            : getBlockReason(guardStart, guardEnd, blocks, reservations, intents);
 
     slots.push({
       time,
@@ -127,9 +136,10 @@ const buildDaySlots = (
   return {
     date,
     dayOfWeek,
-    opensAt: minutesToTime(openMin),
-    closesAt: minutesToTime(closeMin),
+    opensAt: minutesToTime(schedule.openMin),
+    closesAt: minutesToTime(schedule.closeMin),
     isClosed: false,
+    closureReason: null,
     slots,
   };
 };
@@ -138,17 +148,24 @@ const buildDays = (
   from: string,
   to: string,
   pack: Package,
+  rule: EffectiveBookingRule,
+  now: Date,
   businessHours: BusinessHour[],
+  exceptions: ScheduleException[],
   blocks: AvailabilityBlock[],
   reservations: Reservation[],
   intents: ReservationIntent[],
 ) => {
   const hoursByDay = new Map(businessHours.map((hour) => [hour.dayOfWeek, hour]));
+  const exceptionByDate = new Map(exceptions.map((item) => [item.date, item]));
   const days: AvailabilityDay[] = [];
   for (let date = from; date <= to; date = addBusinessDays(date, 1)) {
     days.push(buildDaySlots(
       date,
       hoursByDay.get(businessDayOfWeek(date)),
+      exceptionByDate.get(date),
+      rule,
+      now,
       pack,
       blocks,
       reservations,
@@ -170,8 +187,11 @@ export const getAvailability = async ({ from, to, packageId }: AvailabilityQuery
   const windowStart = businessLocalToInstant(from);
   const windowEnd = businessLocalToInstant(addBusinessDays(to, 1));
   const now = new Date();
-  const [businessHours, blocks, reservations, intents] = await Promise.all([
+  const [businessHours, exceptions, globalRule, packageRule, blocks, reservations, intents] = await Promise.all([
     prisma.businessHour.findMany({ orderBy: { dayOfWeek: 'asc' } }),
+    prisma.scheduleException.findMany({ where: { date: { gte: from, lte: to } } }),
+    prisma.bookingRule.findFirst({ where: { packageId: null } }),
+    prisma.bookingRule.findFirst({ where: { packageId } }),
     prisma.availabilityBlock.findMany({
       where: { startAt: { lt: windowEnd }, endAt: { gt: windowStart } },
       orderBy: { startAt: 'asc' },
@@ -199,6 +219,10 @@ export const getAvailability = async ({ from, to, packageId }: AvailabilityQuery
     to,
     slotIntervalMin: SLOT_INTERVAL_MIN,
     blockingStatuses: BLOCKING_RESERVATION_STATUSES,
-    days: buildDays(from, to, pack, businessHours, blocks, reservations, intents),
+    days: buildDays(
+      from, to, pack,
+      resolveBookingRule({ global: globalRule, packageRule, pack }),
+      now, businessHours, exceptions, blocks, reservations, intents,
+    ),
   };
 };

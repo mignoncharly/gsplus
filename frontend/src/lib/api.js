@@ -211,6 +211,23 @@ export const getAdminFinancialTask = async (id) => {
   return payload.data;
 };
 
+// === Phase 5 scheduling ===
+export const getAdminBusinessHours = async () => (await apiFetch('/api/admin/schedule/business-hours')).data;
+export const saveAdminBusinessHour = async (dayOfWeek, body) =>
+  (await apiFetch(`/api/admin/schedule/business-hours/${dayOfWeek}`, { method: 'PUT', body: JSON.stringify(body) })).data;
+export const getAdminScheduleExceptions = async (params = {}) =>
+  (await apiFetch(`/api/admin/schedule/exceptions?${adminQuery(params)}`)).data;
+export const saveAdminScheduleException = async (body) =>
+  (await apiFetch('/api/admin/schedule/exceptions', { method: 'PUT', body: JSON.stringify(body) })).data;
+export const deleteAdminScheduleException = async (date) =>
+  apiFetch(`/api/admin/schedule/exceptions/${encodeURIComponent(date)}`, { method: 'DELETE' });
+export const getAdminBookingRules = async () => (await apiFetch('/api/admin/schedule/booking-rules')).data;
+export const saveAdminBookingRule = async (body) =>
+  (await apiFetch('/api/admin/schedule/booking-rules', { method: 'PUT', body: JSON.stringify(body) })).data;
+export const getAdminPlanning = async (from, to) =>
+  (await apiFetch(`/api/admin/schedule/planning?${adminQuery({ from, to })}`)).data;
+export const getAdminCalendarHealth = async () => (await apiFetch('/api/admin/calendar/health')).data;
+
 export const getAdminDashboard = async () => (await apiFetch('/api/admin/dashboard')).data;
 
 /** Returns rows only, for the callers that just want the list. */

@@ -51,6 +51,23 @@ const installStatefulAdminApi = async (page) => {
       return json(route, { data: blocks[0] });
     }
     if (path === '/api/admin/availability-blocks') return json(route, { data: blocks });
+    // Phase 5 gave the view a planning panel; these are the endpoints it reads.
+    if (path === '/api/admin/schedule/business-hours') {
+      return json(route, { data: Array.from({ length: 7 }, (_item, dayOfWeek) => ({ id: `h-${dayOfWeek}`, dayOfWeek, opensAt: '09:00', closesAt: '18:00', isClosed: false, breaks: null })) });
+    }
+    if (path === '/api/admin/schedule/exceptions') return json(route, { data: [] });
+    if (path === '/api/admin/schedule/booking-rules') {
+      return json(route, { data: { global: null, effectiveGlobal: { minNoticeMinutes: 0, horizonDays: null, dailyCapacity: null, bufferMinutes: 0 }, perPackage: [], packages: [] } });
+    }
+    if (path === '/api/admin/schedule/planning') {
+      return json(route, { data: { from: '2030-02-04', to: '2030-02-04', today: '2030-02-04', days: [], reservations: [], blocks, intents: [] } });
+    }
+    if (path === '/api/admin/calendar/health') {
+      return json(route, { data: { lastSuccessAt: null, lastFailureAt: null, lastFailureError: null, pendingCount: 0, failingCount: 0, healthy: true } });
+    }
+    if (path === '/api/admin/dashboard') {
+      return json(route, { data: { generatedAt: '', businessDate: '2030-02-04', toHandle: [], today: [], finance: [], integrations: [], requests: [], summary: { reservationsThisMonth: 0, uniqueCustomers: 0, revenue: { net: 0, onActiveReservations: 0, onCancelledReservations: 0, refunded: 0 } } } });
+    }
     if (['/api/admin/leads', '/api/admin/packages', '/api/admin/media', '/api/admin/notifications'].includes(path)) return json(route, { data: [] });
     return json(route, { error: { message: 'Route inattendue: ' + request.method() + ' ' + path } }, 500);
   });
@@ -93,9 +110,15 @@ test('Phase 2 persists an admin reschedule datetime through blur, API refresh, a
 test('Phase 2 persists created and edited calendar blocks through full page reloads', async ({ page }) => {
   const calls = await installStatefulAdminApi(page);
   await openAdminTab(page, 'Disponibilités');
-  const start = page.getByLabel('Début (heure de Douala) *');
-  const end = page.getByLabel('Fin (heure de Douala) *');
-  const reason = page.getByLabel('Raison / Motif');
+  // Phase 5 moved block creation into the shared action dialog, like every other
+  // scheduling change. What this test guards is unchanged: the values entered must
+  // survive blur, the background refresh and a full page reload.
+  await page.getByRole('button', { name: /Bloquer un créneau/ }).click();
+  const createDialog = page.getByRole('dialog', { name: 'Bloquer un créneau' });
+  await expect(createDialog).toBeVisible();
+  const start = createDialog.getByLabel('Début à Douala *');
+  const end = createDialog.getByLabel('Fin à Douala *');
+  const reason = createDialog.getByLabel('Raison / motif');
   await start.fill('2030-02-04T08:15');
   await end.focus();
   await expect(end).toBeFocused();
@@ -105,12 +128,14 @@ test('Phase 2 persists created and edited calendar blocks through full page relo
   await expect(reason).toBeFocused();
   await expect(end).toHaveValue('2030-02-04T11:45');
   await reason.fill('Maintenance Phase 2');
-  await page.getByRole('button', { name: 'Bloquer ces créneaux' }).click();
+  await createDialog.getByRole('button', { name: 'Bloquer ces créneaux' }).click();
   await expect(page.getByText('Motif : Maintenance Phase 2')).toBeVisible();
   expect(calls.blockCreates[0]).toEqual({ startAt: '2030-02-04T07:15:00.000Z', endAt: '2030-02-04T10:45:00.000Z', reason: 'Maintenance Phase 2' });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: 'Disponibilités' }).click();
-  await page.getByRole('button', { name: 'Modifier' }).evaluate((button) => button.click());
+  // The planning view has several "Modifier" controls; each carries an accessible name
+  // naming its subject, so the block's own control is addressed unambiguously.
+  await page.getByRole('button', { name: /Modifier le blocage/ }).evaluate((button) => button.click());
   const dialog = page.getByRole('dialog', { name: 'Modifier le blocage calendrier' });
   await expect(dialog).toBeVisible();
   const editStart = dialog.getByLabel('Début à Douala *');

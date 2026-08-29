@@ -97,6 +97,8 @@ model AdminUser {
   paymentTransitions                PaymentTransition[]
   reservationTransitions            ReservationTransition[]
   verifiedPayments                  Payment[]                         @relation("PaymentVerifiedBy")
+  scheduleExceptions                ScheduleException[]                @relation("ScheduleExceptionCreatedBy")
+  bookingRules                      BookingRule[]                      @relation("BookingRuleUpdatedBy")
   adminCommands                     AdminCommand[]
   financialTasks                    FinancialTask[]
   rescheduleRequestsRecorded        ReservationRescheduleRequest[]    @relation("RescheduleRequestedBy")
@@ -156,6 +158,8 @@ model Package {
   reservationIntents ReservationIntent[]
   reservations       Reservation[]
   versions           PackageVersion[]
+
+  bookingRule       BookingRule?
 
   @@index([isActive, isArchived, sortOrder])
 }
@@ -864,10 +868,50 @@ model BusinessHour {
   opensAt   String
   closesAt  String
   isClosed  Boolean  @default(false)
+  /// Intra-day pauses as [{ "start": "12:30", "end": "13:30" }]. Null means none.
+  breaks    Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([dayOfWeek])
+}
+
+/// A dated override of the weekly pattern: a public holiday, an exceptional closure,
+/// or a day worked outside the usual hours. Takes precedence over BusinessHour.
+model ScheduleException {
+  id          String    @id @default(cuid())
+  /// Douala business day, `YYYY-MM-DD`.
+  date        String    @unique
+  isClosed    Boolean   @default(true)
+  opensAt     String?
+  closesAt    String?
+  breaks      Json?
+  reason      String
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   AdminUser? @relation("ScheduleExceptionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([createdById])
+}
+
+/// Booking policy. One global row (packageId null) plus optional per-package
+/// overrides. A null field on a package row falls back to the global value.
+model BookingRule {
+  id               String    @id @default(cuid())
+  packageId        String?   @unique
+  minNoticeMinutes Int?
+  horizonDays      Int?
+  dailyCapacity    Int?
+  bufferMinutes    Int?
+  updatedById      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  package          Package?  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  updatedBy        AdminUser? @relation("BookingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
 }
 
 model MediaItem {
