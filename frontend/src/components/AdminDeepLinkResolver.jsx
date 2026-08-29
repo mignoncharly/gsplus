@@ -19,8 +19,8 @@ const focusWhenReady = (selector) => {
 
 const AdminDeepLinkResolver = ({
   adminRole,
+  loadedReference,
   reservationRef: reservationSearchReferenceRef,
-  openTab: setActiveTab,
   feedback: setFeedback,
   setQuery: setReservationReferenceQuery,
   setResults: setReservationSearchResults,
@@ -35,12 +35,23 @@ const AdminDeepLinkResolver = ({
     const locationKey = location.pathname + location.search;
     if (resolvedLocationRef.current === locationKey) return;
     const destination = parseAdminDestination(location.pathname, location.search);
-    if (!destination) return;
+    // The dashboard derives the active view from the same URL, so this resolver only
+    // has to load the record a path carries. A view-only path needs nothing here.
+    if (!destination?.area || !destination.reference) return;
+    // Opening a record from the list already fetched it and then changed the URL.
+    // Re-fetching here would duplicate the request and flash the deep-link progress
+    // message on an ordinary click, so the already-loaded record is left alone.
+    const sameRecord = destination.area === 'reservations'
+      && loadedReference
+      && String(loadedReference).toUpperCase() === String(destination.reference).toUpperCase();
+    if (sameRecord) {
+      resolvedLocationRef.current = locationKey;
+      return;
+    }
     resolvedLocationRef.current = locationKey;
     let cancelled = false;
     const resolve = async () => {
-      const tab = destination.area;
-      setActiveTab(tab);
+      const tab = destination.tab;
       setFeedback({ tab, type: 'progress', message: 'Ouverture de la destination sécurisée...' });
       try {
         if (destination.area === 'reservations') {
@@ -75,7 +86,7 @@ const AdminDeepLinkResolver = ({
       cancelled = true;
       if (resolvedLocationRef.current === locationKey) resolvedLocationRef.current = '';
     };
-  }, [adminRole, location.pathname, location.search, reservationSearchReferenceRef, setActiveTab, setFeedback, setFinanceDestinationId, setLeads, setReservationReferenceQuery, setReservationSearchResults, setSelectedRes]);
+  }, [adminRole, loadedReference, location.pathname, location.search, reservationSearchReferenceRef, setFeedback, setFinanceDestinationId, setLeads, setReservationReferenceQuery, setReservationSearchResults, setSelectedRes]);
 
   return null;
 };

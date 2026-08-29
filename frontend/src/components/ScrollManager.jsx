@@ -28,11 +28,14 @@ const focusMain = () => {
   main?.focus({ preventScroll: true });
 };
 
+const isAdminPath = (pathname) => pathname === '/admin' || pathname.startsWith('/admin/');
+
 const ScrollManager = () => {
   const location = useLocation();
   const navigationType = useNavigationType();
   const store = useRef(createScrollPositionStore());
   const previousKey = useRef(location.key);
+  const previousPathname = useRef(location.pathname);
 
   useEffect(() => {
     const previousSetting = window.history.scrollRestoration;
@@ -79,6 +82,19 @@ const ScrollManager = () => {
       return cleanup;
     }
 
+    // Since Phase 2 the administration views are addressable, so switching view inside
+    // /admin produces a route change. That is not a page transition: the administration
+    // is a single screen that manages its own focus (drawer trap, feedback region,
+    // record dialog), and moving focus to #main-content here would steal it from the
+    // control the operator just used. Entering or leaving /admin is still a real
+    // transition and keeps the normal scroll and focus handling.
+    const movedWithinAdmin = isAdminPath(previousPathname.current) && isAdminPath(location.pathname);
+    previousPathname.current = location.pathname;
+    if (movedWithinAdmin) {
+      previousKey.current = location.key;
+      return cleanup;
+    }
+
     store.current.save(previousKey.current, {
       x: window.scrollX,
       y: window.scrollY,
@@ -103,7 +119,7 @@ const ScrollManager = () => {
     });
 
     return cleanup;
-  }, [location.hash, location.key, navigationType]);
+  }, [location.hash, location.key, location.pathname, navigationType]);
 
   return null;
 };

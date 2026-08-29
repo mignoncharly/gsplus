@@ -36,9 +36,13 @@ test('P2-02 revalidates an opened admin tab and refreshes new leads without page
   await expect(page.getByText('Nouvelle demande P2-02', { exact: true })).toBeVisible();
   await expect(page.getByText(/Dernière actualisation : .*Douala/)).toBeVisible();
   const navigationCountBeforeRefresh = navigations.length;
+  // Since Phase 2 each admin view has its own address, so opening Leads legitimately
+  // changes the URL. What this test guards is that *refreshing* reloads neither the
+  // document nor the route, so the address is captured here rather than hardcoded.
+  const urlBeforeRefresh = page.url();
   await page.getByRole('button', { name: 'Actualiser' }).click();
   await expect(page.getByText('Deuxième demande P2-02', { exact: true })).toBeVisible();
   await expect.poll(() => leadReads).toBeGreaterThanOrEqual(3);
   expect(navigations).toHaveLength(navigationCountBeforeRefresh);
-  expect(page.url()).toContain('/admin/dashboard');
+  expect(page.url()).toBe(urlBeforeRefresh);
 });

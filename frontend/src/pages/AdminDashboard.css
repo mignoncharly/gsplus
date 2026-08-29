@@ -933,3 +933,187 @@
   .admin-refresh-bar { align-items: stretch; flex-direction: column; }
   .admin-refresh-button { width: 100%; }
 }
+
+/* === §3.1 reservation record ===
+   The record is read, not skimmed: a header that answers "which booking is this",
+   then payment and reservation as two independent blocks, then the frozen contact,
+   then one chronology of everything that left the studio. */
+.admin-record {
+  --record-rule: rgba(255, 255, 255, 0.08);
+}
+
+.admin-record-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dark-muted);
+}
+
+.admin-record-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--record-rule);
+  margin-bottom: 1.75rem;
+}
+
+.admin-record-header h2 { margin: 0; }
+
+.admin-record-subject {
+  margin: 0.4rem 0 0;
+  color: var(--dark-secondary);
+  font-size: 0.95rem;
+}
+
+.admin-record-header-facts,
+.admin-record-fields {
+  display: grid;
+  gap: 0.75rem 1.75rem;
+  margin: 0;
+}
+
+.admin-record-header-facts { grid-template-columns: repeat(auto-fit, minmax(140px, max-content)); }
+.admin-record-fields { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1.25rem; }
+
+.admin-record-field dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dark-muted);
+  margin-bottom: 0.3rem;
+}
+
+.admin-record-field dd {
+  margin: 0;
+  color: var(--dark-primary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-record-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-record-block {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--record-rule);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-record-columns .admin-record-block { margin-bottom: 0; }
+
+.admin-record-block h3 {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  color: var(--dark-primary);
+}
+
+.admin-record-block h4 {
+  margin: 1.25rem 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dark-muted);
+}
+
+.admin-record-hint,
+.admin-record-empty {
+  margin: 0 0 1rem;
+  color: var(--dark-muted);
+  font-size: 0.88rem;
+}
+
+.admin-record-customer-note {
+  margin: 0;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+  color: var(--dark-secondary);
+}
+
+.admin-record-timeline,
+.admin-record-chronology {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-record-timeline li,
+.admin-record-chronology li {
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--record-rule);
+}
+
+.admin-record-timeline small,
+.admin-record-chronology small {
+  display: block;
+  color: var(--dark-muted);
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+}
+
+.admin-record-transition-heads {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  color: var(--dark-muted);
+}
+
+/* Internal notes and customer-facing wording must never be mistaken for each other. */
+.admin-record-note--internal { color: var(--dark-secondary); }
+.admin-record-note--customer { color: var(--dark-accent); }
+.admin-record-error { color: #ff8b8b; }
+
+.admin-record-mismatch {
+  background: rgba(231, 76, 60, 0.12);
+  color: #ff9683;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.admin-record-chronology li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.admin-record-chronology-icon {
+  color: var(--dark-muted);
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.admin-record-chronology-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  color: var(--dark-primary);
+}
+
+.admin-record-actions {
+  margin-top: 2.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 575px) {
+  .admin-record-header { gap: 1rem; }
+  .admin-record-fields { grid-template-columns: minmax(0, 1fr); }
+}

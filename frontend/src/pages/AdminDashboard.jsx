@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   Ban, 
@@ -63,21 +63,18 @@ import {
 } from '../lib/api';
 import {
   canConfirmReservation,
-  calendarErrorLabel,
   maskedProviderId,
   canVerifyAndConfirm,
   isReservationEndReached,
-  isTemporalOverrideTransition,
   paymentActions,
-  paymentMethodLabel,
   reservationActions,
   statusLabel,
-  transitionActorLabel,
 } from '../lib/admin-workflow';
 import { NOTIFICATION_AUDIENCE_LABELS, notificationTypeDescriptor } from '../lib/status-labels';
 import { resetFormAfterSuccess } from '../lib/lead-submission';
 import { isValidCameroonPhone, PHONE_INVALID_MESSAGE } from '../lib/contact-validation';
 import { ADMIN_REFRESH_INTERVAL_MS, shouldRunAdminRefresh } from '../lib/admin-refresh';
+import { adminRecordPath, adminTabFromPath, adminViewPath, parseAdminDestination } from '../lib/admin-deep-links';
 import {
   businessDateKey,
   businessDateTimeLocalValue,
@@ -97,6 +94,7 @@ const AdminMediaRightsPanel = React.lazy(() => import('../components/AdminMediaR
 const AdminFinanceRoute = React.lazy(() => import('../components/AdminFinanceRoute'));
 const AdminDeepLinkResolver = React.lazy(() => import('../components/AdminDeepLinkResolver'));
 const AdminLeadsPanel = React.lazy(() => import('../components/AdminLeadsPanel'));
+const AdminReservationRecord = React.lazy(() => import('../components/AdminReservationRecord'));
 
 const dateTime = formatBusinessDateTime;
 const monthKey = currentBusinessMonthKey();
@@ -167,9 +165,29 @@ const AdminDashboard = () => {
     confirmPassword: '',
   });
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  // The active view lives in the URL, not in component state, so every view has its
+  // own address and neither reload nor Back returns to the dashboard (§2.1).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = useMemo(
+    () => adminTabFromPath(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
+  const setActiveTab = useCallback((tab) => {
+    if (adminTabFromPath(location.pathname, location.search) === tab) return;
+    navigate(adminViewPath(tab));
+  }, [location.pathname, location.search, navigate]);
+
+  const recordDestination = useMemo(
+    () => parseAdminDestination(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
+  const isReservationRecordRoute = recordDestination?.area === 'reservations' && Boolean(recordDestination.reference);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedRes, setSelectedRes] = useState(null);
+  const [loadedRes, setLoadedRes] = useState(null);
+  // The open record is derived, never synchronised: leaving its address — including
+  // with the browser Back button — closes it, with no effect and no extra render.
+  const selectedRes = isReservationRecordRoute ? loadedRes : null;
   const [apiStatus, setApiStatus] = useState({ state: 'checking', message: 'Vérification API...' });
   const [feedback, setFeedback] = useState(null);
   const [loadingTabs, setLoadingTabs] = useState({});
@@ -308,6 +326,7 @@ const AdminDashboard = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [activeTab, isAuthenticated, refreshAdminTab]);
+
   useEffect(() => {
     if (feedback && feedback.tab === activeTab) {
       feedbackRef.current?.focus();
@@ -383,7 +402,9 @@ const AdminDashboard = () => {
       setIsAuthenticated(true);
       setEmail('');
       setPassword('');
-      await refreshAdminTab('overview');
+      // Return to whatever was requested before the login screen appeared, not to the
+      // dashboard. The URL was never navigated away from, so it still holds the target.
+      await refreshAdminTab(adminTabFromPath(location.pathname, location.search));
     } catch (err) {
       setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
     } finally {
@@ -490,7 +511,12 @@ const AdminDashboard = () => {
     const key = `reservations:detail:${reservation.id}`;
     setBusyActions((current) => ({ ...current, [key]: true }));
     try {
-      setSelectedRes(await getAdminReservation(reservation.id));
+      const record = await getAdminReservation(reservation.id);
+      setLoadedRes(record);
+      // Give the open record its own address, so it can be reloaded, shared and
+      // dismissed with Back (§2.1).
+      const recordPath = adminRecordPath('reservations', record.reference);
+      if (record.reference && location.pathname !== recordPath) navigate(recordPath);
     } catch (err) {
       setFeedback({ tab: 'reservations', type: 'error', message: err.message || 'Détails indisponibles.' });
     } finally {
@@ -498,12 +524,20 @@ const AdminDashboard = () => {
     }
   };
 
+  // Closing the record returns to the list URL it was opened from, so Back and the
+  // close control agree with each other.
+  const closeReservation = useCallback(() => {
+    setLoadedRes(null);
+    const destination = parseAdminDestination(location.pathname, location.search);
+    if (destination?.area === 'reservations' && destination.reference) navigate(adminViewPath('reservations'));
+  }, [location.pathname, location.search, navigate]);
+
   const openActionDialog = (config) => setActionDialog({ fields: [], ...config });
 
   const runDialogAction = async (label, action, refreshReservationId) => {
     const success = await runAction(label, action, true);
     if (!success) throw new Error('Cette action est déjà en cours.');
-    if (refreshReservationId) setSelectedRes(await getAdminReservation(refreshReservationId));
+    if (refreshReservationId) setLoadedRes(await getAdminReservation(refreshReservationId));
   };
 
   const updateReservationStatus = async (reservation, status, action = {}) => {
@@ -622,7 +656,7 @@ const AdminDashboard = () => {
 
   const syncReservationCalendar = async (reservation) => {
     const success = await runAction('Synchronisation calendrier', () => syncAdminReservationCalendar(reservation.id));
-    if (success) setSelectedRes(await getAdminReservation(reservation.id));
+    if (success) setLoadedRes(await getAdminReservation(reservation.id));
   };
 
   const rescheduleReservationItem = (reservation) => openActionDialog({
@@ -866,7 +900,6 @@ const AdminDashboard = () => {
     .reduce((sum, payment) => sum + payment.amount, 0);
 
   const uniqueCustomers = new Set(reservations.map((reservation) => reservationIdentityKey(reservation))).size;
-  const selectedContact = reservationContact(selectedRes);
   const selectedPayment = selectedRes?.payments?.[0];
   const selectedEndReached = isReservationEndReached(selectedRes?.endAt);
   const ownerDecisionDisabled = adminUser?.role !== 'OWNER';
@@ -975,6 +1008,124 @@ const AdminDashboard = () => {
     ['account', 'Sécurité', KeyRound],
   ];
 
+  // The record's action row, kept verbatim from the previous modal so every guard,
+  // permission check and label survives the §3.1 restructure unchanged.
+  const renderReservationActions = () => (
+    <>
+                {reservationActions(selectedRes.status).map((action) => {
+                  const confirmationBlocked =
+                    action.status === 'CONFIRMED' && !canConfirmReservation(selectedPayment?.status);
+                  const temporalClosureBlocked = action.temporalClosure && !selectedEndReached;
+                  const permissionBlocked =
+                    ['CONFIRMED', 'REJECTED', 'CANCELLED'].includes(action.status) && ownerDecisionDisabled;
+                  return (
+                    <button
+                      key={action.status}
+                      className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
+                      onClick={() => updateReservationStatus(selectedRes, action.status, action)}
+                      disabled={reservationDecisionBusy || confirmationBlocked || permissionBlocked || temporalClosureBlocked}
+                      title={
+                        temporalClosureBlocked
+                          ? `Action disponible après la fin du créneau (${dateTime(selectedRes.endAt)}).`
+                          : confirmationBlocked
+                            ? 'Vérifiez d’abord le paiement avant de confirmer la réservation.'
+                            : permissionBlocked
+                              ? 'Cette décision nécessite le rôle propriétaire.'
+                              : undefined
+                      }
+                    >
+                      {action.label}
+                    </button>
+                  );
+                })}
+                {!selectedEndReached && reservationActions(selectedRes.status)
+                  .filter((action) => action.temporalClosure)
+                  .map((action) => (
+                    <button
+                      key={`override-${action.status}`}
+                      className="btn btn-secondary admin-sm-btn text-danger"
+                      onClick={() => updateReservationStatus(selectedRes, action.status, {
+                        ...action,
+                        temporalOverride: true,
+                        label: `Dérogation : ${action.label.toLowerCase()}`,
+                      })}
+                      disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                      title={ownerDecisionDisabled
+                        ? 'La dérogation temporelle nécessite le rôle propriétaire.'
+                        : 'Clôture exceptionnelle avant la fin; motif et confirmation obligatoires.'}
+                    >
+                      Dérogation : {action.label.toLowerCase()}
+                    </button>
+                  ))}
+                {selectedPayment && paymentActions(selectedPayment.status).map((action) => (
+                  <button
+                    key={`payment-${action.status}`}
+                    className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
+                    onClick={() => updateFirstPayment(selectedRes, action)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+                {!selectedPayment && selectedRes.status === 'PENDING_CONFIRMATION' && (
+                  <button
+                    className="btn btn-secondary admin-sm-btn"
+                    onClick={() => addReservationPayment(selectedRes)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette action nécessite le rôle propriétaire.' : undefined}
+                  >
+                    Ajouter un paiement
+                  </button>
+                )}
+                {canVerifyAndConfirm(selectedRes.status, selectedPayment?.status) && (
+                  <button
+                    className="btn btn-primary admin-sm-btn"
+                    onClick={() => verifyAndConfirmReservation(selectedRes)}
+                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
+                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
+                  >
+                    Vérifier et confirmer
+                  </button>
+                )}
+                {['PENDING_CONFIRMATION', 'CONFIRMED'].includes(selectedRes.status) && (
+                  <button
+                    className="btn btn-secondary admin-sm-btn"
+                    onClick={() => rescheduleReservationItem(selectedRes)}
+                    disabled={Boolean(busyActions['reservations:Déplacement de la réservation'])}
+                  >
+                    Demander un report
+                  </button>
+                )}
+                <button
+                  className="btn btn-secondary admin-sm-btn"
+                  onClick={() => recordWithdrawalRequest(selectedRes)}
+                  disabled={reservationDecisionBusy || ownerDecisionDisabled || selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')}
+                  title={ownerDecisionDisabled
+                    ? 'Cette action nécessite le rôle propriétaire.'
+                    : selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')
+                      ? 'Une demande de rétractation est déjà en attente.'
+                      : 'Enregistrer une demande explicite reçue par un canal professionnel.'}
+                >
+                  Enregistrer une rétractation
+                </button>
+                {['CONFIRMED', 'CANCELLED'].includes(selectedRes.status) && (
+                  <button
+                    className="btn btn-secondary admin-sm-btn"
+                    onClick={() => syncReservationCalendar(selectedRes)}
+                    disabled={
+                      latestCalendarSync(selectedRes)?.status === 'SYNCING' ||
+                      Boolean(busyActions['reservations:Synchronisation calendrier'])
+                    }
+                  >
+                    {['FAILED', 'RETRYING'].includes(latestCalendarSync(selectedRes)?.status)
+                      ? 'Réessayer la synchronisation'
+                      : 'Synchroniser le calendrier'}
+                  </button>
+                )}
+    </>
+  );
+
   const closeSidebar = ({ restoreFocus = false } = {}) => {
     setIsSidebarOpen(false);
     if (restoreFocus) {
@@ -987,12 +1138,12 @@ const AdminDashboard = () => {
       <React.Suspense fallback={null}>
         <AdminDeepLinkResolver
           adminRole={adminUser?.role}
+          loadedReference={loadedRes?.reference}
           reservationRef={reservationSearchReferenceRef}
-          openTab={setActiveTab}
           feedback={setFeedback}
           setQuery={setReservationReferenceQuery}
           setResults={setReservationSearchResults}
-          setReservation={setSelectedRes}
+          setReservation={setLoadedRes}
           setLeadItems={setLeads}
           setFinance={setFinanceDestinationId}
         />
@@ -1613,12 +1764,12 @@ const AdminDashboard = () => {
         </React.Suspense>
       )}
 
-      {/* Details modal with AnimatePresence */}
+      {/* Reservation record (§3.1), addressed by its own URL and rendered by AdminReservationRecord. */}
       <AnimatePresence>
         {selectedRes && (
-          <div className="admin-modal-backdrop" onClick={() => setSelectedRes(null)}>
-            <Motion.div 
-              className="admin-modal-content"
+          <div className="admin-modal-backdrop" onClick={closeReservation}>
+            <Motion.div
+              className="admin-modal-content admin-record"
               tabIndex="-1"
               autoFocus
               onClick={(e) => e.stopPropagation()}
@@ -1627,251 +1778,25 @@ const AdminDashboard = () => {
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.3 }}
             >
-              <button onClick={() => setSelectedRes(null)} className="admin-modal-close" type="button" aria-label="Fermer la fenêtre">&times;</button>
-              <h2>Réservation <span>{selectedRes.reference}</span></h2>
-              
-              <div className="admin-modal-info-row">
-                <span>Client :</span>
-                <strong>{selectedContact.firstName} {selectedContact.lastName} ({selectedContact.phone})</strong>
-              </div>
-              <React.Suspense fallback={<div className="admin-modal-info-row"><span>Consentement WhatsApp :</span><strong>Chargement…</strong></div>}>
-                <AdminWhatsAppPanel reservation={selectedRes} />
-              </React.Suspense>
-              <div className="admin-modal-info-row">
-                <span>Formule :</span>
-                <strong>{selectedRes.package?.name} ({formatFcfa(selectedRes.package?.price)})</strong>
-              </div>
-              {selectedRes.scheduleKind === 'CUSTOM_PROPOSAL' && (
-                <div className="admin-modal-block" role="status">
-                  <strong>Proposition d’horaire — non bloquante et non confirmée</strong>
-                  <p>Demandée pour {dateTime(selectedRes.requestedStartAt || selectedRes.startAt)} — {dateTime(selectedRes.requestedEndAt || selectedRes.endAt)} ({selectedRes.requestedTimeZone || 'Africa/Douala'}). La confirmation relancera tous les contrôles de disponibilité.</p>
-                </div>
-              )}
-              <div className="admin-modal-info-row">
-                <span>{selectedRes.scheduleKind === 'CUSTOM_PROPOSAL' ? 'Horaire demandé :' : 'Séance programmée :'}</span>
-                <strong>{dateTime(selectedRes.startAt)} — {dateTime(selectedRes.endAt)}</strong>
-              </div>
-              <div className="admin-modal-info-row">
-                <span>Statut réservation :</span>
-                <strong>{pill(selectedRes.status)}</strong>
-              </div>
-              <div className="admin-modal-info-row">
-                <span>Statut Paiement :</span>
-                <strong>{selectedRes.payments?.[0] ? pill(selectedRes.payments[0].status) : pill('AUCUN PAIEMENT')}</strong>
-              </div>
-              
-              {selectedRes.payments?.[0] && (
-                <div className="admin-modal-block">
-                  <strong>Détails du Paiement Mobile</strong>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>Méthode : {paymentMethodLabel(selectedRes.payments[0].method)}</p>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>Réf. transaction : {selectedRes.payments[0].transactionRef || 'Non fournie'}</p>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>N° de Paiement : {selectedRes.payments[0].paymentPhone || 'Non spécifié'}</p>
-                </div>
-              )}
-
-              {latestCalendarSync(selectedRes) && (
-                <div className="admin-modal-block" style={{ borderLeftColor: '#4a9ca8' }}>
-                  <strong>Statut calendrier ({latestCalendarSync(selectedRes).provider || 'fournisseur inconnu'})</strong>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.92rem' }}>
-                    Statut de sync : {pill(latestCalendarSync(selectedRes).status)}
-                  </p>
-                  <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'var(--dark-secondary)' }}>
-                    Action : {latestCalendarSync(selectedRes).action || '—'} · Tentatives : {latestCalendarSync(selectedRes).attemptCount || 0}
-                    {latestCalendarSync(selectedRes).lastAttemptAt ? ` · ${dateTime(latestCalendarSync(selectedRes).lastAttemptAt)}` : ''}
-                    {latestCalendarSync(selectedRes).nextAttemptAt ? ` · prochaine tentative ${dateTime(latestCalendarSync(selectedRes).nextAttemptAt)}` : ''}
-                    {latestCalendarSync(selectedRes).syncedAt ? ` · synchronisé ${dateTime(latestCalendarSync(selectedRes).syncedAt)}` : ''}
-                  </p>
-                  {latestCalendarSync(selectedRes).externalEventId && (
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'var(--dark-muted)' }}>
-                      ID d'événement externe : {latestCalendarSync(selectedRes).externalEventId}
-                    </p>
-                  )}
-                  {latestCalendarSync(selectedRes).error && (
-                    <p style={{ margin: '0.5rem 0 0', color: '#ff6b6b', fontSize: '0.9rem' }}>
-                      Erreur de sync : {calendarErrorLabel(latestCalendarSync(selectedRes).error)}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {selectedRes.calendarSyncLogs?.length > 0 && (
-                <div className="admin-modal-block" style={{ borderLeftColor: '#4a9ca8' }}>
-                  <strong>Historique du calendrier</strong>
-                  {selectedRes.calendarSyncLogs.map((log) => (
-                    <p key={log.id} style={{ margin: '0.75rem 0 0' }}>
-                      <span>{pill(log.status)} · {log.action || '—'}</span><br />
-                      <small>{dateTime(log.createdAt)} · tentative {log.attemptCount || 0}</small>
-                      {log.error && <><br /><small style={{ color: '#ff8b8b' }}>{calendarErrorLabel(log.error)}</small></>}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {selectedRes.extraInfo && (
-                <div className="admin-modal-block" style={{ borderLeftColor: '#c5923a' }}>
-                  <strong>Notes additionnelles du client</strong>
-                  <p style={{ margin: 0, fontSize: '0.92rem', whiteSpace: 'pre-wrap' }}>{selectedRes.extraInfo}</p>
-                </div>
-              )}
-
-              {selectedRes.transitions?.length > 0 && (
-                <div className="admin-modal-block">
-                  <strong>Historique de la réservation</strong>
-                  {selectedRes.transitions.map((transition) => (
-                    <p key={transition.id} style={{ margin: '0.75rem 0 0' }}>
-                      <span>{pill(transition.fromStatus)} → {pill(transition.toStatus)}</span><br />
-                      <small>{transitionActorLabel(transition)} · {dateTime(transition.createdAt)}</small>
-                      {transition.oldStartAt && transition.newStartAt && transition.oldStartAt !== transition.newStartAt && (
-                        <><br /><small>Créneau : {dateTime(transition.oldStartAt)} → {dateTime(transition.newStartAt)}</small></>
-                      )}
-                      {isTemporalOverrideTransition(transition) && (
-                        <><br /><small className="admin-temporal-override">Dérogation temporelle — clôture avant la fin programmée</small></>
-                      )}
-                      {transition.reason && <><br /><small>Motif : {transition.reason}</small></>}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {selectedRes.payments?.[0]?.transitions?.length > 0 && (
-                <div className="admin-modal-block" style={{ borderLeftColor: '#4a9ca8' }}>
-                  <strong>Historique du paiement</strong>
-                  {selectedRes.payments[0].transitions.map((transition) => (
-                    <p key={transition.id} style={{ margin: '0.75rem 0 0' }}>
-                      <span>{pill(transition.fromStatus)} → {pill(transition.toStatus)}</span><br />
-                      <small>{transitionActorLabel(transition)} · {dateTime(transition.createdAt)}</small>
-                      {transition.reason && <><br /><small>Motif : {transition.reason}</small></>}
-                    </p>
-                  ))}
-                </div>
-              )}
-              <React.Suspense>
-                <AdminOpsPanel
+              <button onClick={closeReservation} className="admin-modal-close" type="button" aria-label="Fermer la fenêtre">&times;</button>
+              <React.Suspense fallback={<p className="admin-record-empty">Chargement du dossier…</p>}>
+                <AdminReservationRecord
                   reservation={selectedRes}
-                  dateTime={dateTime}
-                  pill={pill}
+                  payment={selectedPayment}
                   busy={reservationDecisionBusy}
                   ownerDisabled={ownerDecisionDisabled}
-                  onPublished={() => getAdminReservation(selectedRes.id).then(setSelectedRes)}
-                  onDecision={(request, decision, reason) =>
-                    decideRescheduleRequest(selectedRes, request, decision, reason)}
-                  onWithdrawalDecision={(request, decision) =>
-                    decideWithdrawalRequest(selectedRes, request, decision)}
-                  onImageConsentRecord={(choice, current) =>
-                    recordImageConsentChoice(selectedRes, choice, current)}
+                  endReached={selectedEndReached}
+                  busyActions={busyActions}
+                  actions={{
+                    onPublished: () => getAdminReservation(selectedRes.id).then(setLoadedRes),
+                    onRescheduleDecision: (request, decision, reason) => decideRescheduleRequest(selectedRes, request, decision, reason),
+                    onWithdrawalDecision: (request, decision) => decideWithdrawalRequest(selectedRes, request, decision),
+                    onImageConsentRecord: (choice, current) => recordImageConsentChoice(selectedRes, choice, current),
+                    onRetryNotification: retryNotification,
+                    renderActions: renderReservationActions,
+                  }}
                 />
               </React.Suspense>
-              <div className="admin-action-row" style={{ marginTop: '2.5rem', justifyContent: 'flex-end' }}>
-                {reservationActions(selectedRes.status).map((action) => {
-                  const confirmationBlocked =
-                    action.status === 'CONFIRMED' && !canConfirmReservation(selectedPayment?.status);
-                  const temporalClosureBlocked = action.temporalClosure && !selectedEndReached;
-                  const permissionBlocked =
-                    ['CONFIRMED', 'REJECTED', 'CANCELLED'].includes(action.status) && ownerDecisionDisabled;
-                  return (
-                    <button
-                      key={action.status}
-                      className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
-                      onClick={() => updateReservationStatus(selectedRes, action.status, action)}
-                      disabled={reservationDecisionBusy || confirmationBlocked || permissionBlocked || temporalClosureBlocked}
-                      title={
-                        temporalClosureBlocked
-                          ? `Action disponible après la fin du créneau (${dateTime(selectedRes.endAt)}).`
-                          : confirmationBlocked
-                            ? 'Vérifiez d’abord le paiement avant de confirmer la réservation.'
-                            : permissionBlocked
-                              ? 'Cette décision nécessite le rôle propriétaire.'
-                              : undefined
-                      }
-                    >
-                      {action.label}
-                    </button>
-                  );
-                })}
-                {!selectedEndReached && reservationActions(selectedRes.status)
-                  .filter((action) => action.temporalClosure)
-                  .map((action) => (
-                    <button
-                      key={`override-${action.status}`}
-                      className="btn btn-secondary admin-sm-btn text-danger"
-                      onClick={() => updateReservationStatus(selectedRes, action.status, {
-                        ...action,
-                        temporalOverride: true,
-                        label: `Dérogation : ${action.label.toLowerCase()}`,
-                      })}
-                      disabled={reservationDecisionBusy || ownerDecisionDisabled}
-                      title={ownerDecisionDisabled
-                        ? 'La dérogation temporelle nécessite le rôle propriétaire.'
-                        : 'Clôture exceptionnelle avant la fin; motif et confirmation obligatoires.'}
-                    >
-                      Dérogation : {action.label.toLowerCase()}
-                    </button>
-                  ))}
-                {selectedPayment && paymentActions(selectedPayment.status).map((action) => (
-                  <button
-                    key={`payment-${action.status}`}
-                    className={`btn btn-secondary admin-sm-btn ${action.destructive ? 'text-danger' : ''}`}
-                    onClick={() => updateFirstPayment(selectedRes, action)}
-                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
-                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-                {!selectedPayment && selectedRes.status === 'PENDING_CONFIRMATION' && (
-                  <button
-                    className="btn btn-secondary admin-sm-btn"
-                    onClick={() => addReservationPayment(selectedRes)}
-                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
-                    title={ownerDecisionDisabled ? 'Cette action nécessite le rôle propriétaire.' : undefined}
-                  >
-                    Ajouter un paiement
-                  </button>
-                )}
-                {canVerifyAndConfirm(selectedRes.status, selectedPayment?.status) && (
-                  <button
-                    className="btn btn-primary admin-sm-btn"
-                    onClick={() => verifyAndConfirmReservation(selectedRes)}
-                    disabled={reservationDecisionBusy || ownerDecisionDisabled}
-                    title={ownerDecisionDisabled ? 'Cette décision nécessite le rôle propriétaire.' : undefined}
-                  >
-                    Vérifier et confirmer
-                  </button>
-                )}
-                {['PENDING_CONFIRMATION', 'CONFIRMED'].includes(selectedRes.status) && (
-                  <button
-                    className="btn btn-secondary admin-sm-btn"
-                    onClick={() => rescheduleReservationItem(selectedRes)}
-                    disabled={Boolean(busyActions['reservations:Déplacement de la réservation'])}
-                  >
-                    Demander un report
-                  </button>
-                )}
-                <button
-                  className="btn btn-secondary admin-sm-btn"
-                  onClick={() => recordWithdrawalRequest(selectedRes)}
-                  disabled={reservationDecisionBusy || ownerDecisionDisabled || selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')}
-                  title={ownerDecisionDisabled
-                    ? 'Cette action nécessite le rôle propriétaire.'
-                    : selectedRes.withdrawalRequests?.some((request) => request.status === 'PENDING')
-                      ? 'Une demande de rétractation est déjà en attente.'
-                      : 'Enregistrer une demande explicite reçue par un canal professionnel.'}
-                >
-                  Enregistrer une rétractation
-                </button>
-                {['CONFIRMED', 'CANCELLED'].includes(selectedRes.status) && (
-                  <button
-                    className="btn btn-secondary admin-sm-btn"
-                    onClick={() => syncReservationCalendar(selectedRes)}
-                    disabled={
-                      latestCalendarSync(selectedRes)?.status === 'SYNCING' ||
-                      Boolean(busyActions['reservations:Synchronisation calendrier'])
-                    }
-                  >
-                    {['FAILED', 'RETRYING'].includes(latestCalendarSync(selectedRes)?.status)
-                      ? 'Réessayer la synchronisation'
-                      : 'Synchroniser le calendrier'}
-                  </button>
-                )}
-              </div>
             </Motion.div>
           </div>
         )}
