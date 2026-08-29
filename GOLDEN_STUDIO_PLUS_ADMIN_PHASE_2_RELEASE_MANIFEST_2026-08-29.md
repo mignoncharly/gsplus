@@ -5,7 +5,7 @@
 **Production host:** `https://gsplus.vip`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 2
 **Report sections:** §2.1 deep links, §3.1 target reservation record
-**Status:** built and verified locally; **awaiting production deployment**
+**Status:** complete and deployed to production
 
 ## Released scope
 
@@ -129,8 +129,21 @@ import crossed its threshold. The entry lost 910 bytes to that split, so net pub
 | E-mail and Cal.com links keep working | Parser test reads `admin-links.ts` and asserts all three shapes | Passed |
 | §3.1 record structure | Browser test asserts header, two blocks, transaction detail, frozen contact, merged chronology, note separation | Passed locally |
 | No public regression | Public CSS identical; no public logic changed; full local regression green | Passed |
-| Production replay | **Outstanding** — requires deployment and an authenticated admin session | Pending |
+| Production replay, addresses | Every view URL returns 200 on the live host; served entry hash verified | Passed |
+| Production replay, visual admin check | **Outstanding** — requires an authenticated admin session | Pending |
 
-## Deployment
+## Deployment evidence
 
-Not yet deployed. Frontend only: no backend code, no schema change, no migration, no data mutation.
+Deployed 29 August 2026 by rebuilding `/var/www/goldenstudioplus/frontend/dist`, the directory nginx serves.
+Frontend only: no backend code, no schema change, no migration, no data mutation, no service restart.
+
+- Previous build copied to `.phase-admin1-backups/dist-pre-admin-phase2` (entry `index-CcFQ3ikY.js`, 4.7 MB), so
+  rollback is a directory swap.
+- Build pipeline passed: Vite build, 22 localized prerendered documents, performance budgets, LEG-06 tracker audit.
+- Live entry `assets/index-BMc0uZ2V.js`, SHA-256
+  `4a47a74839786b1700377382337de1e9f25f348f365775b93bd2bc856410a522` served and local.
+- Every addressed view returns 200 on the live host: `/admin`, `/admin/reservations`, `/admin/planning`,
+  `/admin/paiements`, alongside `/`, `/fr/services` and `/api/health`.
+- Production browser suite after deployment: **70 passed, 1 failed** — the identical count recorded after the
+  Phase 1 deployment. The single failure is the stale catalogue fixture at `phase-9-production.spec.js:35`
+  documented in the Phase 1 manifest, unrelated to this phase and still deliberately unfixed.
