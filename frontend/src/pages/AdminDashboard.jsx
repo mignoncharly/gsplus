@@ -45,7 +45,6 @@ import {
   getAdminNotifications,
   getAdminPackages,
   getAdminReservation,
-  getAdminReservations,
   getApiHealth,
   loginAdmin,
   logoutAdmin,
@@ -76,13 +75,10 @@ import { isValidCameroonPhone, PHONE_INVALID_MESSAGE } from '../lib/contact-vali
 import { ADMIN_REFRESH_INTERVAL_MS, shouldRunAdminRefresh } from '../lib/admin-refresh';
 import { adminRecordPath, adminTabFromPath, adminViewPath, parseAdminDestination } from '../lib/admin-deep-links';
 import {
-  businessDateKey,
   businessDateTimeLocalValue,
-  currentBusinessMonthKey,
   doualaLocalDateTimeToIso,
   formatBusinessDateTime,
 } from '../lib/business-time';
-import { formatFcfa } from '../lib/display-formatters';
 import './AdminDashboard.css';
 
 const AdminWhatsAppPanel = React.lazy(() => import('../components/AdminWhatsAppPanel'));
@@ -95,9 +91,10 @@ const AdminFinanceRoute = React.lazy(() => import('../components/AdminFinanceRou
 const AdminDeepLinkResolver = React.lazy(() => import('../components/AdminDeepLinkResolver'));
 const AdminLeadsPanel = React.lazy(() => import('../components/AdminLeadsPanel'));
 const AdminReservationRecord = React.lazy(() => import('../components/AdminReservationRecord'));
+const AdminOverviewPanel = React.lazy(() => import('../components/AdminOverviewPanel'));
+const AdminReservationsPanel = React.lazy(() => import('../components/AdminReservationsPanel'));
 
 const dateTime = formatBusinessDateTime;
-const monthKey = currentBusinessMonthKey();
 
 const statusClass = (status) => {
   return `pill-${String(status).toLowerCase()}`;
@@ -110,33 +107,7 @@ const pill = (status) => (
 );
 
 const latestCalendarSync = (reservation) => reservation?.calendarSync || reservation?.calendarSyncLogs?.[0] || null;
-const reservationContact = (reservation) => {
-  const snapshot = reservation?.snapshot;
-  if (!snapshot) {
-    return {
-      firstName: reservation?.customer?.firstName ?? 'Snapshot',
-      lastName: reservation?.customer?.lastName ?? 'indisponible',
-      phone: reservation?.customer?.phone ?? '—',
-      email: reservation?.customer?.email ?? '',
-      whatsappConsent: false,
-      whatsappConsentAt: null,
-    };
-  }
-  return {
-    firstName: snapshot.firstName,
-    lastName: snapshot.lastName,
-    phone: snapshot.notificationPhoneE164,
-    email: snapshot.notificationEmail ?? snapshot.email ?? '',
-    whatsappConsent: snapshot.whatsappConsent,
-    whatsappConsentAt: snapshot.whatsappConsentAt,
-  };
-};
 
-const reservationIdentityKey = (reservation) => {
-  if (!reservation?.snapshot) return reservation?.customerId;
-  const contact = reservationContact(reservation);
-  return [contact.firstName, contact.lastName, contact.phone, contact.email].join('|');
-};
 
 
 
@@ -200,13 +171,8 @@ const AdminDashboard = () => {
   const sidebarToggleRef = useRef(null);
   const busyActionKeysRef = useRef(new Set());
   const tabRefreshInFlightRef = useRef(new Map());
-  const reservationSearchReferenceRef = useRef('');
   const leadCardRefs = useRef(new Map());
 
-  const [reservations, setReservations] = useState([]);
-  const [reservationReferenceQuery, setReservationReferenceQuery] = useState('');
-  const [reservationSearchResults, setReservationSearchResults] = useState(null);
-  const [reservationSearchSubmitting, setReservationSearchSubmitting] = useState(false);
   const [leads, setLeads] = useState([]);
   const [financeDestinationId, setFinanceDestinationId] = useState('');
   const [packs, setPacks] = useState([]);
@@ -222,33 +188,18 @@ const AdminDashboard = () => {
     setLoadingTabs((current) => ({ ...current, [tab]: true }));
     const request = (async () => {
       try {
-        if (tab === 'overview') {
-          const [reservationItems, leadItems, packageItems, mediaItems, blockItems, notificationItems] = await Promise.all([
-            getAdminReservations(),
-            getAdminLeads(),
-            getAdminPackages(),
-            getAdminMedia(),
-            getAdminAvailabilityBlocks(),
-            getAdminNotifications(),
-          ]);
-          setReservations(reservationItems);
-          setLeads(leadItems);
-          setPacks(packageItems);
-          setMedia(mediaItems);
-          setBlocks(blockItems);
-          setNotifications(notificationItems);
-        } else if (tab === 'reservations') {
-          const reference = reservationSearchReferenceRef.current;
-          const [reservationItems, searchItems] = await Promise.all([
-            getAdminReservations(),
-            reference ? getAdminReservations({ reference }) : Promise.resolve(null),
-          ]);
-          setReservations(reservationItems);
-          setReservationSearchResults(searchItems);
+        if (tab === 'overview' || tab === 'reservations') {
+          // Both views fetch what they need themselves, against the server-side
+          // queries added in Phase 4. Nothing to refresh here is a success, not a
+          // failure: returning undefined made callers report "données non rechargées".
+          return true;
         } else if (tab === 'leads') {
           setLeads(await getAdminLeads());
         } else if (tab === 'finance') {
-          return;
+          // Same contract as above: the financial module reloads itself, and that is a
+          // success. Returning undefined here made every refund action report a
+          // spurious "les données n'ont pas pu être rechargées".
+          return true;
         } else if (tab === 'tarifs') {
           setPacks(await getAdminPackages());
         } else if (tab === 'availability') {
@@ -416,10 +367,6 @@ const AdminDashboard = () => {
     await logoutAdmin();
     setIsAuthenticated(false);
     setAdminUser(null);
-    setReservations([]);
-    setReservationReferenceQuery('');
-    reservationSearchReferenceRef.current = '';
-    setReservationSearchResults(null);
     setLeads([]);
     setPacks([]);
     setMedia([]);
@@ -428,7 +375,6 @@ const AdminDashboard = () => {
     setDataGovernance({ policies: [], requests: [] });
     setLastSyncedAt({});
     tabRefreshInFlightRef.current.clear();
-    reservationSearchReferenceRef.current = '';
     setFeedback(null);
   };
   const handlePasswordChange = async (event) => {
@@ -850,56 +796,6 @@ const AdminDashboard = () => {
   const toggleMediaFlag = (item, field) =>
     runAction('Mise à jour média', () => updateAdminMedia(item.id, { [field]: !item[field] }));
 
-  const searchReservationsByReference = async (event) => {
-    event.preventDefault();
-    const reference = reservationReferenceQuery.trim().toUpperCase();
-
-    if (!reference) {
-      setReservationSearchResults(null);
-      setFeedback({ tab: 'reservations', type: 'success', message: 'Toutes les réservations sont affichées.' });
-      return;
-    }
-
-    setReservationSearchSubmitting(true);
-    setFeedback({ tab: 'reservations', type: 'progress', message: 'Recherche de la référence publique...' });
-    try {
-      const matches = await getAdminReservations({ reference });
-      setReservationReferenceQuery(reference);
-      reservationSearchReferenceRef.current = reference;
-      setReservationSearchResults(matches);
-      setFeedback({
-        tab: 'reservations',
-        type: 'success',
-        message: matches.length
-          ? `Réservation ${reference} trouvée.`
-          : `Aucune réservation trouvée pour ${reference}.`,
-      });
-    } catch (err) {
-      setFeedback({
-        tab: 'reservations',
-        type: 'error',
-        message: err.message || 'La recherche par référence a échoué.',
-      });
-    } finally {
-      setReservationSearchSubmitting(false);
-    }
-  };
-
-  const clearReservationReferenceSearch = () => {
-    setReservationReferenceQuery('');
-    setReservationSearchResults(null);
-    setFeedback({ tab: 'reservations', type: 'success', message: 'Toutes les réservations sont affichées.' });
-  };
-
-  const displayedReservations = reservationSearchResults ?? reservations;
-
-  const paidRevenueThisMonth = reservations
-    .filter((reservation) => reservation.startAt && businessDateKey(new Date(reservation.startAt)).startsWith(monthKey))
-    .flatMap((reservation) => reservation.payments || [])
-    .filter((payment) => ['VERIFIED', 'PAID'].includes(payment.status))
-    .reduce((sum, payment) => sum + payment.amount, 0);
-
-  const uniqueCustomers = new Set(reservations.map((reservation) => reservationIdentityKey(reservation))).size;
   const selectedPayment = selectedRes?.payments?.[0];
   const selectedEndReached = isReservationEndReached(selectedRes?.endAt);
   const ownerDecisionDisabled = adminUser?.role !== 'OWNER';
@@ -1139,10 +1035,7 @@ const AdminDashboard = () => {
         <AdminDeepLinkResolver
           adminRole={adminUser?.role}
           loadedReference={loadedRes?.reference}
-          reservationRef={reservationSearchReferenceRef}
           feedback={setFeedback}
-          setQuery={setReservationReferenceQuery}
-          setResults={setReservationSearchResults}
           setReservation={setLoadedRes}
           setLeadItems={setLeads}
           setFinance={setFinanceDestinationId}
@@ -1280,55 +1173,12 @@ const AdminDashboard = () => {
 
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <Motion.div 
-              key="overview"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Vue <span>d'ensemble</span></h1>
-              </div>
-
-              <div className="admin-stats-grid">
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><Calendar size={24} /></div>
-                  <div className="admin-stat-num">{reservations.length}</div>
-                  <div className="admin-stat-label">Réservations</div>
-                </div>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><DollarSign size={24} /></div>
-                  <div className="admin-stat-num" style={{ fontSize: '1.4rem', whiteSpace: 'nowrap' }}>{formatFcfa(paidRevenueThisMonth)}</div>
-                  <div className="admin-stat-label">CA vérifié ce mois</div>
-                </div>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><Users size={24} /></div>
-                  <div className="admin-stat-num">{uniqueCustomers}</div>
-                  <div className="admin-stat-label">Clients Uniques</div>
-                </div>
-                <div className="admin-stat-card">
-                  <div className="admin-stat-icon-wrap"><Briefcase size={24} /></div>
-                  <div className="admin-stat-num">{leads.length}</div>
-                  <div className="admin-stat-label">Demandes</div>
-                </div>
-              </div>
-
-              <div className="admin-card">
-                <h2>Statut Système</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                  <Activity size={18} className={apiStatus.state === 'online' ? 'text-gold' : 'text-danger'} />
-                  <p style={{ color: apiStatus.state === 'online' ? '#2ecc71' : '#e74c3c', fontWeight: 600, margin: 0 }}>
-                    {apiStatus.message}
-                  </p>
-                </div>
-                <p style={{ color: 'var(--dark-muted)', fontSize: '0.95rem', margin: 0 }}>
-                  Le système contient actuellement {blocks.length} blocage(s) de calendrier, {media.length} média(s) dans la galerie, {packs.length} package(s) tarifaire(s) configuré(s), et {notifications.length} notification(s) envoyée(s).
-                </p>
-              </div>
+            <Motion.div key="overview" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement du tableau de bord…</div>}>
+                <AdminOverviewPanel apiStatus={apiStatus} />
+              </React.Suspense>
             </Motion.div>
           )}
-
           {activeTab === 'account' && (
             <Motion.div
               key="account"
@@ -1412,93 +1262,10 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'reservations' && (
-            <Motion.div 
-              key="reservations"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Toutes les <span>Réservations</span></h1>
-              </div>
-
-              <div className="admin-card" style={{ padding: '2rem' }}>
-                <form className="admin-reference-search" onSubmit={searchReservationsByReference}>
-                  <label htmlFor="reservation-reference-search">Rechercher par référence</label>
-                  <div className="admin-reference-search-controls">
-                    <input
-                      id="reservation-reference-search"
-                      className="form-input"
-                      type="search"
-                      value={reservationReferenceQuery}
-                      onChange={(event) => setReservationReferenceQuery(event.target.value)}
-                      placeholder="GSP-AAMMJJ-XXXX"
-                      autoCapitalize="characters"
-                      autoComplete="off"
-                      maxLength={32}
-                    />
-                    <button className="btn btn-primary admin-sm-btn" type="submit" disabled={reservationSearchSubmitting}>
-                      {reservationSearchSubmitting ? 'Recherche...' : 'Rechercher'}
-                    </button>
-                    {(reservationReferenceQuery || reservationSearchResults) && (
-                      <button className="btn btn-secondary admin-sm-btn" type="button" onClick={clearReservationReferenceSearch}>
-                        Effacer
-                      </button>
-                    )}
-                  </div>
-                  <small>La recherche accepte aussi les références historiques et ignore la casse.</small>
-                </form>
-
-                <div className="admin-table-wrap">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Référence publique</th>
-                        <th>Date & Heure</th>
-                        <th>Client</th>
-                        <th>Pack Sélectionné</th>
-                        <th>Statut</th>
-                        <th>Paiement</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedReservations.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="admin-table-empty">Aucune réservation ne correspond à cette référence.</td>
-                        </tr>
-                      )}
-                      {displayedReservations.map((reservation) => {
-                        const payment = reservation.payments?.[0];
-                        const contact = reservationContact(reservation);
-                        return (
-                          <tr key={reservation.id}>
-                            <td><code className="admin-public-reference">{reservation.reference}</code></td>
-                            <td>{dateTime(reservation.startAt)}{reservation.scheduleKind === 'CUSTOM_PROPOSAL' && <small className="text-gold">Proposition non bloquante</small>}</td>
-                            <td>
-                              <strong>{contact.firstName} {contact.lastName}</strong>
-                              <small>{contact.phone}</small>
-                            </td>
-                            <td>{reservation.package?.name}</td>
-                            <td>{pill(reservation.status)}</td>
-                            <td>{payment ? pill(payment.status) : pill('AUCUN')}</td>
-                            <td>
-                              <button 
-                                className="btn btn-primary admin-sm-btn" 
-                                onClick={() => openReservation(reservation)}
-                                disabled={Boolean(busyActions[`reservations:detail:${reservation.id}`])}
-                              >
-                                <Info size={14} /> Détails
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <Motion.div key="reservations" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement des réservations…</div>}>
+                <AdminReservationsPanel onOpenReservation={openReservation} busyActions={busyActions} />
+              </React.Suspense>
             </Motion.div>
           )}
 

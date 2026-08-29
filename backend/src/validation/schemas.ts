@@ -58,15 +58,37 @@ export const reservationIdParamsSchema = z.object({
 
 const queryBoolean = z.preprocess((value) => value === 'true' || value === true ? true : value === 'false' || value === false ? false : value, z.boolean());
 
+/**
+ * Plain pagination for the lists that have no filters yet: leads and notifications.
+ * It previously declared `status` and `reference`, which no route ever read — the
+ * reservation list looked filterable while ignoring both. Those fields now live in
+ * `reservationListQuerySchema`, where they are actually applied. Leads and
+ * notifications gain their own filters in later phases.
+ */
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
-  status: z.string().trim().min(1).optional(),
-  reference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
 });
 
 const repeatable = (schema: z.ZodTypeAny) =>
   z.preprocess((value) => (value === undefined ? undefined : Array.isArray(value) ? value : [value]), z.array(schema).optional());
+
+const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format AAAA-MM-JJ.');
+
+export const reservationListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+  q: z.string().trim().min(1).max(120).optional(),
+  status: repeatable(z.enum(['PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'COMPLETED', 'NO_SHOW'])),
+  payment: repeatable(z.enum(['NONE', 'PENDING', 'PAYMENT_INFO_REQUIRED', 'VERIFICATION_BLOCKED', 'VERIFIED', 'PAID', 'REJECTED', 'REFUND_PENDING', 'REFUNDED', 'FAILED'])),
+  packageId: z.string().trim().min(1).optional(),
+  from: businessDate.optional(),
+  to: businessDate.optional(),
+  sort: z.enum(['startAt', 'createdAt', 'reference']).default('startAt'),
+  direction: z.enum(['asc', 'desc']).default('desc'),
+  // Retained so the historical exact-reference lookup keeps working.
+  reference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
+});
 
 export const paymentListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),

@@ -20,10 +20,7 @@ const focusWhenReady = (selector) => {
 const AdminDeepLinkResolver = ({
   adminRole,
   loadedReference,
-  reservationRef: reservationSearchReferenceRef,
   feedback: setFeedback,
-  setQuery: setReservationReferenceQuery,
-  setResults: setReservationSearchResults,
   setReservation: setSelectedRes,
   setLeadItems: setLeads,
   setFinance: setFinanceDestinationId,
@@ -55,11 +52,10 @@ const AdminDeepLinkResolver = ({
       setFeedback({ tab, type: 'progress', message: 'Ouverture de la destination sécurisée...' });
       try {
         if (destination.area === 'reservations') {
+          // The list behind the record now reads its own filters from the URL, so the
+          // resolver only has to load the record the address names.
           const reservation = await getAdminReservation(destination.reference);
           if (cancelled) return;
-          reservationSearchReferenceRef.current = reservation.reference;
-          setReservationReferenceQuery(reservation.reference);
-          setReservationSearchResults([reservation]);
           setSelectedRes(reservation);
         } else if (destination.area === 'leads') {
           const lead = await getAdminLead(destination.reference);
@@ -86,7 +82,7 @@ const AdminDeepLinkResolver = ({
       cancelled = true;
       if (resolvedLocationRef.current === locationKey) resolvedLocationRef.current = '';
     };
-  }, [adminRole, loadedReference, location.pathname, location.search, reservationSearchReferenceRef, setFeedback, setFinanceDestinationId, setLeads, setReservationReferenceQuery, setReservationSearchResults, setSelectedRes]);
+  }, [adminRole, loadedReference, location.pathname, location.search, setFeedback, setFinanceDestinationId, setLeads, setSelectedRes]);
 
   return null;
 };

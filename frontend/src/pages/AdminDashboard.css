@@ -394,29 +394,7 @@
   border-color: rgba(255, 107, 107, 0.2);
   background: rgba(255, 107, 107, 0.03);
   color: #ff8787;
-}
-
-/* === Stats Cards === */
-.admin-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 3.5rem;
-}
-
-@media (min-width: 576px) {
-  .admin-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1200px) {
-  .admin-stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.admin-stat-card {
+}.admin-stat-card {
   background: rgba(22, 31, 29, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md);
@@ -448,37 +426,7 @@
 
 .admin-stat-card:hover::before {
   background: var(--grad-gold);
-}
-
-.admin-stat-icon-wrap {
-  width: 50px;
-  height: 50px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--c-gold);
-}
-
-.admin-stat-num {
-  font-family: var(--font-heading);
-  font-size: 2rem;
-  color: #fff;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.admin-stat-label {
-  font-size: 0.85rem;
-  color: var(--dark-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-}
-
-/* === Content Cards === */
+}/* === Content Cards === */
 .admin-card {
   background: rgba(22, 31, 29, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -867,42 +815,7 @@
   .admin-action-dialog-field-wide { grid-column: auto; }
   .admin-action-dialog-actions { flex-direction: column-reverse; }
   .admin-action-dialog-actions .btn { width: 100%; }
-}
-
-
-/* === REF-01 public reservation reference lookup === */
-.admin-reference-search {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border: 1px solid rgba(197, 146, 58, 0.24);
-  border-radius: var(--radius-sm);
-  background: rgba(197, 146, 58, 0.06);
-}
-
-.admin-reference-search > label {
-  display: block;
-  margin-bottom: 0.65rem;
-}
-
-.admin-reference-search-controls {
-  display: grid;
-  grid-template-columns: minmax(14rem, 1fr) auto auto;
-  gap: 0.75rem;
-  align-items: stretch;
-}
-
-.admin-reference-search-controls .form-input {
-  min-width: 0;
-  text-transform: uppercase;
-}
-
-.admin-reference-search > small {
-  display: block;
-  margin-top: 0.65rem;
-  color: var(--dark-muted);
-}
-
-.admin-public-reference {
+}.admin-public-reference {
   color: var(--c-gold-light);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.82rem;
@@ -913,16 +826,6 @@
 .admin-table-empty {
   color: var(--dark-muted);
   text-align: center;
-}
-
-@media (max-width: 680px) {
-  .admin-reference-search-controls {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .admin-reference-search-controls .btn {
-    width: 100%;
-  }
 }
 
 /* === P2-02 admin freshness controls === */

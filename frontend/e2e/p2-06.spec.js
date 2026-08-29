@@ -106,7 +106,7 @@ test('P2-06 protects the authenticated admin drawer and mobile keyboard reflow',
   await toggle.click();
   await page.getByRole('button', { name: 'Réservations' }).click();
   await expect(toggle).toBeFocused();
-  const search = page.getByLabel('Rechercher par référence');
+  const search = page.getByLabel('Rechercher');
   await search.focus();
   await expect(search).toBeFocused();
   await expectNoHorizontalOverflow(page, 'admin 320px focused input');

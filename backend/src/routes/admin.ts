@@ -85,6 +85,8 @@ import {
 } from '../services/packages.js';
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
+import { buildAdminDashboard } from '../services/admin-dashboard.js';
+import { listReservations } from '../services/reservation-search.js';
 import {
   findDuplicateCandidates,
   getPayment,
@@ -132,6 +134,7 @@ import {
   reservationCancellationSchema,
   reservationDeliveryPublishSchema,
   reservationIdParamsSchema,
+  reservationListQuerySchema,
   reservationStatusUpdateSchema,
   verifyAndConfirmSchema,
   withdrawalRequestCreateSchema,
@@ -353,41 +356,22 @@ router.post(
   }),
 );
 
+// Every card on the dashboard counts with the same predicate the list it links to
+// uses, so a counter and its list can never disagree.
+router.get(
+  '/dashboard',
+  asyncHandler(async (_req, res) => {
+    res.json({ data: await buildAdminDashboard() });
+  }),
+);
+
 router.get(
   '/reservations',
-  validate('query', listQuerySchema),
+  validate('query', reservationListQuerySchema),
   asyncHandler(async (req, res) => {
     const query = res.locals.validated.query;
-    const reservations = await prisma.reservation.findMany({
-      where: query.reference ? { reference: query.reference } : undefined,
-      take: query.limit,
-      skip: query.offset,
-      orderBy: { startAt: 'desc' },
-      include: {
-        customer: true,
-        snapshot: true,
-        package: true,
-        packageVersion: true,
-        payments: true,
-        transitions: {
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          include: { adminUser: { select: { id: true, name: true } } },
-        },
-        calendarSyncLogs: {
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-        financialTasks: { orderBy: { createdAt: 'desc' } },
-        rescheduleRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
-        withdrawalRequests: { orderBy: { createdAt: 'desc' }, take: 5 },
-        imageConsentEvents: {
-          orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }],
-          take: 10,
-          include: { legalVersion: true, recordedBy: { select: { id: true, name: true } } },
-        },
-      },
-    });
+    const result = await listReservations(query);
+    const reservations = result.items;
 
     await Promise.all(
       reservations
@@ -395,7 +379,7 @@ router.get(
         .map((reservation) => recordMissingReservationSnapshot(reservation.id, 'admin_reservation_list')),
     );
 
-    res.json({ data: reservations });
+    res.json({ data: reservations, meta: { total: result.total, limit: result.limit, offset: result.offset } });
   }),
 );
 

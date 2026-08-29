@@ -19,11 +19,11 @@ test('P2-02 revalidates an opened admin tab and refreshes new leads without page
     if (path === '/api/admin/me') return json(route, { data: { id: 'owner-p2-02', name: 'Owner P2-02', role: 'OWNER' } });
     if (path === '/api/admin/leads') {
       leadReads += 1;
+      // Phase 4 stopped the overview from fetching leads it never displayed, so the
+      // first read of this endpoint is now the one the Leads view makes.
       const data = leadReads === 1
-        ? []
-        : leadReads === 2
-          ? [lead('lead-one', 'Nouvelle demande P2-02')]
-          : [lead('lead-one', 'Nouvelle demande P2-02'), lead('lead-two', 'Deuxième demande P2-02')];
+        ? [lead('lead-one', 'Nouvelle demande P2-02')]
+        : [lead('lead-one', 'Nouvelle demande P2-02'), lead('lead-two', 'Deuxième demande P2-02')];
       return json(route, { data });
     }
     return json(route, { data: [] });
@@ -42,7 +42,7 @@ test('P2-02 revalidates an opened admin tab and refreshes new leads without page
   const urlBeforeRefresh = page.url();
   await page.getByRole('button', { name: 'Actualiser' }).click();
   await expect(page.getByText('Deuxième demande P2-02', { exact: true })).toBeVisible();
-  await expect.poll(() => leadReads).toBeGreaterThanOrEqual(3);
+  await expect.poll(() => leadReads).toBeGreaterThanOrEqual(2);
   expect(navigations).toHaveLength(navigationCountBeforeRefresh);
   expect(page.url()).toBe(urlBeforeRefresh);
 });

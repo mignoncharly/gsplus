@@ -41,6 +41,10 @@ const AdminActionDialog = ({ config, onClose }) => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const frame = window.requestAnimationFrame(() => {
+      // Initial focus is a courtesy, not a claim. If someone has already moved into
+      // the dialog by the time this frame runs, taking focus back would yank them out
+      // of the field they chose.
+      if (dialogRef.current?.contains(document.activeElement)) return;
       const initial = dialogRef.current?.querySelector('[data-dialog-initial-focus]');
       (initial || dialogRef.current)?.focus();
     });

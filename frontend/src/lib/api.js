@@ -211,12 +211,15 @@ export const getAdminFinancialTask = async (id) => {
   return payload.data;
 };
 
-export const getAdminReservations = async ({ reference } = {}) => {
-  const params = new URLSearchParams();
-  if (reference?.trim()) params.set('reference', reference.trim().toUpperCase());
-  const query = params.toString();
-  const payload = await apiFetch(`/api/admin/reservations${query ? `?${query}` : ''}`);
-  return payload.data;
+export const getAdminDashboard = async () => (await apiFetch('/api/admin/dashboard')).data;
+
+/** Returns rows only, for the callers that just want the list. */
+export const getAdminReservations = async (filters = {}) => (await searchAdminReservations(filters)).items;
+
+/** Returns rows and `meta`, so a caller can page and show a real total. */
+export const searchAdminReservations = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/reservations?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta ?? { total: payload.data.length, limit: 25, offset: 0 } };
 };
 
 export const getAdminReservation = async (id) => {

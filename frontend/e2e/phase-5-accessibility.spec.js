@@ -24,6 +24,13 @@ const installApi = async (page) => {
         requests: [],
       },
     });
+    if (path === '/api/admin/dashboard') return json(route, { data: {
+      generatedAt: new Date().toISOString(), businessDate: '2026-08-29',
+      toHandle: [{ key: 'paymentsToVerify', label: 'Paiements à vérifier', count: 2, href: '/admin/paiements/verification?open=true' }],
+      today: [], finance: [], integrations: [], requests: [],
+      summary: { reservationsThisMonth: 3, uniqueCustomers: 5, revenue: { net: 1000, onActiveReservations: 1000, onCancelledReservations: 0, refunded: 0 } },
+    } });
+    if (path === '/api/admin/reservations') return json(route, { data: [], meta: { total: 0, limit: 25, offset: 0 } });
     if (path.startsWith('/api/admin/')) return json(route, { data: [] });
     return json(route, { data: [] });
   });
@@ -68,7 +75,8 @@ test('Phase 5 public and authenticated admin views have no serious or critical a
   }
 
   await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: /Vue d'ensemble/ })).toBeVisible();
+  // Phase 4 renamed the dashboard heading: it now names what it leads with.
+  await expect(page.getByRole('heading', { level: 1, name: /À traiter/ })).toBeVisible();
   expect(await seriousAxeViolations(page), 'admin overview').toEqual([]);
 
   await page.getByRole('button', { name: 'Données & droits' }).click();

@@ -22,7 +22,15 @@ const limits = {
   privateAdminChunkBytes: 64_000,
   largestPublicCssChunkBytes: 13_000,
   publicCssBytes: 68_000,
-  privateAdminCssBytes: 24_000,
+  // Admin CSS is not one download. It is a shared shell plus one lazily-loaded chunk
+  // per panel, so an operator fetches the shell and only the panels they open. At the
+  // Phase 4 measurement the seven chunks were 25.7 kB raw but 5.3 kB gzipped.
+  // Summing them would penalise the per-panel extraction this plan requires, so the
+  // meaningful guards are the shell and the largest single panel; the total is a
+  // loose ceiling sized for the remaining phases.
+  privateAdminSharedCssBytes: 20_000,
+  largestPrivateAdminPanelCssBytes: 6_000,
+  privateAdminCssBytes: 45_000,
   hero640Bytes: 30_000,
   hero1024Bytes: 70_000,
   socialImageBytes: 200_000,
@@ -55,6 +63,10 @@ const largestPublicRoute = publicRouteFiles
 // after authentication, exactly like the admin JavaScript chunk above.
 const isAdminAsset = (name) => name.startsWith('Admin');
 const adminCssFiles = cssFiles.filter(isAdminAsset);
+// The shell is the stylesheet that ships with the admin route itself; everything else
+// is a panel loaded on demand.
+const adminSharedCssFile = adminCssFiles.find((name) => name.startsWith('AdminDashboard-'));
+const adminPanelCssFiles = adminCssFiles.filter((name) => name !== adminSharedCssFile);
 const publicCssFiles = cssFiles.filter((name) => !isAdminAsset(name));
 const largestPublicCss = publicCssFiles
   .map((name) => ({ name, bytes: sizes[name] }))
@@ -62,6 +74,10 @@ const largestPublicCss = publicCssFiles
 const sumBytes = (names) => names.reduce((total, name) => total + sizes[name], 0);
 const publicCssBytes = sumBytes(publicCssFiles);
 const privateAdminCssBytes = sumBytes(adminCssFiles);
+const privateAdminSharedCssBytes = adminSharedCssFile ? sizes[adminSharedCssFile] : 0;
+const largestPrivateAdminPanelCss = adminPanelCssFiles
+  .map((name) => ({ name, bytes: sizes[name] }))
+  .sort((a, b) => b.bytes - a.bytes)[0] ?? { name: null, bytes: 0 };
 const totalCssBytes = publicCssBytes + privateAdminCssBytes;
 const entryJsGzipBytes = gzipSync(entryBuffer).byteLength;
 const hero640Bytes = await fileBytes(resolve(distDir, 'images/optimized/hero-banner-640.webp'));
@@ -76,6 +92,8 @@ const checks = [
   ['privateAdminChunkBytes', sizes[adminFile], limits.privateAdminChunkBytes],
   ['largestPublicCssChunkBytes', largestPublicCss.bytes, limits.largestPublicCssChunkBytes],
   ['publicCssBytes', publicCssBytes, limits.publicCssBytes],
+  ['privateAdminSharedCssBytes', privateAdminSharedCssBytes, limits.privateAdminSharedCssBytes],
+  ['largestPrivateAdminPanelCssBytes', largestPrivateAdminPanelCss.bytes, limits.largestPrivateAdminPanelCssBytes],
   ['privateAdminCssBytes', privateAdminCssBytes, limits.privateAdminCssBytes],
   ['hero640Bytes', hero640Bytes, limits.hero640Bytes],
   ['hero1024Bytes', hero1024Bytes, limits.hero1024Bytes],
@@ -96,6 +114,9 @@ const report = {
     largestPublicCss,
     publicCssBytes,
     privateAdminCssBytes,
+    privateAdminSharedCssBytes,
+    largestPrivateAdminPanelCss,
+    adminCssChunkCount: adminCssFiles.length,
     totalCssBytes,
     hero640Bytes,
     hero1024Bytes,
@@ -116,5 +137,6 @@ if (failures.length > 0) {
 console.log(
   `Performance budgets passed: entry ${entryBuffer.byteLength} B (${entryJsGzipBytes} B gzip, ${entryReductionPercent}% below Phase 9), ` +
   `largest public route ${largestPublicRoute.bytes} B, admin ${sizes[adminFile]} B, ` +
-  `public CSS ${publicCssBytes} B, admin CSS ${privateAdminCssBytes} B (${totalCssBytes} B total).`,
+  `public CSS ${publicCssBytes} B, admin CSS ${privateAdminCssBytes} B across ${adminCssFiles.length} chunks ` +
+  `(shell ${privateAdminSharedCssBytes} B, largest panel ${largestPrivateAdminPanelCss.bytes} B).`,
 );

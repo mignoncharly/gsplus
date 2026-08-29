@@ -1,0 +1,97 @@
+/* Decision-first dashboard (ADM-01). Kept in its own stylesheet so the shared admin
+   sheet stops growing with every panel. */
+.admin-overview-lede {
+  margin: 0.5rem 0 0;
+  color: var(--dark-secondary);
+  font-size: 0.98rem;
+}
+
+.admin-queue-zone h2,
+.admin-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-queue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.admin-queue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--c-gold);
+  text-decoration: none;
+  min-height: 44px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.admin-queue-card:hover,
+.admin-queue-card:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.admin-queue-card--urgent { border-left-color: #e74c3c; }
+.admin-queue-card--today { border-left-color: #4a9ca8; }
+.admin-queue-card--finance { border-left-color: var(--c-gold); }
+.admin-queue-card--integration { border-left-color: #c5923a; }
+.admin-queue-card--requests { border-left-color: #5dade2; }
+
+/* An empty queue is good news and must not shout like a backlog. */
+.admin-queue-card.is-clear {
+  border-left-color: rgba(255, 255, 255, 0.15);
+  opacity: 0.72;
+}
+
+.admin-queue-count {
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-queue-label { color: var(--dark-primary); font-weight: 600; font-size: 0.95rem; }
+.admin-queue-action { color: var(--dark-muted); font-size: 0.82rem; }
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.admin-summary-item { display: flex; flex-direction: column; gap: 0.25rem; }
+.admin-summary-value { font-size: 1.5rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.admin-summary-label { color: var(--dark-muted); font-size: 0.85rem; }
+
+.admin-revenue-breakdown {
+  margin: 1.5rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-revenue-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.admin-revenue-breakdown dt { color: var(--dark-muted); }
+.admin-revenue-breakdown dd { margin: 0; color: var(--dark-secondary); font-variant-numeric: tabular-nums; }
+
+.admin-system-online { color: #2ecc71; font-weight: 600; margin: 0; }
+.admin-system-offline { color: #e74c3c; font-weight: 600; margin: 0; }

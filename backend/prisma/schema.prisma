@@ -356,6 +356,8 @@ model Reservation {
 
   @@index([startAt, endAt])
   @@index([status])
+  @@index([status, startAt])
+  @@index([createdAt])
   @@index([customerId])
   @@index([packageId])
   @@index([packageVersionId])
