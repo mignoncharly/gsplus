@@ -127,15 +127,22 @@ const AdminPaymentVerificationPanel = ({ busy, openActionDialog, runAction, setF
       {error && <div className="admin-feedback error" role="alert">{error}</div>}
 
       <form
+        // Re-keyed on the applied filters so the controls always show the state that
+        // is actually in force, including when a search clears the open-only filter.
+        key={JSON.stringify(filters)}
         className="admin-card admin-finance-filters"
         onSubmit={(event) => {
           event.preventDefault();
           const values = Object.fromEntries(new FormData(event.currentTarget));
+          const q = values.q?.trim() || undefined;
           void apply({
-            q: values.q?.trim() || undefined,
+            q,
             status: values.status || undefined,
             method: values.method || undefined,
-            open: values.open === 'true' ? true : undefined,
+            // Looking for a specific payment searches the whole history. Keeping the
+            // open-only restriction would silently hide any payment already decided,
+            // and the report requires every payment to remain retrievable.
+            open: q ? undefined : (values.open === 'true' ? true : undefined),
             mismatch: values.mismatch === 'true' ? true : undefined,
             duplicate: values.duplicate === 'true' ? true : undefined,
           });
@@ -145,6 +152,7 @@ const AdminPaymentVerificationPanel = ({ busy, openActionDialog, runAction, setF
           <label htmlFor="payment-search">Rechercher</label>
           <input id="payment-search" name="q" className="form-input" type="search" defaultValue={filters.q || ''}
             placeholder="Code de transaction, téléphone, référence ou nom" />
+          <small className="admin-record-hint">Une recherche porte sur l’historique complet, décisions comprises.</small>
         </div>
         <div>
           <label htmlFor="payment-status">Statut</label>

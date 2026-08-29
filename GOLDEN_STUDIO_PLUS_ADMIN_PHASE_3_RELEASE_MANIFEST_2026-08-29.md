@@ -4,7 +4,7 @@
 **Branch:** `codex/phase7-external-acceptance-20260821`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 3
 **Finding:** `ADM-04` — *Absence de module financier central* (**P0**)
-**Status:** migration applied to production; **backend restart pending a privileged command**
+**Status:** complete and deployed to production
 
 ## The design decision the plan asked to record
 
@@ -130,7 +130,7 @@ Admin CSS is now within 1,118 bytes of its limit. Phase 4 should extract admin s
 | Duplicate detection surfaced | Candidate search plus an explicit link, audited | Passed locally |
 | Export | Audited CSV on both files, formula injection neutralised | Passed locally |
 | All three payment actions kept distinct | Reservation record untouched | Passed |
-| Production replay | **Outstanding** — needs deployment, including the migration | Pending |
+| Production replay | Signed in 29 August 2026: both files work on real data, search reaches a decided payment, export returns 200, and the record states the absence of a recorded amount | Passed |
 
 ## Deployment — partially applied, 29 August 2026
 
@@ -144,30 +144,46 @@ Admin CSS is now within 1,118 bytes of its limit. Phase 4 should extract admin s
 - `backend/` rebuilt with `tsc`; the new `dist` is on disk.
 - Production remained healthy throughout: `/api/health`, `/` and `/admin` all 200.
 
-**Blocked**
+**Restart**
 
-`systemctl restart goldenstudioplus-backend.service` requires privileges this session does not hold
-(*"Interactive authentication required"*, and `sudo` needs a password). The running process is therefore still the
-previous build. Killing the process to exploit `Restart=always` would route around an access control that was not
-granted, so it was not done.
+`systemctl restart` needed privileges this session does not hold. The owner ran it. Killing the process to exploit
+`Restart=always` would have routed around an access control that was not granted, so it was not done; the frontend
+was held back in the meantime, because shipping it first would have given the administration a verification queue
+calling endpoints the running process did not serve.
 
-**Deliberately not done yet**
+Service restarted at 16:00:41 UTC, PID 1720937 → 3072131. Verified authenticated: `/api/admin/payments` 200,
+both `export.csv` routes 200, and an unknown admin route 404 — so the new routes really are being served rather than
+being masked by the authentication layer.
 
-The frontend has **not** been rebuilt. Deploying it before the backend restart would give the administration a
-verification queue calling endpoints the running process does not serve. Frontend deployment waits for the restart.
+**Frontend**
 
-**Why the current state is safe**
-
-The migration is additive and no running code reads the new columns, so the previous backend build works unchanged
-against the migrated schema. The deployed frontend is the Phase 2 build, which never calls the new endpoints.
-Production is consistent, not half-deployed.
-
-**Remaining steps**
-
-```
-sudo systemctl restart goldenstudioplus-backend.service   # privileged
-cd /var/www/goldenstudioplus/frontend && npm run build     # then the frontend
-```
+Rebuilt and deployed after the restart. Live entry verified by SHA-256, served against local. `/admin/paiements`,
+`/admin/paiements/verification` and `/admin/paiements/remboursements` all resolve.
 
 **Rollback**, if ever needed: restore `backend-dist-pre-admin-phase3` and restart. The schema change is additive and
 needs no reversal; the dump exists only as a precaution.
+
+
+## Production replay, 29 August 2026 — and a defect it caught
+
+Signed in to `https://gsplus.vip/admin` with the owner's credentials.
+
+- The verification file lists **10 payments awaiting a decision**; the refunds file lists **7 obligations**. Both
+  addresses survive a reload.
+- All 10 read *"Reçu : non renseigné"* and **no row is flagged with a variance** — correct, because nothing has been
+  reconciled yet. The module states the absence instead of inventing a match.
+- The audited CSV export returns 200 with the `expected_amount, declared_amount, variance` columns.
+- The reservation record shows *Montant attendu* against *Montant reçu* with *Non renseigné*, confirming the Phase 2
+  mislabelling is gone from production.
+
+**A defect the replay caught.** Searching for a real transaction code returned **nothing**. The backend was right —
+the same query without filters returned exactly one row — but the queue defaults to *"À décider uniquement"*, and
+that silently excluded the payment because it had already been decided. Of the 32 payments in production only 10 are
+pending, so a search would have missed two thirds of the history while appearing to work.
+
+The report's criterion is *"Tout paiement ou remboursement est retrouvable"*, and a search that hides matches does
+not meet it. A free-text search now spans the whole history: the open-only restriction is dropped when a search term
+is present, and the checkbox visibly unchecks so the displayed state stays truthful. A regression test asserts that
+a search reaches a payment the default filter would hide, and that the request carries no `open=true`.
+
+After redeploying, the same search returns its one row.
