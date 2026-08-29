@@ -4,7 +4,7 @@
 **Branch:** `codex/phase7-external-acceptance-20260821`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 3
 **Finding:** `ADM-04` — *Absence de module financier central* (**P0**)
-**Status:** built and verified locally; **awaiting production deployment (includes a migration)**
+**Status:** migration applied to production; **backend restart pending a privileged command**
 
 ## The design decision the plan asked to record
 
@@ -132,13 +132,42 @@ Admin CSS is now within 1,118 bytes of its limit. Phase 4 should extract admin s
 | All three payment actions kept distinct | Reservation record untouched | Passed |
 | Production replay | **Outstanding** — needs deployment, including the migration | Pending |
 
-## Deployment
+## Deployment — partially applied, 29 August 2026
 
-**This phase changes the database.** Unlike Phases 1 and 2 it is not a frontend-only rebuild:
+**Done**
 
-1. `npx prisma migrate deploy` against production.
-2. `npm run build` in `backend/`, then restart `goldenstudioplus-backend.service`.
-3. `npm run build` in `frontend/`.
+- Database dumped to `.phase-admin1-backups/goldenstudioplus_db-pre-admin-phase3.dump` (351 KB, custom format), and
+  both `frontend/dist` and `backend/dist` copied beside it for rollback.
+- `prisma migrate deploy` applied `20260829120000_admin_phase_3_payment_verification`. Verified afterwards:
+  `declaredAmount` and `duplicateOfPaymentId` exist and are nullable, and of **32 payments, 0 have a
+  `declaredAmount`** — nothing was backfilled, exactly as designed.
+- `backend/` rebuilt with `tsc`; the new `dist` is on disk.
+- Production remained healthy throughout: `/api/health`, `/` and `/admin` all 200.
 
-The migration is additive and adds only nullable columns and indexes, so the currently running backend keeps working
-against the migrated schema — the migration can therefore be applied before the restart without a gap.
+**Blocked**
+
+`systemctl restart goldenstudioplus-backend.service` requires privileges this session does not hold
+(*"Interactive authentication required"*, and `sudo` needs a password). The running process is therefore still the
+previous build. Killing the process to exploit `Restart=always` would route around an access control that was not
+granted, so it was not done.
+
+**Deliberately not done yet**
+
+The frontend has **not** been rebuilt. Deploying it before the backend restart would give the administration a
+verification queue calling endpoints the running process does not serve. Frontend deployment waits for the restart.
+
+**Why the current state is safe**
+
+The migration is additive and no running code reads the new columns, so the previous backend build works unchanged
+against the migrated schema. The deployed frontend is the Phase 2 build, which never calls the new endpoints.
+Production is consistent, not half-deployed.
+
+**Remaining steps**
+
+```
+sudo systemctl restart goldenstudioplus-backend.service   # privileged
+cd /var/www/goldenstudioplus/frontend && npm run build     # then the frontend
+```
+
+**Rollback**, if ever needed: restore `backend-dist-pre-admin-phase3` and restart. The schema change is additive and
+needs no reversal; the dump exists only as a precaution.
