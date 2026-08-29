@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, WalletCards } from '
 import { formatBusinessDateTime } from '../lib/business-time';
 import { formatFcfa } from '../lib/display-formatters';
 import { paymentMethodLabel } from '../lib/status-labels';
-import { getAdminFinancialTask, getAdminFinancialTasks, refundAdminPayment } from '../lib/api';
+import { adminExportUrl, getAdminFinancialTask, getAdminFinancialTasks, refundAdminPayment } from '../lib/api';
 import './AdminFinancePanel.css';
 
 const labels = { PENDING: 'À traiter', IN_PROGRESS: 'En cours', COMPLETED: 'Terminée', FAILED: 'En échec' };
@@ -18,7 +18,6 @@ const AdminFinanceView = ({ tasks, meta, filters, selectedTask, busy, onFiltersC
   const page = Math.floor((meta.offset || 0) / (meta.limit || 25)) + 1;
   return (
     <div className="admin-finance-panel">
-      <div className="admin-page-header"><h1>Paiements & <span>remboursements</span></h1></div>
       <form className="admin-card admin-finance-filters" onSubmit={(event) => { event.preventDefault(); onFiltersChange(Object.fromEntries(new FormData(event.currentTarget))); }}>
         <div><label htmlFor="finance-status">Statut</label><select id="finance-status" name="status" className="form-input" defaultValue={filters.status || ''}><option value="">Tous</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></div>
         <div><label htmlFor="finance-reference">Réservation</label><input id="finance-reference" name="reservationReference" className="form-input" defaultValue={filters.reservationReference || ''} placeholder="GSP-AAMMJJ-XXXX" /></div>
@@ -27,7 +26,7 @@ const AdminFinanceView = ({ tasks, meta, filters, selectedTask, busy, onFiltersC
         <button type="submit" className="btn btn-primary">Filtrer</button>
       </form>
       <div className="admin-card">
-        <div className="admin-finance-summary"><strong>{meta.total || 0} obligation(s)</strong><span>Page {page} / {pages}</span></div>
+        <div className="admin-finance-summary"><strong>{meta.total || 0} obligation(s)</strong><span>Page {page} / {pages}</span><a className="btn btn-secondary admin-sm-btn" href={adminExportUrl('financial-tasks', filters)}>Exporter en CSV</a></div>
         {tasks.length === 0 ? <p className="admin-table-empty">Aucune obligation financière ne correspond aux filtres.</p> : (
           <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Échéance</th><th>Réservation</th><th>Client</th><th>Montant</th><th>Statut</th><th>Responsable</th><th>Action</th></tr></thead><tbody>{tasks.map((task) => <tr key={task.id} className={selectedTask?.id === task.id ? 'admin-row-selected' : ''}><td>{formatBusinessDateTime(task.dueAt)}{isOverdue(task) && <small className="admin-overdue"><AlertTriangle size={13} /> En retard</small>}</td><td><code>{task.reservation.reference}</code></td><td>{clientName(task)}</td><td>{formatFcfa(task.amount)}</td><td><span className={'admin-pill pill-' + task.status.toLowerCase()}>{labels[task.status] || task.status}</span></td><td>{task.createdBy?.name || 'Système'}</td><td><button type="button" className="btn btn-primary admin-sm-btn" onClick={() => onSelect(task)}>Détails</button></td></tr>)}</tbody></table></div>
         )}

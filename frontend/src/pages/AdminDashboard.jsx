@@ -999,7 +999,7 @@ const AdminDashboard = () => {
     ['overview', 'Vue ensemble', Calendar],
     ['reservations', 'Réservations', Users],
     ['leads', 'Leads', Briefcase],
-    ...(adminUser?.role === 'OWNER' ? [['finance', 'Remboursements', DollarSign]] : []),
+    ['finance', 'Paiements', DollarSign],
     ['tarifs', 'Tarifs', DollarSign],
     ['availability', 'Disponibilités', Ban],
     ['portfolio', 'Portfolio', ImageIcon],
@@ -1502,8 +1502,17 @@ const AdminDashboard = () => {
             </Motion.div>
           )}
 
-          {activeTab === 'finance' && adminUser?.role === 'OWNER' && (
-            <AdminFinanceRoute destinationId={financeDestinationId} busy={Boolean(busyActions['finance:Engagement du remboursement'] || busyActions['finance:Finalisation du remboursement'])} openActionDialog={openActionDialog} runAction={runAction} setFeedback={setFeedback} />
+          {/* Staff reach the verification file; the refunds file gates itself on the role. */}
+          {activeTab === 'finance' && (
+            <AdminFinanceRoute
+              subview={recordDestination?.subview ?? 'verification'}
+              canManageRefunds={adminUser?.role === 'OWNER'}
+              destinationId={financeDestinationId}
+              busy={Boolean(busyActions['finance:Engagement du remboursement'] || busyActions['finance:Finalisation du remboursement'] || busyActions['finance:Enregistrement du montant reçu'] || busyActions['finance:Marquage de doublon'])}
+              openActionDialog={openActionDialog}
+              runAction={runAction}
+              setFeedback={setFeedback}
+            />
           )}
 
           {activeTab === 'leads' && (

@@ -85,6 +85,13 @@ import {
 } from '../services/packages.js';
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
+import {
+  findDuplicateCandidates,
+  getPayment,
+  listPayments,
+  paymentCsvRows,
+  toCsv,
+} from '../services/payments.js';
 import { transitionReservationStatus } from '../services/status-transitions.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
@@ -93,39 +100,42 @@ import {
   adminPasswordChangeSchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
-  dataRightsRequestCreateSchema,
-  dataRightsRequestUpdateSchema,
-  customerDecisionPreviewSchema,
-  idParamsSchema,
-  leadUpdateSchema,
-  financialTaskListQuerySchema,
-  listQuerySchema,
-  mediaUpdateSchema,
-  mediaUploadSchema,
-  mediaUploadFieldsSchema,
-  notificationResolutionSchema,
   catalogueBenefitCreateSchema,
   catalogueBenefitUpdateSchema,
   catalogueTaxonomyUpdateSchema,
+  customerDecisionPreviewSchema,
+  dataRightsRequestCreateSchema,
+  dataRightsRequestUpdateSchema,
+  financialTaskListQuerySchema,
+  idParamsSchema,
+  imageConsentEventCreateSchema,
+  leadUpdateSchema,
+  listQuerySchema,
+  mediaUpdateSchema,
+  mediaUploadFieldsSchema,
+  mediaUploadSchema,
+  notificationResolutionSchema,
   packageCreateSchema,
   packageDuplicateSchema,
   packageUpdateSchema,
   packageValidationSchema,
-  qaNotificationOverrideSchema,
   packageVersionCommandSchema,
   paymentAddSchema,
+  paymentDeclaredAmountSchema,
+  paymentDuplicateSchema,
+  paymentListQuerySchema,
   paymentVerificationSchema,
+  qaNotificationOverrideSchema,
   refundDecisionSchema,
-  reservationIdParamsSchema,
-  reservationCancellationSchema,
-  reservationDeliveryPublishSchema,
   rescheduleRequestCreateSchema,
   rescheduleRequestDecisionSchema,
-  withdrawalRequestCreateSchema,
-  withdrawalRequestDecisionSchema,
-  imageConsentEventCreateSchema,
+  reservationCancellationSchema,
+  reservationDeliveryPublishSchema,
+  reservationIdParamsSchema,
   reservationStatusUpdateSchema,
   verifyAndConfirmSchema,
+  withdrawalRequestCreateSchema,
+  withdrawalRequestDecisionSchema,
 } from '../validation/schemas.js';
 
 const router = Router();
@@ -1185,8 +1195,134 @@ router.patch(
   }),
 );
 
+// Registered before '/payments/:id' so the export path is not read as an identifier.
+router.get(
+  '/payments/export.csv',
+  validate('query', paymentListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PAYMENT_DECIDE');
+    const query = res.locals.validated.query;
+    const result = await listPayments({ ...query, limit: 1000, offset: 0 });
+    await writeAuditLog(admin?.id, 'payment.export', 'Payment', undefined, { filters: query, rows: result.items.length });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="paiements.csv"');
+    res.send(toCsv(paymentCsvRows(result.items)));
+  }),
+);
+
+router.get(
+  '/payments',
+  validate('query', paymentListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'PAYMENT_VIEW');
+    const result = await listPayments(res.locals.validated.query);
+    res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
+  }),
+);
+
+router.get(
+  '/payments/:id',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PAYMENT_VIEW');
+    res.json({ data: await getPayment(routeParam(req.params.id)) });
+  }),
+);
+
+router.get(
+  '/payments/:id/duplicates',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PAYMENT_VIEW');
+    res.json({ data: await findDuplicateCandidates(routeParam(req.params.id)) });
+  }),
+);
+
+// Recording what the studio actually received. This annotates the payment; it is not a
+// state transition, so it never touches the verification status machine.
+router.patch(
+  '/payments/:id/declared-amount',
+  validate('params', idParamsSchema),
+  validate('body', paymentDeclaredAmountSchema),
+  asyncHandler(async (req, res) => {
+    const id = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PAYMENT_DECIDE');
+    const updated = await prisma.$transaction(async (tx) => {
+      const changed = await tx.payment.updateMany({
+        where: { id, version: req.body.expectedVersion },
+        data: { declaredAmount: req.body.declaredAmount, version: { increment: 1 } },
+      });
+      if (changed.count !== 1) {
+        throw new HttpError(409, 'PAYMENT_VERSION_CONFLICT', 'Le paiement a été modifié pendant cette requête.');
+      }
+      return tx.payment.findUniqueOrThrow({ where: { id } });
+    });
+    await writeAuditLog(admin?.id, 'payment.declared_amount', 'Payment', id, {
+      commandId: req.body.commandId,
+      declaredAmount: req.body.declaredAmount,
+      expectedAmount: updated.amount,
+      reason: req.body.reason,
+    });
+    res.json({ data: await getPayment(id) });
+  }),
+);
+
+router.patch(
+  '/payments/:id/duplicate',
+  validate('params', idParamsSchema),
+  validate('body', paymentDuplicateSchema),
+  asyncHandler(async (req, res) => {
+    const id = routeParam(req.params.id);
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PAYMENT_DECIDE');
+    const target = req.body.duplicateOfPaymentId;
+    if (target === id) {
+      throw new HttpError(400, 'PAYMENT_DUPLICATE_SELF', 'Un paiement ne peut pas être son propre doublon.');
+    }
+    if (target) {
+      const exists = await prisma.payment.findUnique({ where: { id: target }, select: { id: true, duplicateOfPaymentId: true } });
+      if (!exists) throw new HttpError(404, 'PAYMENT_NOT_FOUND', 'Paiement de référence introuvable.');
+      // Keep the link one level deep so the pair always resolves to a single original.
+      if (exists.duplicateOfPaymentId) {
+        throw new HttpError(409, 'PAYMENT_DUPLICATE_CHAIN', 'Ce paiement est déjà marqué comme doublon d’un autre.');
+      }
+    }
+    await prisma.payment.update({ where: { id }, data: { duplicateOfPaymentId: target } });
+    await writeAuditLog(admin?.id, target ? 'payment.duplicate.link' : 'payment.duplicate.unlink', 'Payment', id, {
+      duplicateOfPaymentId: target,
+      reason: req.body.reason,
+    });
+    res.json({ data: await getPayment(id) });
+  }),
+);
+
+router.get(
+  '/financial-tasks/export.csv',
+  validate('query', financialTaskListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'REFUND_MANAGE');
+    const query = res.locals.validated.query;
+    const result = await listFinancialTasks({ ...query, limit: 1000, offset: 0 });
+    await writeAuditLog(admin?.id, 'financial_task.export', 'FinancialTask', undefined, { filters: query, rows: result.items.length });
+    const header = ['reservation', 'task_id', 'type', 'status', 'amount', 'due_at', 'channel', 'provider_reference', 'created_by', 'created_at', 'completed_at'];
+    const rows = result.items.map((task) => [
+      task.reservation?.reference ?? '', task.id, task.type, task.status, String(task.amount),
+      task.dueAt.toISOString(), task.channel ?? '', task.providerReference ?? '',
+      task.createdBy?.name ?? 'Système', task.createdAt.toISOString(),
+      task.completedAt ? task.completedAt.toISOString() : '',
+    ]);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="remboursements.csv"');
+    res.send(toCsv([header, ...rows]));
+  }),
+);
+
 router.get(
   '/financial-tasks',
+
   validate('query', financialTaskListQuerySchema),
   asyncHandler(async (_req, res) => {
     assertAdminPermission(res.locals.admin, 'REFUND_MANAGE');

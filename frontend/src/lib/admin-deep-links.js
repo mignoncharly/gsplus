@@ -13,7 +13,9 @@ export const ADMIN_VIEWS = Object.freeze([
   { tab: 'overview', slug: 'tableau-de-bord' },
   { tab: 'reservations', slug: 'reservations', record: 'reservations' },
   { tab: 'leads', slug: 'demandes', record: 'leads', aliases: ['leads'] },
-  { tab: 'finance', slug: 'paiements', record: 'finance', aliases: ['finance'] },
+  // Phase 3 splits this view in two. A second segment is read as a sub-view when it
+  // names one, and only otherwise as a record identifier.
+  { tab: 'finance', slug: 'paiements', record: 'finance', aliases: ['finance'], subviews: ['verification', 'remboursements'], defaultSubview: 'verification', recordSubview: 'remboursements' },
   { tab: 'tarifs', slug: 'offres' },
   { tab: 'availability', slug: 'planning' },
   { tab: 'portfolio', slug: 'medias' },
@@ -35,6 +37,12 @@ for (const view of ADMIN_VIEWS) {
 }
 
 export const adminViewPath = (tab) => `/admin/${(byTab.get(tab) ?? byTab.get(DEFAULT_ADMIN_TAB)).slug}`;
+
+export const adminSubviewPath = (tab, subview) => {
+  const view = byTab.get(tab);
+  if (!view?.subviews?.includes(subview)) return adminViewPath(tab);
+  return `${adminViewPath(tab)}/${subview}`;
+};
 
 export const adminRecordPath = (record, reference) => {
   const view = ADMIN_VIEWS.find((item) => item.record === record);
@@ -62,16 +70,24 @@ export const parseAdminDestination = (pathname, search = '') => {
   if (segments[0] !== 'admin') return null;
 
   if (segments.length === 1) {
-    return legacyQueryDestination(search) ?? { tab: DEFAULT_ADMIN_TAB, area: null, reference: null };
+    const legacy = legacyQueryDestination(search);
+    return legacy ? { subview: null, ...legacy } : { tab: DEFAULT_ADMIN_TAB, subview: null, area: null, reference: null };
   }
 
   const view = bySlug.get(segments[1]);
-  if (!view) return { tab: DEFAULT_ADMIN_TAB, area: null, reference: null };
+  if (!view) return { tab: DEFAULT_ADMIN_TAB, subview: null, area: null, reference: null };
 
-  const reference = segments[2];
-  if (reference && view.record) return { tab: view.tab, area: view.record, reference };
-  return { tab: view.tab, area: null, reference: null };
+  const defaultSubview = view.defaultSubview ?? null;
+  const second = segments[2];
+  if (!second) return { tab: view.tab, subview: defaultSubview, area: null, reference: null };
+  if (view.subviews?.includes(second)) return { tab: view.tab, subview: second, area: null, reference: null };
+  // A financial task is a refund, so its deep link opens the refunds sub-view.
+  if (view.record) return { tab: view.tab, subview: view.recordSubview ?? defaultSubview, area: view.record, reference: second };
+  return { tab: view.tab, subview: defaultSubview, area: null, reference: null };
 };
+
+export const adminSubviewFromPath = (pathname, search = '') =>
+  parseAdminDestination(pathname, search)?.subview ?? null;
 
 export const adminTabFromPath = (pathname, search = '') =>
   parseAdminDestination(pathname, search)?.tab ?? DEFAULT_ADMIN_TAB;

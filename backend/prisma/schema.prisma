@@ -636,7 +636,14 @@ model ReservationTransition {
 model Payment {
   id                       String              @id @default(cuid())
   reservationId            String
+  /// Expected amount, frozen from the package price when the payment was created.
   amount                   Int
+  /// Amount the studio actually observed on the operator statement, recorded by an
+  /// administrator. Null until someone records it; never derived from `amount`.
+  declaredAmount           Int?
+  /// Set when this payment is judged to duplicate an earlier one, so the pair can be
+  /// shown together instead of the later one simply being refused.
+  duplicateOfPaymentId     String?
   method                   String
   transactionRef           String?
   transactionRefNormalized String?
@@ -653,14 +660,19 @@ model Payment {
   updatedAt                DateTime            @updatedAt
   reservation              Reservation         @relation(fields: [reservationId], references: [id])
   verifiedBy               AdminUser?          @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  duplicateOf              Payment?            @relation("PaymentDuplicate", fields: [duplicateOfPaymentId], references: [id], onDelete: SetNull)
+  duplicates               Payment[]           @relation("PaymentDuplicate")
   transitions              PaymentTransition[]
   financialTasks           FinancialTask[]
 
   @@unique([method, transactionRefNormalized])
   @@index([reservationId])
   @@index([transactionRef])
+  @@index([transactionRefNormalized])
   @@index([paymentPhone])
   @@index([verifiedById])
+  @@index([duplicateOfPaymentId])
+  @@index([status, createdAt])
 }
 
 model PaymentTransition {

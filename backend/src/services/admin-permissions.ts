@@ -2,6 +2,8 @@ import { HttpError } from '../errors/http-error.js';
 import { AdminRole, type AdminUser } from '../generated/prisma/client.js';
 
 export type AdminPermission =
+  /** Read the payment queue. Deliberately separate from deciding: triage is not a decision. */
+  | 'PAYMENT_VIEW'
   | 'PAYMENT_DECIDE'
   | 'PAYMENT_ADD'
   | 'REFUND_MANAGE'
@@ -22,6 +24,7 @@ export type AdminPermission =
 
 const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<AdminPermission>> = {
   [AdminRole.OWNER]: new Set<AdminPermission>([
+    'PAYMENT_VIEW',
     'PAYMENT_DECIDE',
     'PAYMENT_ADD',
     'REFUND_MANAGE',
@@ -40,7 +43,10 @@ const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<AdminPermission>> = {
     'PACKAGE_PUBLISH',
     'QA_NOTIFICATION_OVERRIDE',
   ]),
-  [AdminRole.STAFF]: new Set<AdminPermission>(['RESERVATION_CLOSE'])
+  // STAFF can read the payment queue to triage it, but every decision, export and
+  // refund stays with the OWNER. Widening who may decide on money is a governance
+  // change and belongs to the security phase, not here.
+  [AdminRole.STAFF]: new Set<AdminPermission>(['RESERVATION_CLOSE', 'PAYMENT_VIEW'])
 };
 
 export const assertAdminPermission = (admin: AdminUser | undefined, permission: AdminPermission) => {

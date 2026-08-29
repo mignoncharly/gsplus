@@ -65,6 +65,34 @@ export const listQuerySchema = z.object({
   reference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
 });
 
+const repeatable = (schema: z.ZodTypeAny) =>
+  z.preprocess((value) => (value === undefined ? undefined : Array.isArray(value) ? value : [value]), z.array(schema).optional());
+
+export const paymentListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+  status: repeatable(z.enum(['PENDING', 'PAYMENT_INFO_REQUIRED', 'VERIFICATION_BLOCKED', 'VERIFIED', 'REJECTED', 'PAID', 'REFUND_PENDING', 'REFUNDED', 'FAILED'])),
+  method: z.enum(['mtn_momo', 'orange_money']).optional(),
+  open: queryBoolean.optional(),
+  mismatch: queryBoolean.optional(),
+  duplicate: queryBoolean.optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  q: z.string().trim().min(1).max(120).optional(),
+});
+
+export const paymentDeclaredAmountSchema = z.object({
+  commandId: z.uuid(),
+  expectedVersion: z.number().int().positive(),
+  declaredAmount: z.number().int().min(0),
+  reason: requiredString.max(500),
+});
+
+export const paymentDuplicateSchema = z.object({
+  duplicateOfPaymentId: z.string().trim().min(1).nullable(),
+  reason: requiredString.max(500),
+});
+
 export const financialTaskListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),

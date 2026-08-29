@@ -133,9 +133,14 @@ const AdminReservationRecord = ({
   const snapshot = frozenContact(reservation);
   const calendar = latestCalendarSync(reservation);
   const chronology = chronologyEntries(reservation);
-  const declaredAmount = payment?.amount ?? null;
-  const expectedAmount = snapshot?.expectedAmount ?? reservation?.package?.price ?? null;
-  const amountMismatch = Number.isFinite(declaredAmount) && Number.isFinite(expectedAmount) && declaredAmount !== expectedAmount;
+  // `payment.amount` is the expected figure, frozen from the package price — it is not
+  // what the customer declared. Only `declaredAmount`, recorded by an administrator
+  // from the operator statement, is a second, independent term (Phase 3 / ADM-04).
+  const expectedAmount = payment?.amount ?? snapshot?.expectedAmount ?? reservation?.package?.price ?? null;
+  const declaredAmount = payment?.declaredAmount ?? null;
+  const amountVariance = Number.isFinite(declaredAmount) && Number.isFinite(expectedAmount)
+    ? declaredAmount - expectedAmount
+    : null;
 
   return (
     <>
@@ -189,9 +194,20 @@ const AdminReservationRecord = ({
             {payment && <Field label="Téléphone payeur">{payment.paymentPhone || 'Non spécifié'}</Field>}
             <Field label="Montant attendu">{Number.isFinite(expectedAmount) ? formatFcfa(expectedAmount) : '—'}</Field>
             {payment && (
-              <Field label="Montant déclaré">
-                {formatFcfa(declaredAmount)}
-                {amountMismatch && <span className="admin-pill admin-pill--count admin-record-mismatch">Écart de montant</span>}
+              <Field label="Montant reçu">
+                {declaredAmount === null ? 'Non renseigné' : formatFcfa(declaredAmount)}
+                {amountVariance !== null && amountVariance !== 0 && (
+                  <span className="admin-pill admin-pill--count admin-record-mismatch">
+                    Écart {amountVariance > 0 ? '+' : ''}{formatFcfa(amountVariance)}
+                  </span>
+                )}
+              </Field>
+            )}
+            {payment?.duplicateOf && (
+              <Field label="Doublon de">
+                <span className="admin-pill admin-pill--count admin-record-mismatch">
+                  {payment.duplicateOf.reservation?.reference ?? payment.duplicateOf.id}
+                </span>
               </Field>
             )}
             {payment?.verifiedAt && <Field label="Vérifié le">{dateTime(payment.verifiedAt)}</Field>}

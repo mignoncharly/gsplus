@@ -24,7 +24,7 @@ const detailedReservation = {
   },
   payments: [{
     id: 'payment-routing', version: 2, status: 'PENDING', method: 'mtn_momo',
-    amount: 20000, transactionRef: 'TXN-778899', paymentPhone: '+237690000000',
+    amount: 25000, declaredAmount: 20000, transactionRef: 'TXN-778899', paymentPhone: '+237690000000',
     transitions: [{
       id: 'ptr-1', fromStatus: 'PENDING', toStatus: 'PAYMENT_INFO_REQUIRED',
       createdAt: '2030-02-02T09:00:00.000Z', actorType: 'ADMIN',
@@ -185,7 +185,9 @@ test('Phase 3.1 presents the record as a header, two independent blocks and one 
   // The transaction block carries the code, the operator and the amount comparison.
   await expect(record.getByText('TXN-778899')).toBeVisible();
   await expect(record.getByText('MTN MoMo')).toBeVisible();
-  await expect(record.getByText('Écart de montant')).toBeVisible();
+  await expect(record.getByText(/Écart /)).toBeVisible();
+  // An expected amount is never relabelled as a received one.
+  await expect(record.getByText('Montant reçu')).toBeVisible();
 
   // Internal notes and customer wording stay visibly separate.
   await expect(record.getByText(/Note interne/)).toBeVisible();

@@ -166,6 +166,37 @@ export const getAdminLead = async (reference) => {
   return payload.data;
 };
 
+const adminQuery = (filters = {}) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === null || value === '') continue;
+    // Repeatable filters such as status arrive as arrays.
+    if (Array.isArray(value)) value.forEach((entry) => params.append(key, String(entry)));
+    else params.set(key, String(value));
+  }
+  return params.toString();
+};
+
+export const getAdminPayments = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/payments?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta };
+};
+
+export const getAdminPayment = async (id) => (await apiFetch(`/api/admin/payments/${encodeURIComponent(id)}`)).data;
+
+export const getAdminPaymentDuplicates = async (id) =>
+  (await apiFetch(`/api/admin/payments/${encodeURIComponent(id)}/duplicates`)).data;
+
+export const recordAdminPaymentDeclaredAmount = async (id, body) =>
+  (await apiFetch(`/api/admin/payments/${encodeURIComponent(id)}/declared-amount`, { method: 'PATCH', body: JSON.stringify(body) })).data;
+
+export const linkAdminPaymentDuplicate = async (id, body) =>
+  (await apiFetch(`/api/admin/payments/${encodeURIComponent(id)}/duplicate`, { method: 'PATCH', body: JSON.stringify(body) })).data;
+
+/** The export is a download, so it bypasses the JSON helper. */
+export const adminExportUrl = (kind, filters = {}) =>
+  `${API_URL}/api/admin/${kind}/export.csv?${adminQuery(filters)}`;
+
 export const getAdminFinancialTasks = async (filters = {}) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {

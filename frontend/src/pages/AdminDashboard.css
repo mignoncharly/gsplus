@@ -1117,3 +1117,55 @@
   .admin-record-header { gap: 1rem; }
   .admin-record-fields { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* === Phase 3 financial module === */
+.admin-subview-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-subview-tab {
+  padding: 0.7rem 1.1rem;
+  border-bottom: 2px solid transparent;
+  color: var(--dark-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-subview-tab:hover { color: var(--dark-primary); }
+
+.admin-subview-tab.active {
+  color: var(--dark-accent);
+  border-bottom-color: var(--c-gold);
+}
+
+.admin-payment-search { grid-column: 1 / -1; }
+
+/* A recorded amount that disagrees with the expected one needs to read as a problem. */
+.admin-table tr.admin-row-attention td { background: rgba(231, 76, 60, 0.05); }
+
+.admin-payment-duplicates {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-payment-duplicates li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--dark-secondary);
+}
