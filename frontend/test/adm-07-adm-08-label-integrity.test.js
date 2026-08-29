@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -15,22 +15,18 @@ const repoRoot = new URL('../../', import.meta.url);
 const backendSrc = new URL('backend/src/', repoRoot);
 const schemaPath = new URL('backend/prisma/schema.prisma', repoRoot);
 
-const readAllBackendSources = () => {
-  const files = [];
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const child = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, dir);
-      // The generated Prisma client is machine output, not a source of message codes.
-      if (entry.isDirectory()) {
-        if (entry.name !== 'generated') walk(child);
-      } else if (entry.name.endsWith('.ts')) {
-        files.push(readFileSync(child, 'utf8'));
-      }
-    }
-  };
-  walk(backendSrc);
-  return files.join('\n');
-};
+// Only the files that actually queue notifications are scanned. Widening this to all
+// of backend/src pulls in unrelated snake_case unions such as the availability
+// `reason` values, which are not outbox codes.
+const NOTIFICATION_SOURCES = [
+  'emails/notifications.ts',
+  'emails/delivery-notifications.ts',
+  'emails/email-delivery-reports.ts',
+  'services/integrity-incidents.ts',
+];
+
+const readAllBackendSources = () =>
+  NOTIFICATION_SOURCES.map((relative) => readFileSync(new URL(relative, backendSrc), 'utf8')).join('\n');
 
 const enumMembers = (schema, name) => {
   const block = new RegExp(`enum ${name} \\{([^}]*)\\}`).exec(schema);
@@ -61,14 +57,33 @@ test('ADM-07/ADM-08 every status enum member resolves to a business label', () =
 
 test('ADM-08 every queued notification type has a business name, audience and trigger', () => {
   const sources = readAllBackendSources();
-  // NotificationEvent.type values are queued as `type: 'snake_case_code'`.
-  const queued = new Set(
-    [...sources.matchAll(/\btype:\s*'([a-z][a-z0-9]*(?:_[a-z0-9]+)+)'/g)].map((match) => match[1]),
-  );
-  // Not outbox codes: an OAuth grant type and WhatsApp payload component types.
-  for (const notACode of ['refresh_token']) queued.delete(notACode);
+  const code = String.raw`[a-z][a-z0-9]*(?:_[a-z0-9]+)+`;
+  const queued = new Set();
 
-  assert.ok(queued.size >= 21, `expected the outbox codes to be discovered, found ${queued.size}`);
+  // A NotificationEvent.type reaches the outbox through four shapes. Verifying the
+  // live journal in production showed that matching only the first missed fourteen
+  // real codes, which then rendered as humanised English.
+  for (const pattern of [
+    String.raw`\btype:\s*'(${code})'`,          // enqueue({ type: 'x' })
+    String.raw`\btype\s*=\s*'(${code})'`,       // let type; ... type = 'x'
+    String.raw`\btype\s*===\s*'(${code})'`,     // if (type === 'x')
+    String.raw`\?\s*'(${code})'\s*:`,           // const type = cond ? 'x' : 'y'
+    String.raw`:\s*'(${code})'\s*;`,            // ...the ternary's final branch
+  ]) {
+    for (const match of sources.matchAll(new RegExp(pattern, 'g'))) queued.add(match[1]);
+  }
+  // Literals listed for membership tests against event.type.
+  for (const block of sources.matchAll(/\[([^\]]*)\]\.includes\(\s*event\.type\s*\)/g)) {
+    for (const match of block[1].matchAll(new RegExp(String.raw`'(${code})'`, 'g'))) queued.add(match[1]);
+  }
+
+  // Literals inside the notification sources that share the snake_case shape without
+  // being outbox codes.
+  for (const notACode of ['notification_queue', 'quote_form', 'contact_form', 'b2b_form']) {
+    queued.delete(notACode);
+  }
+
+  assert.ok(queued.size >= 29, `expected the outbox codes to be discovered, found ${queued.size}`);
 
   const missing = [...queued].filter((code) => !NOTIFICATION_TYPE_LABELS[code]).sort();
   assert.deepEqual(missing, [], `notification types absent from NOTIFICATION_TYPE_LABELS: ${missing.join(', ')}`);
