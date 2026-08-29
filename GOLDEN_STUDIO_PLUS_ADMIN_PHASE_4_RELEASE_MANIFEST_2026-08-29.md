@@ -4,7 +4,7 @@
 **Branch:** `codex/phase7-external-acceptance-20260821`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 4
 **Findings:** `ADM-01` dashboard, `ADM-02` search and filtering, `ADM-03` mobile
-**Status:** built and verified locally; **awaiting production deployment (includes a migration)**
+**Status:** complete and deployed to production
 
 ## ADM-02 — search moves to the server
 
@@ -145,10 +145,30 @@ on the new view.
 | *"Un dossier est retrouvable par n'importe quelle donnée métier en moins de trois actions"* | One search field over six data kinds, across live and frozen contact data | Passed locally |
 | *"Les filtres restent visibles et partageables par URL"* | Filters live in the query string, survive a reload, reset button restores the bare address | Passed locally |
 | *"À 390 pixels, les données essentielles et l'action principale sont visibles sans défilement horizontal"* | Card layout asserted at 390 px on both the list and the dashboard | Passed locally |
-| Production replay | **Outstanding** — needs deployment, including a migration | Pending |
+| Production replay | Signed in 29 August 2026 on real data: counter and list agree, search works across three data kinds, 390 px carries no horizontal scroll | Passed |
 
-## Deployment
+## Deployment evidence — 29 August 2026
 
-Like Phase 3 this changes the database, so it needs the same three steps: `prisma migrate deploy`, backend rebuild
-and service restart, then the frontend rebuild. The migration adds two indexes and nothing else — no column, no
-data — so the running backend is unaffected by it and it can be applied before the restart.
+- Database dumped to `.phase-admin1-backups/goldenstudioplus_db-pre-admin-phase4.dump` (354 KB); both dists copied
+  beside it.
+- `prisma migrate deploy` applied `20260829170000_admin_phase_4_reservation_search`; both indexes confirmed present
+  on `Reservation`. Production stayed healthy while still running the previous process, since indexes only speed up
+  the query it was already making.
+- Backend rebuilt, restarted by the owner: PID 3072131 → 3195118 at 17:05:54 UTC. `GET /api/admin/dashboard` then
+  returned live zones.
+- Frontend rebuilt; live entry `assets/index-CG_bRYwB.js` verified by SHA-256, served against local.
+- Production browser suite after deployment: **70 passed, 1 failed** — the same pre-existing stale catalogue fixture
+  recorded since Phase 1, unchanged count, unrelated to this phase.
+
+## Production replay on real data
+
+- The dashboard shows **9 queue cards** and *"39 élément(s) en attente de traitement"*.
+- **The counter agrees with the list it opens**: *Réservations à décider* read 6, and following its own link
+  produced a list reporting 6. That is the guarantee the previous browser-side tiles could not make.
+- Search: `GSP-260815-E6Y8` → 1 result, the pack name `Vision` → 5, the phone fragment `673026654` → 24. Each
+  filter is reflected in the address.
+- At 390 px the list renders 25 cards with the table hidden, and neither the list nor the dashboard scrolls
+  sideways.
+
+Production holds **34 reservations**, which is worth recording: the superseded tiles counted from a 50-row page, so
+they were within 16 records of going silently wrong.
