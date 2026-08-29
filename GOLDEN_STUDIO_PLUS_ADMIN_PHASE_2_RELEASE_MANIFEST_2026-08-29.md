@@ -130,7 +130,7 @@ import crossed its threshold. The entry lost 910 bytes to that split, so net pub
 | §3.1 record structure | Browser test asserts header, two blocks, transaction detail, frozen contact, merged chronology, note separation | Passed locally |
 | No public regression | Public CSS identical; no public logic changed; full local regression green | Passed |
 | Production replay, addresses | Every view URL returns 200 on the live host; served entry hash verified | Passed |
-| Production replay, visual admin check | **Outstanding** — requires an authenticated admin session | Pending |
+| Production replay, authenticated | Signed in 29 August 2026: five views addressable and reload-stable, record addressed by URL, Back closes it, §3.1 structure present with a 9-entry chronology | Passed |
 
 ## Deployment evidence
 
@@ -147,3 +147,19 @@ Frontend only: no backend code, no schema change, no migration, no data mutation
 - Production browser suite after deployment: **70 passed, 1 failed** — the identical count recorded after the
   Phase 1 deployment. The single failure is the stale catalogue fixture at `phase-9-production.spec.js:35`
   documented in the Phase 1 manifest, unrelated to this phase and still deliberately unfixed.
+
+
+## Production replay, 29 August 2026
+
+Signed in to `https://gsplus.vip/admin` with the owner's credentials.
+
+- **§2.1 closed.** `/admin/reservations`, `/admin/offres`, `/admin/planning`, `/admin/messages` and
+  `/admin/conformite` each select their view and **survive a reload** on the same address. Opening a record moved
+  the address to `/admin/reservations/GSP-260821-Z6MZ`; **Back closed the record and stayed on the list** rather
+  than returning to the overview. Navigating directly to `/admin/reservations/GSP-260815-E6Y8` — the shape printed
+  in delivered e-mails — opened that record.
+- **§3.1 closed.** The record header reads *"Réservation GSP-260815-E6Y8 · Vision Plus IA … · Classic Propre ·
+  SÉANCE (DOUALA) 24 août 2026, 09:00 · DURÉE 1 h · ÉTAT GÉNÉRAL"*. Paiement and Réservation render as two
+  independent blocks, the frozen-contact block is present, and the merged chronology holds **9 entries** for that
+  record. Internal and customer note counts were zero on this particular reservation because its transitions carry
+  no reasons, which is correct rather than missing.

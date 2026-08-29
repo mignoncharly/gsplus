@@ -102,7 +102,7 @@ away and comparing chunk bodies:
 | Technical information remains available | `Modèle E-01 · v2026-08-20-phase4` still asserted visible | Passed |
 | No public performance regression | Public chunks byte-identical after hash normalisation; public budgets unchanged and passing | Passed |
 | Production replay, served bundles | Live chunks verified to contain the fixes (below) | Passed |
-| Production replay, visual admin check | **Outstanding** — requires an authenticated admin session | Pending |
+| Production replay, authenticated | Signed in 29 August 2026: 35 tariff cards each carry one status and a neutral count chip, 50 journal rows carry a French business name and an audience chip, zero occurrences of `Statut non reconnu` | Passed |
 
 ## Deployment evidence
 
@@ -146,3 +146,30 @@ Evidence that Phase 1 did not cause it:
 **Not fixed here, deliberately.** Choosing the replacement phrase is a content decision about what "corrected public
 copy" now means, and silently rewriting an assertion to make a suite green is the wrong instinct. It is logged as a
 follow-up so that later phases do not inherit a red production suite they learn to ignore.
+
+
+## Production replay, 29 August 2026 — and a gap it exposed
+
+Signed in to `https://gsplus.vip/admin` with the owner's credentials.
+
+- **ADM-07a closed.** `/admin/offres` shows 35 offers, 35 published status pills, 35 neutral count chips and
+  **zero** occurrences of `Statut non reconnu`. The sample chip reads `42 références`, with the corrected plural.
+- **ADM-08a closed.** `/admin/messages` shows 50 rows, every one with a business name and an audience chip, and
+  **zero** occurrences of `Statut non reconnu`.
+
+**The replay also found a real gap.** Four message types rendered as humanised English — *"Payment rejected
+customer"*, *"Refund completed customer"*, *"Refund engaged customer"*, *"Booking cancelled by studio customer"* —
+because they were absent from the registry. The Phase 1 completeness guard had passed anyway: it matched only the
+object-property shape `type: 'x'`, while a `NotificationEvent.type` actually reaches the outbox through five
+literal shapes, including assignment to a declared variable and a ternary. Fourteen real codes used the shapes the
+regex did not see.
+
+Production carries **29** distinct types. The registry now covers all of them plus six not yet triggered, the
+discovery matches all five shapes plus `includes()` membership arrays, and the scan is scoped to the four files
+that queue notifications — scanning all of `backend/src` had pulled in unrelated snake_case unions such as the
+availability `reason` values. Mutation-tested: removing a ternary-assigned code now fails the suite naming that
+code, which it did not before.
+
+The graceful degradation added in Phase 1 held throughout: no row ever read `Statut non reconnu` in production,
+which was the guarantee that mattered. After redeploying, all 50 rows read as French business language, with none
+of the five previously English names present.

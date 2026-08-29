@@ -83,7 +83,7 @@ The served stylesheet `assets/AdminDataGovernancePanel-DuaocGvo.css` begins with
 `--dark-primary` is `#F7FAF9` on the dark admin surface. The report's *"plusieurs titres sont presque invisibles"* is
 resolved in production. **The ADM-10 workflow half remains open** and stays in Phase 9.
 
-### ADM-06 reschedule and block edit — **closed on code evidence; production replay outstanding**
+### ADM-06 reschedule and block edit — **CLOSED, replayed in production 29 August 2026**
 
 Three independent lines of evidence:
 
@@ -100,8 +100,21 @@ Three independent lines of evidence:
 
    These are precisely the two operations the report found broken.
 
-**What is still owed.** The report phrases its criterion as production behaviour, and the admin requires
-credentials this session does not hold. One manual replay by the owner closes it — see §6.
+**Production replay, 29 August 2026.** Performed with the owner's credentials against `https://gsplus.vip/admin`.
+
+*Calendar block.* A disposable block was created in a 2031 window, far outside any booking horizon, so it could not
+collide with a customer slot. Its start time was edited from `10:00` to `14:30`. The field held the new value after
+blur, still held it after a wait crossing the 60-second admin refresh cycle, and reopening the block after saving
+showed `14:30` — proving the value persisted rather than reverting. The block was then deleted and the module
+returned to zero blocks, its original state.
+
+*Reschedule.* On confirmed reservation `GSP-260815-E6Y8`, opened by its Phase 2 address, the reschedule dialog was
+opened and its slot changed from `2026-08-24T09:00` to `2031-02-20T11:15`. The field still held the entered value
+after **65 seconds**, crossing a full refresh cycle. The dialog was then cancelled: submitting would have queued
+E-08 to a real customer, and confirming the reported symptom never required writing anything.
+
+The report's symptom — *"les champs reviennent à leurs valeurs d'origine avant enregistrement"* — does not occur.
+**ADM-06 is closed.**
 
 ### ADM-07a and ADM-08a — **confirmed live in production**
 
@@ -182,7 +195,7 @@ This is the baseline the ADM-01 integration counters and the ADM-05 Cal.com heal
 | `ADM-03` mobile tables | Confirmed still open | 4 |
 | `ADM-04` financial module | Confirmed half done, verification queue still absent | 3 |
 | `ADM-05` planning | Confirmed still open | 5 |
-| `ADM-06` reschedule and block edit | **Closed on code evidence** — owner replay outstanding | 5, reduced to a conflict-case test |
+| `ADM-06` reschedule and block edit | **CLOSED — replayed in production** | 5, reduced to a conflict-case test |
 | `ADM-07a` tariff status pill | Confirmed live in the served bundle | 1 |
 | `ADM-07b` public taxonomy | **CLOSED** | struck from 8 |
 | `ADM-08` notification journal | Confirmed live in the served bundle | 1, 7 |
@@ -190,14 +203,12 @@ This is the baseline the ADM-01 integration counters and the ADM-05 Cal.com heal
 | `ADM-10` contrast | **CLOSED** | — |
 | `ADM-10` workflow | Confirmed still open | 9 |
 
-**Two owner decisions are required before Phase 0 can be signed off:**
+**Owner decisions (both now resolved):**
 
 1. **The ten deleted documents.** The 20 August catalogue ruled them `EXCLUDE-DEFAULT`, stating the decision *"belongs
    in a separate documentation commit with recovery/provenance reviewed."* Nine days on, they still block an
    unambiguous tree. Restore them, or commit the deletions deliberately?
-2. **ADM-06 production replay.** Sign in to `https://gsplus.vip/admin`, edit a calendar block's start time and save,
-   then request a reschedule on any reservation. Confirm the entered values persist. Two minutes, and it closes the
-   last P0 doubt.
+2. ~~**ADM-06 production replay.**~~ **Done, 29 August 2026** — see §3. No decision outstanding.
 
 ---
 
