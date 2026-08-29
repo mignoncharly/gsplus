@@ -4,7 +4,7 @@
 **Branch:** `codex/phase7-external-acceptance-20260821`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 5
 **Findings:** `ADM-05` planning and availability (**P0**), `ADM-06` closure
-**Status:** built and verified locally; **awaiting production deployment (includes a migration)**
+**Status:** complete and deployed to production
 
 ## The gap this closes
 
@@ -112,12 +112,47 @@ stayed at 66,576.
 | *"…le public et Cal.com reflètent la règle dans les minutes suivantes"* | An hour changed through the API is immediately visible in `getAvailability`; a dated closure removes the day's slots | Passed locally |
 | Grid and booking agree | Every slot of a day with a break asserted in both directions | Passed |
 | *"Le nouveau créneau est enregistré, visible côté public et synchronisé une seule fois"* | Conflict refused, exception refused with its reason, replayed command emits no second sync | Passed |
-| Production replay | **Outstanding** — needs deployment, including a migration | Pending |
+| Production replay | An hour changed through the admin appeared in the public availability API immediately; an exception closed the day and booking was refused; production restored to its original state | Passed |
 
-## Deployment
+## Deployment evidence — 29 August 2026
 
-Same shape as Phases 3 and 4: `prisma migrate deploy`, backend rebuild and restart, then the frontend rebuild.
+- Database dumped to `.phase-admin1-backups/goldenstudioplus_db-pre-admin-phase5.dump` (355 KB); both dists copied
+  beside it.
+- Migration applied and verified: `ScheduleException` and `BookingRule` created, `BusinessHour.breaks` present,
+  **0 exception rows and 0 booking-rule rows**, so the engine behaved exactly as before. The public availability API
+  was checked on the still-running previous process and answered normally.
+- Backend restarted by the owner: PID 3195118 → 3644722 at 22:54:58 UTC. All five new endpoints then returned 200.
+- Frontend rebuilt; live entry `assets/index-DN1vVAgD.js` verified by SHA-256, served against local.
 
-The migration adds one nullable column and two new tables. **No existing row is read or rewritten**, and with no
-`BookingRule` row present the engine behaves exactly as it does today, so the running backend is unaffected by the
-migration and it can be applied before the restart.
+## Production replay — the acceptance criterion, end to end
+
+The report's criterion is that the studio can change its schedule *"sans développement"* and that *"le public […]
+reflète la règle dans les minutes suivantes"*. That was replayed against production and then undone.
+
+On a Thursday 120 days out, chosen so nothing could collide with a real booking window:
+
+| Step | Public availability API |
+| --- | --- |
+| Before | open 09:00–18:00, 18 slots |
+| After changing the hours through the admin to 11:00–15:00 with a 12:30–13:30 pause | open 11:00–15:00, 8 slots, **2 slots marked `schedule_break`** |
+| After adding a dated exception | **closed**, with the reason returned to the public API |
+| A booking attempt on the closed day | refused, HTTP 400 |
+| After deleting the exception and restoring the hours | open 09:00–18:00, 18 slots |
+
+Production was then confirmed identical to its starting state: the same seven business-hour rows including Sunday
+closed and no breaks, zero exceptions, no booking rule, and an effective policy of no notice, no horizon, no
+capacity and no buffer.
+
+In the interface: the planning view renders seven agenda days with one closed and three real reservations, the
+weekly hours are listed and editable, and the view fits a 390 px screen with no horizontal scroll.
+
+## What the health panel found on its first day
+
+Cal.com health reports **8 failed synchronisations**, the most recent on 28 July with `CALCOM_HTTP_400`, against a
+last success on 21 August. Those failures were already in the database; nothing surfaced them, which is precisely
+the blindness the report described. The dashboard's integrations card now reads *"8 — Échecs Cal.com"* and links
+into the planning view.
+
+**This is a finding, not a regression.** It predates this phase and needs its own investigation: eight reservations
+may have no calendar event. It is recorded here rather than fixed, because diagnosing a provider rejection from
+July is not this phase's scope.
