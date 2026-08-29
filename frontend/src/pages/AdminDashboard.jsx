@@ -74,6 +74,7 @@ import {
   statusLabel,
   transitionActorLabel,
 } from '../lib/admin-workflow';
+import { NOTIFICATION_AUDIENCE_LABELS, notificationTypeDescriptor } from '../lib/status-labels';
 import { resetFormAfterSuccess } from '../lib/lead-submission';
 import { isValidCameroonPhone, PHONE_INVALID_MESSAGE } from '../lib/contact-validation';
 import { ADMIN_REFRESH_INTERVAL_MS, shouldRunAdminRefresh } from '../lib/admin-refresh';
@@ -1515,12 +1516,20 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {notifications.map((item) => (
+                      {notifications.map((item) => {
+                        const messageType = notificationTypeDescriptor(item.type);
+                        return (
                         <tr key={item.id}>
                           <td>{dateTime(item.createdAt)}</td>
                           <td>{item.channel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}</td>
                           <td>
-                            <strong>{statusLabel(item.type)}</strong>
+                            <strong>{messageType.name}</strong>
+                            {messageType.audience && (
+                              <span className={`admin-pill admin-pill--audience audience-${messageType.audience.toLowerCase()}`}>
+                                {NOTIFICATION_AUDIENCE_LABELS[messageType.audience]}
+                              </span>
+                            )}
+                            {messageType.trigger && <small>{messageType.trigger}</small>}
                             <small>{item.reservation?.reference || item.lead?.name || 'Général'}</small>
                             {item.templateCode && (
                               <small>Modèle {item.templateCode}{item.templateVersion ? ` · v${item.templateVersion}` : ''}</small>
@@ -1582,7 +1591,8 @@ const AdminDashboard = () => {
                             ) : 'Classée — aucun renvoi'}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   {notifications.length === 0 && (

@@ -24,6 +24,13 @@ const pill = (status) => (
   <span className={`admin-pill pill-${String(status).toLowerCase()}`}>{statusLabel(status)}</span>
 );
 
+// A reference count is a measurement, not a publication status. Routing it through
+// statusLabel() made every offer read "PUBLIÉ · STATUT NON RECONNU" (ADM-07).
+// French takes the singular below two, so 0 is "0 référence", not "0 références".
+const countChip = (count) => (
+  <span className="admin-pill admin-pill--count">{count} référence{count < 2 ? '' : 's'}</span>
+);
+
 const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
   const [editingPack, setEditingPack] = useState(null);
   const [previewPack, setPreviewPack] = useState(null);
@@ -183,7 +190,7 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
               <strong style={{ color: '#fff', fontSize: '1.05rem' }}>{pack.name}</strong>
               <small style={{ color: 'var(--dark-muted)', display: 'block', marginTop: '0.25rem' }}>{pack.category}</small>
               <small style={{ color: 'var(--dark-secondary)', display: 'block', marginTop: '0.35rem' }}>{formatFcfa(pack.price)} · {pack.bookingMode === 'CONTACT' ? 'sur échange' : `${pack.durationMin} min`} · version {pack.version} · ordre {pack.sortOrder}</small>
-              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>{pill(pack.publicationStatus || (pack.isArchived ? 'ARCHIVED' : 'DRAFT'))} {pill(`${packageReferenceCount(pack)} référence(s)`)}</div>
+              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>{pill(pack.publicationStatus || (pack.isArchived ? 'ARCHIVED' : 'DRAFT'))} {countChip(packageReferenceCount(pack))}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewPack(pack)}>Aperçu avant publication</button>

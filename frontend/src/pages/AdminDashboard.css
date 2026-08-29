@@ -594,6 +594,44 @@
   border: 1px solid rgba(231, 76, 60, 0.25);
 }
 
+/* === ADM-07 / ADM-08 non-status chips ===
+   These carry a measurement or an audience, never a status, so they stay
+   visually distinct from the status pills above and never borrow their colours. */
+.admin-pill.admin-pill--count {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dark-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.admin-pill.admin-pill--audience {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.admin-pill--audience.audience-client {
+  background: rgba(93, 173, 226, 0.12);
+  color: #9ccff0;
+  border: 1px solid rgba(93, 173, 226, 0.3);
+}
+
+.admin-pill--audience.audience-internal {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dark-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.admin-pill--audience.audience-financial {
+  background: rgba(212, 175, 55, 0.12);
+  color: var(--dark-accent);
+  border: 1px solid rgba(212, 175, 55, 0.32);
+}
+
 /* === Leads Section === */
 .admin-lead-card {
   background: rgba(255, 255, 255, 0.02);
