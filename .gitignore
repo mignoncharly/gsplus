@@ -14,10 +14,7 @@ credentials/
 *.key
 
 # Recovery archives, database dumps and legacy source packages
-.phase0-backups/
-.phase1-backups/
-.phase2-backups/
-.phase3-backups/
+.phase*-backups/
 *.zip
 *.tar
 *.tar.gz
