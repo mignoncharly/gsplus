@@ -5,7 +5,7 @@
 **Production host:** `https://gsplus.vip`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 1 — Label integrity
 **Findings:** `ADM-07a`, `ADM-08a`
-**Status:** built and verified locally; **awaiting production deployment**
+**Status:** complete and deployed to production
 
 ## Released scope
 
@@ -101,10 +101,48 @@ away and comparing chunk bodies:
 | *"Chaque ligne est compréhensible sans connaître le code du modèle"* | Journal renders business name, audience chip and trigger; template code retained as secondary detail | Passed locally |
 | Technical information remains available | `Modèle E-01 · v2026-08-20-phase4` still asserted visible | Passed |
 | No public performance regression | Public chunks byte-identical after hash normalisation; public budgets unchanged and passing | Passed |
-| Production replay | **Outstanding** — requires deployment and an authenticated admin session | Pending |
+| Production replay, served bundles | Live chunks verified to contain the fixes (below) | Passed |
+| Production replay, visual admin check | **Outstanding** — requires an authenticated admin session | Pending |
 
-## Deployment
+## Deployment evidence
 
-Not yet deployed. Production serves directly from `/var/www/goldenstudioplus/frontend/dist`, so publishing this
-phase means rebuilding that directory in place, which changes the live site the moment it completes. The rebuild is
-frontend-only: no backend code, no schema change, no migration, no data mutation.
+Deployed 29 August 2026 by rebuilding `/var/www/goldenstudioplus/frontend/dist` in place, the directory nginx serves.
+Frontend only: no backend code, no schema change, no migration, no data mutation, no service restart.
+
+- The previous build was copied to `.phase-admin1-backups/dist-pre-admin-phase1` (4.7 MB, entry
+  `index-BYHqqiAp.js`) before the rebuild, so rollback is a directory swap. The path is covered by the
+  `.phase*-backups/` ignore rule added in Phase 0.
+- Build pipeline passed end to end: Vite build, 22 localized prerendered documents, performance budgets, LEG-06
+  tracker audit.
+- Live entry is `assets/index-CcFQ3ikY.js`, matching the local build, SHA-256
+  `2405cad3e7ccb4d28c0f8de7dba3d61e4db7a7f7f9b82a4d97e7f4b10303999d` served and local.
+- `/` 200, `/admin` 200, `/fr/services` 200, `/api/health` 200 `{"status":"ok"}`.
+- The served `AdminPackagesPanel` chunk now renders the count through `admin-pill--count` with the corrected
+  French plural rule, not through the status formatter.
+- The served `status-labels` chunk carries all **21** registered codes, including *Nouvelle réservation à traiter*,
+  *Demande de réservation reçue*, *Paiement vérifié* and *Remboursement à traiter*.
+- Production browser suite after deployment: **70 passed, 1 failed**. The single failure is pre-existing and
+  unrelated — see below.
+
+## Pre-existing failure found during deployment verification
+
+`e2e/phase-9-production.spec.js:35` asserts the home page contains the package phrase
+*"Idéal pour un profil professionnel"*. That phrase returns **0 occurrences** on the live home page and does not
+exist anywhere in the repository source or in the live catalogue API. The adjacent assertion on line 34,
+*"Incontournable"*, still passes because it is a static badge rather than catalogue copy.
+
+The spec was last modified at Phase 0 on 20 August (`b1d340a`), **before** the Phase 3 official French catalogue was
+published, and that republication replaced the package copy the assertion pins. It is therefore a stale fixture of
+the same class the Phase 6 manifest already records — *"five stale locale/catalogue fixtures found on the first run
+were corrected"* — missed then because this is a production-only spec that the local suite never executes.
+
+Evidence that Phase 1 did not cause it:
+
+- The public `Contact` and home chunks are byte-identical to the pre-deployment build once content hashes are
+  normalised, and `contact.html` is identical too.
+- The assertion depends on live catalogue **data**, which this phase did not touch.
+- The failure reproduces identically on two consecutive runs.
+
+**Not fixed here, deliberately.** Choosing the replacement phrase is a content decision about what "corrected public
+copy" now means, and silently rewriting an assertion to make a suite green is the wrong instinct. It is logged as a
+follow-up so that later phases do not inherit a red production suite they learn to ignore.
