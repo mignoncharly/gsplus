@@ -4,7 +4,7 @@
 **Branch:** `codex/phase7-external-acceptance-20260821`
 **Plan:** `GOLDEN_STUDIO_PLUS_ADMIN_ANALYSIS_IMPLEMENTATION_PLAN_2026-08-29.md`, Phase 6
 **Finding:** `ADM-09` — *trop de contenus nécessitent encore le développeur*
-**Status:** built and verified locally; **awaiting production deployment (includes a migration)**
+**Status:** complete and deployed to production
 
 ## The gap this closes
 
@@ -86,10 +86,35 @@ Mutation-tested: restoring the bad import reproduces the failure.
 | *"…prévisualiser et publier sans déploiement de code"* | Draft, side-by-side comparison with the published version, then publish; history preserved | Passed locally |
 | Secrets never editable or exposed | Registry-wide assertion plus unknown-key rejection | Passed |
 | No public regression if the API fails | Compiled fallbacks asserted to match the previously hard-coded values | Passed |
-| Production replay | **Outstanding** — needs deployment, including a migration | Pending |
+| Production replay | The phone number was changed through the admin and appeared publicly; a content draft stayed invisible until published; production was restored | Passed |
 
-## Deployment
+## Deployment evidence — 30 August 2026
 
-Same shape as Phases 3, 4 and 5. The migration creates two empty tables and nothing else — no column altered, no row
-read or rewritten — and with no rows the application serves the compiled defaults, so the running backend is
-unaffected and the migration can be applied before the restart.
+- Database dumped to `.phase-admin1-backups/goldenstudioplus_db-pre-admin-phase6.dump` (361 KB); both dists copied
+  beside it.
+- Migration applied: both tables created, **0 rows in each**, so the application served the compiled defaults and the
+  running backend was unaffected. `/api/site-settings` correctly returned 404 until the restart, confirming nothing
+  had changed for anyone yet.
+- Backend restarted by the owner: PID 3644722 → 4060737 at 04:32:35 UTC. The projection then served all eight groups
+  with `Cache-Control: public, max-age=60, stale-while-revalidate=300`, and a scan of the response found no
+  secret-shaped key.
+- Frontend rebuilt; live entry `assets/index-DfQPLZ4j.js` verified by SHA-256. The served entry contains **zero**
+  occurrences of `/api/admin/settings`, `/api/admin/financial-tasks` or `/api/admin/schedule/`, confirming the
+  bundle regression is fixed in what visitors actually download.
+
+## Production replay — the acceptance criterion, end to end
+
+| Step | Public projection |
+| --- | --- |
+| Before | phone `+237 673 026 654`, hours `9 h - 18 h` |
+| Phone changed through the admin API | phone **`+237 690 111 222`** |
+| Content draft saved | hours **unchanged** — a draft is invisible to the public |
+| Draft published | hours **`10 h - 17 h`** |
+| Both restored | phone `+237 673 026 654`, hours `9 h - 18 h` |
+
+Production is back to its starting values, with `publicName` and `whatsappEnabled` confirmed untouched.
+
+In the browser: the live contact page renders `tel:+237673026654` with the display text `+237 673 026 654`, and the
+WhatsApp link resolves to `https://wa.me/237673026654` — both now read from the published settings rather than from
+the bundle. The administration lists all eight setting groups and the three content entries, states where secrets
+live, and marks the identity group as customised, since the replay wrote and restored it.
