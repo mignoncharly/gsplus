@@ -116,7 +116,8 @@ loaded panel. Public CSS is unchanged at 66,576 and the public entry is unchange
 | The outbox never loses a template | Four tests, including an unloaded cache and an empty-body override | Passed |
 | Editable sending rules | Applied at the dispatch gate; alarms refuse to be silenced | Passed locally |
 | Production replay of §8.1 | 37 codes listed, draft inert, publish switches the send path, revert restores the compiled copy | **Passed in production** |
-| Production replay of the rules | Outstanding — needs the second deployment | Pending |
+| Production replay of the rules | 12 events listed, alarms refuse to be silenced, a customer message is refused, a saved rule reaches the cache | **Passed in production** |
+| Production replay of the version fix | A send from override v2 recorded as `2026-08-20-phase4+override.v2`; compiled sends unchanged | **Passed in production** |
 
 ## Deployment
 
@@ -136,7 +137,28 @@ rebuilt. §8.1 was then replayed against production end to end:
 Production ends on the compiled copy, exactly as it started. The one archived `MessageTemplate` row is the deliberate
 history of that replay.
 
-**Second deployment — pending.** Carries the version-attribution fix and the applied sending rules. Its migration
-drops `MessageRule.fallbackChannel`, and the table is empty in production, so there is nothing to lose. The rules
-cache starts empty and every event stays on the behaviour compiled into the application until an owner sets a rule,
-so the restart changes no delivery behaviour on its own.
+**Second deployment — done.** Carried the version-attribution fix and the applied sending rules, and was replayed:
+
+| Step | Result |
+| --- | --- |
+| List the rules | 12 governed events, none configured, 0 rules in the cache |
+| Silence an alarm | Refused, `MESSAGE_EVENT_UNSILENCEABLE`, nothing stored |
+| Set a rule on a customer message | Refused, `MESSAGE_EVENT_NOT_FOUND` |
+| Save a rule | Reached the dispatch cache immediately; the other eleven events untouched |
+| Send from a published override | Recorded as `2026-08-20-phase4+override.v2` — the defect the first replay found |
+| Send after reverting | Recorded as `2026-08-20-phase4`, compiled text |
+| Restore | Rule removed, template reverted; the cache confirmed empty after its periodic refresh |
+
+Production ends with no rules and no overrides — the state it started in. The archived `MessageTemplate` rows are the
+deliberate history of the two replays.
+
+Its migration reached production at 05:48, ahead of the deployment step, as a side effect of a `prisma migrate deploy`
+run while setting up the rule tests. It drops a column from an empty table that no running code read, so nothing was
+at risk, but it was not the intended sequence and is recorded here rather than glossed over.
+
+## Known limitation
+
+There is no route to delete a rule, only to set one. An owner who wants to undo a rule can clear every field and
+leave the message enabled, which is behaviourally identical to the compiled default — `applyMessageRule` returns
+early on every branch — but the panel will still read *Réglée par le studio* rather than *Comportement de
+l'application*. Cosmetic, not behavioural. Worth a delete route in Phase 10, not a third deployment now.
