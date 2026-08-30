@@ -1303,6 +1303,7 @@ const AdminDashboard = () => {
             <Motion.div key="leads" variants={pageTransition} initial="initial" animate="animate" exit="exit">
               <React.Suspense fallback={<div className="admin-card">Chargement des demandes...</div>}>
                 <AdminRequestsPanel
+                  refreshToken={lastSyncedAt.leads}
                   cardRefs={leadCardRefs}
                   openActionDialog={openActionDialog}
                   runAction={runAction}
@@ -1400,6 +1401,7 @@ const AdminDashboard = () => {
             <Motion.div key="notifications" variants={pageTransition} initial="initial" animate="animate" exit="exit">
               <React.Suspense fallback={<div className="admin-card">Chargement des messages…</div>}>
                 <AdminMessagesPanel
+                  refreshToken={lastSyncedAt.notifications}
                   templates={messageTemplates}
                   templatesMeta={messageTemplatesMeta}
                   rules={messageRules}

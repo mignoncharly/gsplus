@@ -37,7 +37,7 @@ const filtersFromParams = (params) => ({
  * provider states and attempts stay available in a panel the operator opens, rather
  * than filling the row.
  */
-const AdminMessagesPanel = ({ templates, templatesMeta, rules = [], onReloadTemplates, openActionDialog, runAction, onResolve, onRetry, busyActions }) => {
+const AdminMessagesPanel = ({ refreshToken, templates, templatesMeta, rules = [], onReloadTemplates, openActionDialog, runAction, onResolve, onRetry, busyActions }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
   const queryKey = searchParams.toString();
@@ -58,7 +58,9 @@ const AdminMessagesPanel = ({ templates, templatesMeta, rules = [], onReloadTemp
       })
       .catch((loadError) => { if (!cancelled) setError(loadError.message || 'Impossible de charger le journal.'); });
     return () => { cancelled = true; };
-  }, [queryKey]);
+    // Same reason as the requests panel: the journal fetches its own rows, so it has to
+    // listen to the dashboard's refresh clock or "Actualiser" would leave it stale.
+  }, [queryKey, refreshToken]);
 
   const apply = (next) => {
     const params = new URLSearchParams();

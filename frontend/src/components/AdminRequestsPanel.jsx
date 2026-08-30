@@ -23,6 +23,22 @@ const filtersFromParams = (params) => ({
 const digitsOnly = (value) => String(value || '').replace(/[^\d+]/g, '');
 
 /**
+ * One unreadable date must not take the whole list down with it.
+ *
+ * `formatBusinessDateTime` throws on an invalid value, and it is called once per request,
+ * so a single malformed row would blank the panel rather than showing the other requests
+ * with one gap in it.
+ */
+const businessDateTime = (value) => {
+  if (!value) return null;
+  try {
+    return formatBusinessDateTime(value);
+  } catch {
+    return null;
+  }
+};
+
+/**
  * §7 — Demandes reçues.
  *
  * Explicitly not a CRM: the report rules out assignment, pipeline, opportunity value,
@@ -30,7 +46,7 @@ const digitsOnly = (value) => String(value || '').replace(/[^\d+]/g, '');
  * works through, and closes, with the contact details and the e-mail history it needs to
  * answer without leaving the record.
  */
-const AdminRequestsPanel = ({ cardRefs, openActionDialog, runAction }) => {
+const AdminRequestsPanel = ({ refreshToken, cardRefs, openActionDialog, runAction }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   // A link in an already-delivered e-mail points at /admin/demandes/<référence>. That
@@ -60,7 +76,9 @@ const AdminRequestsPanel = ({ cardRefs, openActionDialog, runAction }) => {
       })
       .catch((loadError) => { if (!cancelled) setError(loadError.message || 'Impossible de charger les demandes.'); });
     return () => { cancelled = true; };
-  }, [queryKey, reloadToken]); // eslint-disable-line react-hooks/exhaustive-deps
+    // `refreshToken` is the dashboard's own refresh clock. Without it, a panel that
+    // fetches its own rows would ignore the "Actualiser" button entirely.
+  }, [queryKey, reloadToken, refreshToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const apply = (next) => {
     const params = new URLSearchParams();
@@ -169,8 +187,8 @@ const AdminRequestsPanel = ({ cardRefs, openActionDialog, runAction }) => {
               <div>
                 <h2>{lead.company || lead.name}</h2>
                 <code className="admin-public-reference">{lead.reference}</code>
-                <small>Reçue le {formatBusinessDateTime(lead.createdAt)}</small>
-                {lead.handledAt && <small>Traitée le {formatBusinessDateTime(lead.handledAt)}{lead.handledBy?.name ? ` par ${lead.handledBy.name}` : ''}</small>}
+                {businessDateTime(lead.createdAt) && <small>Reçue le {businessDateTime(lead.createdAt)}</small>}
+                {businessDateTime(lead.handledAt) && <small>Traitée le {businessDateTime(lead.handledAt)}{lead.handledBy?.name ? ` par ${lead.handledBy.name}` : ''}</small>}
               </div>
               <div className="admin-lead-badges">
                 <span className="admin-pill admin-pill--count">{statusLabel(lead.type)}</span>
@@ -185,7 +203,7 @@ const AdminRequestsPanel = ({ cardRefs, openActionDialog, runAction }) => {
               <div><dt>Nom</dt><dd>{lead.name}</dd></div>
               <div><dt>E-mail</dt><dd>{lead.email || 'Non communiqué'}</dd></div>
               <div><dt>Téléphone</dt><dd>{lead.phone || 'Non communiqué'}</dd></div>
-              <div><dt>WhatsApp</dt><dd>{consented ? `Consenti le ${formatBusinessDateTime(lead.whatsappConsentAt)}` : 'Pas de consentement'}</dd></div>
+              <div><dt>WhatsApp</dt><dd>{consented ? `Consenti${businessDateTime(lead.whatsappConsentAt) ? ` le ${businessDateTime(lead.whatsappConsentAt)}` : ''}` : 'Pas de consentement'}</dd></div>
             </dl>
 
             <div className="admin-action-row">
@@ -223,7 +241,7 @@ const AdminRequestsPanel = ({ cardRefs, openActionDialog, runAction }) => {
                   return (
                     <li key={event.id}>
                       <strong>{descriptor.name}</strong> · {statusLabel(event.status)} · {event.recipient}
-                      <small>{formatBusinessDateTime(event.sentAt || event.createdAt)}</small>
+                      <small>{businessDateTime(event.sentAt || event.createdAt) || 'Date inconnue'}</small>
                     </li>
                   );
                 })}

@@ -90,12 +90,33 @@ Two things changed as a result:
 - `test/global-setup.ts` already derives and migrates its own `_test` database, so `npx vitest
   run` never needed a manual migrate. No test run in this phase touched production again.
 
+## A regression the suite caught, in this phase and the last one
+
+`P2-02` asserts that *Actualiser* refreshes an open tab without reloading the page. Making
+the requests panel fetch its own rows — the same pattern the journal took in Phase 7 —
+broke it: the dashboard's refresh button no longer reached either panel, because neither
+listened to anything the button changed. **Phase 7 shipped that gap in the journal and
+nothing caught it**, because `P2-02` only exercises the requests list. Both panels now take
+the dashboard's refresh clock as a dependency.
+
+`P2-02` also crashed the panel outright: its fixture has no `createdAt`, and
+`formatBusinessDateTime` throws on an invalid value, so **one unreadable date blanked the
+whole list** instead of leaving one gap in it. The panel now degrades per field.
+
+`phase-4-admin` caught the third: the deep link `/admin/leads/:ref` used to work because
+the resolver injected the request into the list. It now works because the panel searches
+for the reference the path carries — which is better, but only as long as the search finds
+an archived request too. It does: the search matches the reference exactly, whatever the
+status filter would otherwise hide.
+
 ## Verification evidence
 
 - New browser suite `adm-phase-9-exploitation.spec.js`: **9 passed**.
 - New backend suites: **8** for received requests, **6** for media integrity, **5** for the
   rights queue.
 - Frontend unit suite: **128 passed**.
+- Backend suite: **268 passed across 37 files** (249 before, plus 19 new).
+- Full local Chromium regression: **140 passed, 0 failed** (131 before, plus 9 new).
 - Frontend lint and backend TypeScript build: clean.
 
 **A guard that fired as designed.** The Phase 1 enum-completeness test failed the moment

@@ -43,7 +43,13 @@ const installApi = async (page, authenticated = true) => {
     if (path === '/api/admin/financial-tasks/' + task.id) return json(route, { data: task });
     if (path === '/api/admin/financial-tasks') return json(route, { data: [task], meta: { total: 1, limit: 25, offset: 0, operators: [task.createdBy] } });
     if (path === '/api/admin/reservations') return json(route, { data: [] });
-    if (path === '/api/admin/leads') return json(route, { data: [] });
+    if (path === '/api/admin/leads') {
+      // The requests panel searches for the reference the deep link carries, exactly as
+      // the server does, so the mock has to honour the query rather than return nothing.
+      const term = new URL(route.request().url()).searchParams.get('q');
+      const data = term && lead.reference.toUpperCase() === term.toUpperCase() ? [lead] : [];
+      return json(route, { data, meta: { total: data.length, limit: 50, offset: 0 } });
+    }
     return json(route, { data: [] });
   });
 };

@@ -31,9 +31,11 @@ test('P2-02 revalidates an opened admin tab and refreshes new leads without page
 
   await page.goto('/admin/dashboard', { waitUntil: 'domcontentloaded' });
   await page.locator('.admin-layout').waitFor();
-  await page.getByRole('button', { name: 'Leads' }).click();
+  await page.getByRole('button', { name: 'Demandes reçues' }).click();
 
-  await expect(page.getByText('Nouvelle demande P2-02', { exact: true })).toBeVisible();
+  // The record shows the company as its heading and the contact name in the detail grid;
+  // this fixture gives both the same value, so the assertion names the heading.
+  await expect(page.getByRole('heading', { name: 'Nouvelle demande P2-02' })).toBeVisible();
   await expect(page.getByText(/Dernière actualisation : .*Douala/)).toBeVisible();
   const navigationCountBeforeRefresh = navigations.length;
   // Since Phase 2 each admin view has its own address, so opening Leads legitimately
@@ -41,7 +43,7 @@ test('P2-02 revalidates an opened admin tab and refreshes new leads without page
   // document nor the route, so the address is captured here rather than hardcoded.
   const urlBeforeRefresh = page.url();
   await page.getByRole('button', { name: 'Actualiser' }).click();
-  await expect(page.getByText('Deuxième demande P2-02', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Deuxième demande P2-02' })).toBeVisible();
   await expect.poll(() => leadReads).toBeGreaterThanOrEqual(2);
   expect(navigations).toHaveLength(navigationCountBeforeRefresh);
   expect(page.url()).toBe(urlBeforeRefresh);
