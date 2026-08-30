@@ -45,6 +45,8 @@ import {
   getAdminMedia,
   getAdminMessages,
   getAdminMessageRules,
+  getAdminCatalogueBenefits,
+  getAdminCatalogueTaxonomy,
   getAdminPackages,
   getAdminReservation,
   getApiHealth,
@@ -85,6 +87,7 @@ const AdminWhatsAppPanel = React.lazy(() => import('../components/AdminWhatsAppP
 const AdminOpsPanel = React.lazy(() => import('../components/AdminReservationOperationsPanel'));
 const AdminActionDialog = React.lazy(() => import('../components/AdminActionDialog'));
 const AdminPackagesPanel = React.lazy(() => import('../components/AdminPackagesPanel'));
+const AdminCatalogueSectionsPanel = React.lazy(() => import('../components/AdminCatalogueSectionsPanel'));
 const AdminDataGovernancePanel = React.lazy(() => import('../components/AdminDataGovernancePanel'));
 const AdminMediaRightsPanel = React.lazy(() => import('../components/AdminMediaRightsPanel'));
 const AdminFinanceRoute = React.lazy(() => import('../components/AdminFinanceRoute'));
@@ -174,6 +177,8 @@ const AdminDashboard = () => {
   const [messageTemplates, setMessageTemplates] = useState([]);
   const [messageTemplatesMeta, setMessageTemplatesMeta] = useState(null);
   const [messageRules, setMessageRules] = useState([]);
+  const [catalogueTaxonomy, setCatalogueTaxonomy] = useState([]);
+  const [catalogueBenefits, setCatalogueBenefits] = useState([]);
   const [dataGovernance, setDataGovernance] = useState({ policies: [], requests: [] });
 
   const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
@@ -196,7 +201,12 @@ const AdminDashboard = () => {
           // spurious "les données n'ont pas pu être rechargées".
           return true;
         } else if (tab === 'tarifs') {
-          setPacks(await getAdminPackages());
+          const [items, sections, privileges] = await Promise.all([
+            getAdminPackages(), getAdminCatalogueTaxonomy(), getAdminCatalogueBenefits(),
+          ]);
+          setPacks(items);
+          setCatalogueTaxonomy(sections);
+          setCatalogueBenefits(privileges);
         } else if (tab === 'availability') {
           setBlocks(await getAdminAvailabilityBlocks());
         } else if (tab === 'portfolio') {
@@ -1305,7 +1315,14 @@ const AdminDashboard = () => {
               <React.Suspense fallback={<div className="admin-card">Chargement des tarifs...</div>}>
                 <AdminPackagesPanel
                   packs={packs}
+                  taxonomy={catalogueTaxonomy}
                   adminUser={adminUser}
+                  onRefresh={() => refreshAdminTab('tarifs')}
+                  onFeedback={setFeedback}
+                />
+                <AdminCatalogueSectionsPanel
+                  taxonomy={catalogueTaxonomy}
+                  benefits={catalogueBenefits}
                   onRefresh={() => refreshAdminTab('tarifs')}
                   onFeedback={setFeedback}
                 />

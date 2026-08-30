@@ -81,3 +81,19 @@ export const selectPackageFromQuery = (packages, queryValue) => {
   if (!queryValue) return packages[0];
   return packages.find((pack) => pack.id === queryValue || pack.slug === queryValue) || packages.find((pack) => String(pack.sortOrder / 10) === queryValue) || packages[0];
 };
+
+/**
+ * The public identifier for a formula, derived from its name.
+ *
+ * French names carry accents and the catalogue is full of them ("Maternité Élégance"),
+ * so the accents are decomposed and stripped rather than dropped as unknown characters,
+ * which would turn "Fiançailles" into "fian-ailles".
+ */
+export const slugify = (value) => String(value ?? '')
+  .normalize('NFD')
+  .replace(/[̀-ͯ]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 80)
+  .replace(/-+$/g, '');

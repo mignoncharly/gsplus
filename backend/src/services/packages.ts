@@ -582,6 +582,38 @@ export const validatePackageVersion = async (
   return loadAdminPackage(packageId);
 };
 
+/**
+ * Rewrite the catalogue order from an explicit sequence.
+ *
+ * The previous "move up" wrote `sortOrder - 1`, but the catalogue is spaced in tens, so
+ * a package at 20 moved to 19 and stayed exactly where it was. Order is a property of
+ * the whole list, not of one row, so the whole list is what gets written — spaced in
+ * tens again, leaving room to insert by hand later.
+ *
+ * This touches only `Package.sortOrder`; no tariff version is created, because nothing
+ * a customer reads has changed.
+ */
+export const reorderPackages = async (orderedIds: string[]) => {
+  const existing = await prisma.package.findMany({
+    where: { isArchived: false },
+    select: { id: true },
+  });
+  const known = new Set(existing.map((item) => item.id));
+  const unknown = orderedIds.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    throw new HttpError(404, 'PACKAGE_NOT_FOUND', 'Une formule de cet ordre est introuvable ou archivée.', { ids: unknown });
+  }
+  // A partial list would silently leave the packages it omits interleaved at stale
+  // positions, so the caller has to send the whole active catalogue.
+  if (orderedIds.length !== known.size || new Set(orderedIds).size !== orderedIds.length) {
+    throw new HttpError(422, 'PACKAGE_ORDER_INCOMPLETE', 'L’ordre doit lister chaque formule active une seule fois.');
+  }
+  await prisma.$transaction(
+    orderedIds.map((id, index) => prisma.package.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } })),
+  );
+  return listAdminPackages();
+};
+
 export const publishPackageVersion = async (
   packageId: string,
   expectedVersion: number,

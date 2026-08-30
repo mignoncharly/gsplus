@@ -15,6 +15,18 @@ const initialValues = (fields) => Object.fromEntries(
   fields.map((field) => [field.name, field.defaultValue ?? '']),
 );
 
+/**
+ * A field may declare `visibleWhen(values)`; a hidden field is not shown and not
+ * validated, so it can never block a form the operator cannot see. Its value stays in
+ * state rather than being cleared, so switching a mode back finds what was typed still
+ * there — which means the payload builder, not the dialog, decides what a hidden field
+ * contributes.
+ */
+const isVisible = (field, values) => (typeof field.visibleWhen === 'function' ? Boolean(field.visibleWhen(values)) : true);
+
+/** `required` may be a function of the other values, for a field that only matters in one mode. */
+const isRequired = (field, values) => (typeof field.required === 'function' ? Boolean(field.required(values)) : Boolean(field.required));
+
 const AdminActionDialog = ({ config, onClose }) => {
   const titleId = useId();
   const descriptionId = useId();
@@ -29,6 +41,7 @@ const AdminActionDialog = ({ config, onClose }) => {
   const fields = useMemo(() => config?.fields || [], [config]);
   const [values, setValues] = useState(() => initialValues(fields));
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -87,7 +100,17 @@ const AdminActionDialog = ({ config, onClose }) => {
   const previewRequired = Boolean(config.preview && (config.previewRequired?.(values) ?? true));
 
   const updateValue = (name, value) => {
-    setValues((current) => ({ ...current, [name]: value }));
+    setValues((current) => {
+      const next = { ...current, [name]: value };
+      // A derived field follows its source until someone edits it by hand; after that it
+      // is theirs. `deriveFrom` names the source, `derive` computes the value.
+      for (const field of fields) {
+        if (field.deriveFrom !== name || touched[field.name]) continue;
+        next[field.name] = field.derive(value, next);
+      }
+      return next;
+    });
+    setTouched((current) => (current[name] ? current : { ...current, [name]: true }));
     setErrors((current) => {
       if (!current[name]) return current;
       const next = { ...current };
@@ -102,8 +125,10 @@ const AdminActionDialog = ({ config, onClose }) => {
   const validate = () => {
     const next = {};
     for (const field of fields) {
+      // A field the operator cannot see must not be able to block the form.
+      if (!isVisible(field, values)) continue;
       const value = String(values[field.name] ?? '').trim();
-      if (field.required && !value) next[field.name] = field.requiredMessage || 'Ce champ est obligatoire.';
+      if (isRequired(field, values) && !value) next[field.name] = field.requiredMessage || 'Ce champ est obligatoire.';
       if (!next[field.name] && field.validate) {
         const issue = field.validate(values[field.name], values);
         if (issue) next[field.name] = issue;
@@ -177,14 +202,14 @@ const AdminActionDialog = ({ config, onClose }) => {
         </div>
         <form onSubmit={submit} noValidate>
           <div className="admin-action-dialog-fields">
-            {fields.map((field, index) => {
+            {fields.filter((field) => isVisible(field, values)).map((field, index) => {
               const inputId = titleId + '-' + field.name;
               const errorId = inputId + '-error';
               const common = {
                 id: inputId,
                 name: field.name,
                 value: values[field.name] ?? '',
-                required: field.required,
+                required: isRequired(field, values),
                 disabled: submitting,
                 className: 'form-input',
                 'aria-invalid': Boolean(errors[field.name]),
@@ -194,7 +219,7 @@ const AdminActionDialog = ({ config, onClose }) => {
               };
               return (
                 <div key={field.name} className={field.wide === false ? '' : 'admin-action-dialog-field-wide'}>
-                  <label htmlFor={inputId}>{field.label}{field.required ? ' *' : ''}</label>
+                  <label htmlFor={inputId}>{field.label}{isRequired(field, values) ? ' *' : ''}</label>
                   {field.type === 'select' ? (
                     <select {...common}>
                       {(field.options || []).map((option) => (

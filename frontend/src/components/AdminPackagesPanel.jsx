@@ -8,11 +8,13 @@ import {
   deleteAdminPackage,
   duplicateAdminPackage,
   publishAdminPackage,
+  reorderAdminPackages,
   updateAdminPackage,
   validateAdminPackage,
 } from '../lib/api';
 import { packageReferenceCount, statusLabel } from '../lib/admin-workflow';
 import { formatFcfa } from '../lib/display-formatters';
+import { GENERIC_DELIVERY_CONTACT, GENERIC_DELIVERY_CONTACT_ENGLISH, slugify } from '../lib/packages';
 import {
   businessDateTimeLocalValue,
   doualaLocalDateTimeToIso,
@@ -31,7 +33,7 @@ const countChip = (count) => (
   <span className="admin-pill admin-pill--count">{count} référence{count < 2 ? '' : 's'}</span>
 );
 
-const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
+const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeedback }) => {
   const [editingPack, setEditingPack] = useState(null);
   const [previewPack, setPreviewPack] = useState(null);
   const [actionDialog, setActionDialog] = useState(null);
@@ -55,64 +57,190 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
   });
 
   const inclusionsText = (pack) => Array.isArray(pack?.inclusions) ? pack.inclusions.join('\n') : '';
-  const taxonomyOptions = Array.from(new Map(packs.map((pack) => { const taxonomy = pack.currentVersion?.taxonomy; const label = taxonomy?.locales?.find((item) => item.locale === 'fr')?.label || pack.category; return [pack.taxonomyKey, { value: pack.taxonomyKey, label }]; }).filter(([key]) => key)).values());
+  /**
+   * The controlled list of the eight public sections, read from the taxonomy itself.
+   *
+   * It used to be derived from the formulas that already existed, so a section with no
+   * formula in it could not be chosen — which is precisely the case an owner opening a
+   * new section is in. Inactive sections are left out: they are not shown to the public,
+   * so a formula must not be filed under one.
+   */
+  const taxonomyOptions = taxonomy
+    .filter((item) => item.isActive)
+    .map((item) => ({
+      value: item.key,
+      label: item.locales?.find((entry) => entry.locale === 'fr')?.label || item.key,
+    }));
   const localized = (pack, locale) => pack?.currentVersion?.locales?.find((item) => item.locale === locale) || pack?.locales?.find((item) => item.locale === locale);
-  const fields = (pack = {}) => [
-    { name: 'name', label: 'Nom', required: true, defaultValue: pack.name || '' },
-    { name: 'slug', label: 'Identifiant URL', required: true, defaultValue: pack.slug || '', validate: (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value)) ? '' : 'Utilisez uniquement minuscules, chiffres et tirets.' },
-    { name: 'taxonomyKey', label: 'Section publique', type: 'select', required: true, defaultValue: pack.taxonomyKey || taxonomyOptions[0]?.value || '', options: taxonomyOptions },
-    { name: 'price', label: 'Montant', type: 'number', required: true, defaultValue: String(pack.price ?? 0), min: '0', validate: (value) => Number(value) >= 0 ? '' : 'Le montant doit être positif ou nul.' },
-    { name: 'currency', label: 'Devise', type: 'select', required: true, defaultValue: pack.currency || 'XAF', options: [{ value: 'XAF', label: 'XAF — franc CFA' }] },
-    { name: 'bookingMode', label: 'Mode de réservation', type: 'select', required: true, defaultValue: pack.bookingMode || 'DIRECT', options: [{ value: 'DIRECT', label: 'Réservation directe' }, { value: 'CONTACT', label: 'Prise de contact' }] },
-    { name: 'durationMin', label: 'Durée en minutes — vide si prise de contact', type: 'number', defaultValue: pack.durationMin === null ? '' : String(pack.durationMin ?? 60), min: '15', validate: (value) => value === '' || Number(value) >= 15 ? '' : 'La durée minimale est de 15 minutes.' },
-    { name: 'description', label: 'Résumé public', type: 'textarea', required: true, defaultValue: pack.description || '' },
-    { name: 'content', label: 'Contenu de la formule', type: 'textarea', required: true, defaultValue: pack.content || '' },
-    { name: 'inclusions', label: 'Inclusions — une par ligne', type: 'textarea', required: true, defaultValue: inclusionsText(pack), validate: (value) => String(value).split('\n').some((line) => line.trim()) ? '' : 'Renseignez au moins une inclusion.' },
-    { name: 'conditions', label: 'Conditions applicables', type: 'textarea', required: true, defaultValue: pack.conditions || '' },
-    { name: 'legalText', label: 'Mentions obligatoires', type: 'textarea', required: true, defaultValue: pack.legalText || '' },
-    { name: 'effectiveAt', label: 'Date d’effet à Douala', type: 'datetime-local', required: true, defaultValue: pack.effectiveAt ? businessDateTimeLocalValue(pack.effectiveAt) : businessDateTimeLocalValue(new Date()) },
-    { name: 'deliveryLabel', label: 'Délai de livraison', required: true, defaultValue: pack.deliveryLabel || '' },
-    { name: 'sortOrder', label: 'Ordre d’affichage', type: 'number', required: true, defaultValue: String(pack.sortOrder ?? 0), min: '0' },
-    { name: 'englishEnabled', label: 'Catalogue anglais', type: 'select', required: true, defaultValue: String(pack.englishEnabled ?? true), options: [{ value: 'true', label: 'Activé' }, { value: 'false', label: 'Désactivé' }] },
-    { name: 'englishName', label: 'Nom anglais', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.name || '' },
-    { name: 'englishDescription', label: 'Résumé anglais', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.description || '' },
-    { name: 'englishContent', label: 'Contenu anglais', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.content || '' },
-    { name: 'englishInclusions', label: 'Inclusions anglaises — une par ligne', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: Array.isArray(localized(pack, 'en')?.inclusions) ? localized(pack, 'en').inclusions.join('\n') : '' },
-    { name: 'englishConditions', label: 'Conditions anglaises', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.conditions || '' },
-    { name: 'englishDeliveryLabel', label: 'Délai de livraison anglais', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.deliveryLabel || '' },
-    { name: 'englishMandatoryWording', label: 'Mentions obligatoires anglaises', type: 'textarea', required: Boolean(pack.englishEnabled ?? true), defaultValue: localized(pack, 'en')?.mandatoryWording || '' },
-  ];
+  const advanced = (values) => values.advanced === 'true';
+  const isDirect = (values) => values.bookingMode === 'DIRECT';
+  const wantsEnglish = (values) => values.englishEnabled === 'true';
+
+  const fields = (pack = {}) => {
+    const existing = Boolean(pack.id);
+    const optionsOf = (item) => (item?.options && typeof item.options === 'object' && !Array.isArray(item.options) ? item.options : {});
+    const packOptions = optionsOf(pack);
+    const initialPriceKind = pack.isRange ? 'FROM' : (packOptions.priceSuffix ? 'PER_MONTH' : 'FIXED');
+    const initialDelivery = !pack.deliveryLabel || pack.deliveryLabel === GENERIC_DELIVERY_CONTACT ? 'CONTACT' : 'LEAD_TIME';
+    return [
+      { name: 'name', label: 'Nom', required: true, defaultValue: pack.name || '' },
+      // The slug follows the name until someone edits it, and an existing formula never
+      // has its URL rewritten behind the owner's back — a published link would break.
+      { name: 'slug', label: 'Identifiant URL', required: true, defaultValue: pack.slug || '',
+        visibleWhen: advanced, wide: false,
+        ...(existing ? {} : { deriveFrom: 'name', derive: (value) => slugify(value) }),
+        help: existing ? 'Modifier l’identifiant change l’adresse publique de la formule.' : 'Généré à partir du nom tant que vous n’y touchez pas.',
+        validate: (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value)) ? '' : 'Utilisez uniquement minuscules, chiffres et tirets.' },
+      { name: 'taxonomyKey', label: 'Section publique', type: 'select', required: true,
+        defaultValue: pack.taxonomyKey || taxonomyOptions[0]?.value || '', options: taxonomyOptions,
+        help: 'Les sections se gèrent dans Paramètres ; elles ne se créent pas depuis une formule.' },
+
+      { name: 'bookingMode', label: 'Mode de réservation', type: 'select', required: true, wide: false,
+        defaultValue: pack.bookingMode || 'DIRECT',
+        options: [{ value: 'DIRECT', label: 'Réservation directe' }, { value: 'CONTACT', label: 'Prise de contact' }],
+        help: 'Détermine la durée, la livraison et le bouton affiché au public.' },
+      { name: 'durationMin', label: 'Durée en minutes', type: 'number', min: '15', wide: false,
+        visibleWhen: isDirect, required: isDirect,
+        defaultValue: pack.durationMin === null || pack.durationMin === undefined ? '' : String(pack.durationMin),
+        requiredMessage: 'La durée est obligatoire pour une réservation directe.',
+        validate: (value) => value === '' || Number(value) >= 15 ? '' : 'La durée minimale est de 15 minutes.' },
+
+      { name: 'priceKind', label: 'Forme du tarif', type: 'select', required: true, wide: false,
+        defaultValue: initialPriceKind,
+        options: [
+          { value: 'FIXED', label: 'Montant fixe' },
+          { value: 'FROM', label: 'À partir de' },
+          { value: 'PER_MONTH', label: 'Par mois — abonnement' },
+        ],
+        help: 'Les pourcentages et les doubles avantages se gèrent dans les Privilèges Golden.' },
+      { name: 'price', label: 'Montant', type: 'number', required: true, min: '0', wide: false,
+        defaultValue: String(pack.price ?? 0),
+        validate: (value) => Number(value) >= 0 ? '' : 'Le montant doit être positif ou nul.' },
+      { name: 'currency', label: 'Devise', type: 'select', required: true, wide: false,
+        defaultValue: pack.currency || 'XAF', options: [{ value: 'XAF', label: 'XAF — franc CFA' }],
+        help: 'Le studio facture en francs CFA uniquement.' },
+      { name: 'commitmentMonths', label: 'Engagement en mois', type: 'number', min: '1', wide: false,
+        visibleWhen: (values) => values.priceKind === 'PER_MONTH', required: (values) => values.priceKind === 'PER_MONTH',
+        defaultValue: packOptions.subscription?.commitmentMonths ? String(packOptions.subscription.commitmentMonths) : '' },
+      { name: 'sessionsPerMonth', label: 'Séances par mois', type: 'number', min: '1', wide: false,
+        visibleWhen: (values) => values.priceKind === 'PER_MONTH', required: (values) => values.priceKind === 'PER_MONTH',
+        defaultValue: packOptions.subscription?.sessionsPerMonth ? String(packOptions.subscription.sessionsPerMonth) : '' },
+
+      { name: 'deliveryKind', label: 'Livraison', type: 'select', required: true, wide: false,
+        defaultValue: initialDelivery,
+        options: [{ value: 'LEAD_TIME', label: 'Délai annoncé' }, { value: 'CONTACT', label: 'Nous contacter' }] },
+      { name: 'deliveryLabel', label: 'Délai de livraison', wide: false,
+        visibleWhen: (values) => values.deliveryKind === 'LEAD_TIME', required: (values) => values.deliveryKind === 'LEAD_TIME',
+        defaultValue: initialDelivery === 'LEAD_TIME' ? pack.deliveryLabel || '' : '',
+        help: 'Par exemple : « Galerie en ligne sous 5 jours ouvrés ».' },
+
+      // Everything below is optional while the formula is a draft. The publication gate
+      // refuses an incomplete public presentation, so nothing half-written reaches a client.
+      { name: 'description', label: 'Résumé public', type: 'textarea', defaultValue: pack.description || '',
+        help: 'Obligatoire pour publier.' },
+      { name: 'content', label: 'Contenu de la formule', type: 'textarea', defaultValue: pack.content || '',
+        help: 'Obligatoire pour publier ; au moins dix caractères.' },
+      { name: 'inclusions', label: 'Inclusions — une par ligne', type: 'textarea', defaultValue: inclusionsText(pack),
+        help: 'Obligatoire pour publier.' },
+      { name: 'conditions', label: 'Conditions applicables', type: 'textarea', defaultValue: pack.conditions || '',
+        help: 'Obligatoire pour publier ; au moins dix caractères.' },
+      { name: 'legalText', label: 'Mentions obligatoires', type: 'textarea', defaultValue: pack.legalText || '',
+        help: 'Obligatoires, et validées séparément avant publication.' },
+
+      { name: 'effectiveAt', label: 'Date d’effet à Douala', type: 'datetime-local', required: true, wide: false,
+        visibleWhen: advanced,
+        defaultValue: pack.effectiveAt ? businessDateTimeLocalValue(pack.effectiveAt) : businessDateTimeLocalValue(new Date()),
+        help: 'Par défaut maintenant. Une date future est acceptée, mais la publication est refusée tant qu’elle n’est pas atteinte.' },
+      { name: 'sortOrder', label: 'Ordre d’affichage', type: 'number', min: '0', wide: false,
+        visibleWhen: advanced, defaultValue: String(pack.sortOrder ?? 0),
+        help: 'L’ordre se règle normalement avec les flèches de la liste.' },
+
+      { name: 'englishEnabled', label: 'Catalogue anglais', type: 'select', required: true, wide: false,
+        defaultValue: String(pack.englishEnabled ?? true),
+        options: [{ value: 'true', label: 'Activé' }, { value: 'false', label: 'Désactivé' }] },
+      { name: 'englishName', label: 'Nom anglais', wide: false, visibleWhen: wantsEnglish, defaultValue: localized(pack, 'en')?.name || '' },
+      { name: 'englishDescription', label: 'Résumé anglais', type: 'textarea', visibleWhen: wantsEnglish, defaultValue: localized(pack, 'en')?.description || '' },
+      { name: 'englishContent', label: 'Contenu anglais', type: 'textarea', visibleWhen: wantsEnglish, defaultValue: localized(pack, 'en')?.content || '' },
+      { name: 'englishInclusions', label: 'Inclusions anglaises — une par ligne', type: 'textarea', visibleWhen: wantsEnglish,
+        defaultValue: Array.isArray(localized(pack, 'en')?.inclusions) ? localized(pack, 'en').inclusions.join('\n') : '' },
+      { name: 'englishConditions', label: 'Conditions anglaises', type: 'textarea', visibleWhen: wantsEnglish, defaultValue: localized(pack, 'en')?.conditions || '' },
+      { name: 'englishDeliveryLabel', label: 'Délai de livraison anglais', wide: false, visibleWhen: wantsEnglish,
+        defaultValue: localized(pack, 'en')?.deliveryLabel || '' },
+      { name: 'englishMandatoryWording', label: 'Mentions obligatoires anglaises', type: 'textarea', visibleWhen: wantsEnglish,
+        defaultValue: localized(pack, 'en')?.mandatoryWording || '' },
+
+      { name: 'advanced', label: 'Réglages avancés', type: 'select', wide: false, defaultValue: 'false',
+        options: [{ value: 'false', label: 'Masqués' }, { value: 'true', label: 'Affichés' }],
+        help: 'Identifiant URL, date d’effet et ordre numérique.' },
+    ];
+  };
+  /**
+   * A locale row has to be complete or absent — the API refuses a half-filled one. So a
+   * draft that is not finished simply carries no locale, and the existing translations
+   * are preserved because the payload omits the field entirely rather than sending an
+   * empty list.
+   */
+  const completeLocale = (locale) => Boolean(
+    locale.name && locale.content.length >= 10 && locale.inclusions.length
+    && locale.conditions.length >= 10 && locale.deliveryLabel && locale.mandatoryWording.length >= 10,
+  );
+
   const draftPayload = (values) => {
     let effectiveAt;
     try { effectiveAt = doualaLocalDateTimeToIso(values.effectiveAt); }
     catch { throw new Error('La date d’effet est invalide.'); }
-    if (values.bookingMode === 'DIRECT' && values.durationMin === '') {
+    const direct = values.bookingMode === 'DIRECT';
+    if (direct && String(values.durationMin).trim() === '') {
       throw new Error('La durée est obligatoire pour une réservation directe.');
     }
     const englishEnabled = values.englishEnabled === 'true';
     const taxonomy = taxonomyOptions.find((item) => item.value === values.taxonomyKey);
     if (!taxonomy) throw new Error('Sélectionnez une section publique valide.');
-    const frenchLocale = { locale: 'fr', name: values.name.trim(), description: values.description.trim() || null, content: values.content.trim(), inclusions: values.inclusions.split('\n').map((line) => line.trim()).filter(Boolean), conditions: values.conditions.trim(), deliveryLabel: values.deliveryLabel.trim(), mandatoryWording: values.legalText.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
-    const englishLocale = { locale: 'en', name: values.englishName.trim(), description: values.englishDescription.trim() || null, content: values.englishContent.trim(), inclusions: values.englishInclusions.split('\n').map((line) => line.trim()).filter(Boolean), conditions: values.englishConditions.trim(), deliveryLabel: values.englishDeliveryLabel.trim(), mandatoryWording: values.englishMandatoryWording.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
-    if (englishEnabled && (!englishLocale.name || !englishLocale.content || !englishLocale.inclusions.length || !englishLocale.conditions || !englishLocale.deliveryLabel || !englishLocale.mandatoryWording)) throw new Error('Complétez tous les contenus anglais avant activation.');
+
+    const lines = (value) => String(value || '').split('\n').map((line) => line.trim()).filter(Boolean);
+    const delivery = values.deliveryKind === 'CONTACT' ? GENERIC_DELIVERY_CONTACT : String(values.deliveryLabel || '').trim();
+    const englishDelivery = values.deliveryKind === 'CONTACT'
+      ? GENERIC_DELIVERY_CONTACT_ENGLISH
+      : String(values.englishDeliveryLabel || '').trim();
+
+    const frenchLocale = { locale: 'fr', name: values.name.trim(), description: values.description.trim() || null, content: values.content.trim(), inclusions: lines(values.inclusions), conditions: values.conditions.trim(), deliveryLabel: delivery, mandatoryWording: values.legalText.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
+    const englishLocale = { locale: 'en', name: values.englishName.trim(), description: values.englishDescription.trim() || null, content: values.englishContent.trim(), inclusions: lines(values.englishInclusions), conditions: values.englishConditions.trim(), deliveryLabel: englishDelivery, mandatoryWording: values.englishMandatoryWording.trim(), sourceReference: 'ADMIN_EDITOR', approvedAt: null, isEnabled: true };
+
+    const locales = [];
+    if (completeLocale(frenchLocale)) locales.push(frenchLocale);
+    if (englishEnabled && completeLocale(englishLocale)) locales.push(englishLocale);
+    // An English catalogue that is switched on but not written yet is a draft in progress,
+    // not an error: the publication gate is what refuses it.
+    if (englishEnabled && locales.length === 1 && locales[0].locale === 'en') locales.length = 0;
+
+    // The price shape is what the public page reads: `isRange` prints "À partir de", and
+    // the suffix prints beside the amount. Choosing a shape rewrites both, so a formula
+    // that stops being an subscription stops carrying subscription terms.
+    const perMonth = values.priceKind === 'PER_MONTH';
+    const options = perMonth
+      ? { priceSuffix: '/ mois', subscription: { commitmentMonths: Number(values.commitmentMonths), sessionsPerMonth: Number(values.sessionsPerMonth) } }
+      : null;
+
     return {
       name: values.name.trim(),
       slug: values.slug.trim(),
       category: taxonomy.label,
       taxonomyKey: values.taxonomyKey,
       englishEnabled,
-      locales: englishEnabled ? [frenchLocale, englishLocale] : [frenchLocale],
+      ...(locales.length ? { locales } : {}),
       price: Number(values.price),
       currency: values.currency,
-      durationMin: values.durationMin === '' ? null : Number(values.durationMin),
+      durationMin: direct ? Number(values.durationMin) : null,
       bookingMode: values.bookingMode,
+      isRange: values.priceKind === 'FROM',
+      options,
       description: values.description.trim() || null,
-      content: values.content.trim(),
-      inclusions: values.inclusions.split('\n').map((line) => line.trim()).filter(Boolean),
-      conditions: values.conditions.trim(),
-      legalText: values.legalText.trim(),
+      content: values.content.trim() || null,
+      inclusions: lines(values.inclusions).length ? lines(values.inclusions) : null,
+      conditions: values.conditions.trim() || null,
+      legalText: values.legalText.trim() || null,
       effectiveAt,
-      deliveryLabel: values.deliveryLabel.trim() || null,
+      deliveryLabel: delivery || null,
       sortOrder: Number(values.sortOrder),
     };
   };
@@ -158,11 +286,28 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
     consequence: 'La formule disparaîtra du catalogue; les réservations historiques restent intactes.',
     destructive: true,
   }, 'Archiver la formule', () => archiveAdminPackage(pack.id, { expectedVersion: pack.publishedVersion }));
-  const moveItem = (pack, direction) => simpleAction({
-    title: 'Modifier l’ordre',
-    summary: pack.name,
-    consequence: 'Seul l’ordre du catalogue changera; aucune version tarifaire ne sera créée.',
-  }, 'Modifier l’ordre', () => updateAdminPackage(pack.id, { sortOrder: Math.max(0, pack.sortOrder + direction) }));
+  /**
+   * Move a formula one place in the catalogue.
+   *
+   * This used to write `sortOrder ± 1`. The catalogue is spaced in tens, so a formula at
+   * 20 moved to 19 and did not move at all — the arrows looked like they worked and
+   * changed nothing. Order belongs to the list, so the whole sequence is sent and the
+   * server rewrites it.
+   */
+  const orderedPacks = packs.filter((item) => !item.isArchived);
+  const moveItem = (pack, direction) => {
+    const index = orderedPacks.findIndex((item) => item.id === pack.id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= orderedPacks.length) return;
+    const ids = orderedPacks.map((item) => item.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const neighbour = orderedPacks[target];
+    simpleAction({
+      title: direction < 0 ? 'Monter dans le catalogue' : 'Descendre dans le catalogue',
+      summary: `${pack.name} passe ${direction < 0 ? 'avant' : 'après'} ${neighbour.name}.`,
+      consequence: 'Seul l’ordre public change ; aucune version tarifaire n’est créée.',
+    }, 'Déplacer la formule', () => reorderAdminPackages(ids));
+  };
   const removeItem = (pack) => {
     const references = packageReferenceCount(pack);
     if (references > 0) {
@@ -196,8 +341,10 @@ const AdminPackagesPanel = ({ packs, adminUser, onRefresh, onFeedback }) => {
               <button className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewPack(pack)}>Aperçu avant publication</button>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => editItem(pack)} disabled={editingPack === pack.id}>{editingPack === pack.id ? 'Modification...' : 'Modifier le brouillon'}</button>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => duplicateItem(pack)}>Dupliquer</button>
-              <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, -1)} aria-label={`Monter ${pack.name}`}>↑</button>
-              <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, 1)} aria-label={`Descendre ${pack.name}`}>↓</button>
+              <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, -1)}
+                disabled={orderedPacks[0]?.id === pack.id} aria-label={`Monter ${pack.name}`}>↑</button>
+              <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, 1)}
+                disabled={orderedPacks[orderedPacks.length - 1]?.id === pack.id} aria-label={`Descendre ${pack.name}`}>↓</button>
               {pack.publicationStatus === 'DRAFT' && <button className="btn btn-secondary admin-sm-btn" onClick={() => validateItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Valider les mentions</button>}
               {pack.publicationStatus === 'VALIDATED' && <button className="btn btn-primary admin-sm-btn" onClick={() => publishItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Publier la formule</button>}
               {pack.publishedVersion && !pack.isArchived && <button className="btn btn-secondary admin-sm-btn" onClick={() => archiveItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Archiver</button>}

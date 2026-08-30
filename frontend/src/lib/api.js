@@ -107,6 +107,31 @@ export const getAdminPackages = async () => {
   return payload.data;
 };
 
+export const getAdminCatalogueTaxonomy = async () => {
+  const payload = await apiFetch('/api/admin/catalogue-taxonomy');
+  return payload.data;
+};
+
+export const getAdminCatalogueBenefits = async () => {
+  const payload = await apiFetch('/api/admin/catalogue-benefits');
+  return payload.data;
+};
+export const createAdminCatalogueBenefit = async (data) =>
+  (await apiFetch('/api/admin/catalogue-benefits', { method: 'POST', body: JSON.stringify(data) })).data;
+export const updateAdminCatalogueBenefit = async (id, data) =>
+  (await apiFetch(`/api/admin/catalogue-benefits/${id}`, { method: 'PATCH', body: JSON.stringify(data) })).data;
+export const validateAdminCatalogueBenefit = async (id, expectedVersion) =>
+  (await apiFetch(`/api/admin/catalogue-benefits/${id}/validate`, { method: 'POST', body: JSON.stringify({ expectedVersion }) })).data;
+export const publishAdminCatalogueBenefit = async (id, expectedVersion) =>
+  (await apiFetch(`/api/admin/catalogue-benefits/${id}/publish`, { method: 'POST', body: JSON.stringify({ expectedVersion }) })).data;
+export const updateAdminCatalogueTaxonomy = async (key, data) =>
+  (await apiFetch(`/api/admin/catalogue-taxonomy/${encodeURIComponent(key)}`, { method: 'PATCH', body: JSON.stringify(data) })).data;
+
+export const reorderAdminPackages = async (orderedIds) => {
+  const payload = await apiFetch('/api/admin/packages/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
+  return payload.data;
+};
+
 export const createAdminPackage = async (data) => {
   const payload = await apiFetch('/api/admin/packages', {
     method: 'POST',

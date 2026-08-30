@@ -83,6 +83,7 @@ import {
   duplicatePackageWithVersion,
   listAdminPackages,
   publishPackageVersion,
+  reorderPackages,
   updatePackageWithVersion,
   validatePackageVersion,
 } from '../services/packages.js';
@@ -157,6 +158,7 @@ import {
   packageDuplicateSchema,
   packageUpdateSchema,
   packageValidationSchema,
+  packageReorderSchema,
   packageVersionCommandSchema,
   paymentAddSchema,
   paymentDeclaredAmountSchema,
@@ -1041,6 +1043,18 @@ router.post(
       toStatus: 'ARCHIVED',
     });
     res.json({ data: packageItem });
+  }),
+);
+
+// Declared before '/packages/:id' so the literal path is not read as an id.
+router.post(
+  '/packages/reorder',
+  validate('body', packageReorderSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    const data = await reorderPackages(req.body.orderedIds);
+    await writeAuditLog(res.locals.admin?.id, 'package.reorder', 'Package', undefined, { orderedIds: req.body.orderedIds });
+    res.json({ data });
   }),
 );
 

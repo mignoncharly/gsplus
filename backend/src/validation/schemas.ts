@@ -445,6 +445,10 @@ export const packageValidationSchema = z.object({
   mentionsApproved: z.literal(true),
 });
 
+export const packageReorderSchema = z.object({
+  orderedIds: z.array(z.string().trim().min(1)).min(1).max(200),
+});
+
 export const packageVersionCommandSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
 });
