@@ -1,0 +1,8 @@
+.admin-media-integrity { margin-bottom: 2rem; }
+.admin-media-integrity h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.admin-media-alert-list { list-style: none; margin: 0.75rem 0; padding: 0; display: grid; gap: 0.45rem; }
+.admin-media-alert-list li { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.admin-media-item-alerts { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.35rem; }
+.admin-media-item-alerts li { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.78rem; color: var(--dark-muted); }
+/* Blocking alerts are marked by weight and an icon as well as colour. */
+.admin-media-item-alerts li.is-blocking { color: var(--dark-secondary); font-weight: 600; }

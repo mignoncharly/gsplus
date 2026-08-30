@@ -21,6 +21,7 @@ import {
   availabilityQuerySchema,
   b2bInquirySchema,
   contactSchema,
+  creativeRequestSchema,
   quoteRequestSchema,
   reservationCreateSchema,
   reservationIntentCreateSchema,
@@ -180,6 +181,38 @@ router.post(
       rccm: req.body.rccm,
       subject: req.body.subject,
       message: req.body.message,
+    });
+
+    res.status(201).json({ data: lead });
+  }),
+);
+
+/**
+ * §7: a creative-services request is its own kind.
+ *
+ * It used to post to /quote-requests, so a request for a flyer and a request for a
+ * wedding shoot arrived in the same list under the same label, distinguishable only by
+ * a phrase the form happened to write into the subject.
+ */
+router.post(
+  '/creative-requests',
+  publicWriteRateLimiter,
+  publicWriteProtection,
+  validate('body', creativeRequestSchema),
+  asyncHandler(async (req, res) => {
+    const lead = await createLeadSubmission({
+      submissionKey: req.body.submissionKey,
+      type: LeadType.CREATIVE,
+      source: 'creative_form',
+      locale: req.body.locale,
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      whatsappConsent: req.body.whatsappConsent,
+      subject: req.body.service ? `Service créatif : ${req.body.service}` : 'Service créatif',
+      message: [req.body.eventDate ? `Date souhaitée : ${req.body.eventDate}` : null, req.body.message]
+        .filter(Boolean)
+        .join('\n\n'),
     });
 
     res.status(201).json({ data: lead });

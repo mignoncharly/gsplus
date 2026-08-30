@@ -40,7 +40,6 @@ import {
   decideAdminWithdrawalRequest,
   getAdminAvailabilityBlocks,
   getAdminDataGovernance,
-  getAdminLeads,
   getAdminMe,
   getAdminMedia,
   getAdminMessages,
@@ -56,7 +55,6 @@ import {
   retryAdminNotification,
   rescheduleAdminReservation,
   syncAdminReservationCalendar,
-  updateAdminLead,
   updateAdminMedia,
   updateAdminReservation,
   updateAdminAvailabilityBlock,
@@ -92,7 +90,7 @@ const AdminDataGovernancePanel = React.lazy(() => import('../components/AdminDat
 const AdminMediaRightsPanel = React.lazy(() => import('../components/AdminMediaRightsPanel'));
 const AdminFinanceRoute = React.lazy(() => import('../components/AdminFinanceRoute'));
 const AdminDeepLinkResolver = React.lazy(() => import('../components/AdminDeepLinkResolver'));
-const AdminLeadsPanel = React.lazy(() => import('../components/AdminLeadsPanel'));
+const AdminRequestsPanel = React.lazy(() => import('../components/AdminRequestsPanel'));
 const AdminReservationRecord = React.lazy(() => import('../components/AdminReservationRecord'));
 const AdminOverviewPanel = React.lazy(() => import('../components/AdminOverviewPanel'));
 const AdminReservationsPanel = React.lazy(() => import('../components/AdminReservationsPanel'));
@@ -169,7 +167,6 @@ const AdminDashboard = () => {
   const tabRefreshInFlightRef = useRef(new Map());
   const leadCardRefs = useRef(new Map());
 
-  const [leads, setLeads] = useState([]);
   const [financeDestinationId, setFinanceDestinationId] = useState('');
   const [packs, setPacks] = useState([]);
   const [media, setMedia] = useState([]);
@@ -179,6 +176,7 @@ const AdminDashboard = () => {
   const [messageRules, setMessageRules] = useState([]);
   const [catalogueTaxonomy, setCatalogueTaxonomy] = useState([]);
   const [catalogueBenefits, setCatalogueBenefits] = useState([]);
+  const [mediaIntegrity, setMediaIntegrity] = useState(null);
   const [dataGovernance, setDataGovernance] = useState({ policies: [], requests: [] });
 
   const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
@@ -194,7 +192,8 @@ const AdminDashboard = () => {
           // failure: returning undefined made callers report "données non rechargées".
           return true;
         } else if (tab === 'leads') {
-          setLeads(await getAdminLeads());
+          // The requests panel reads its own filters from the URL, like the journal does.
+          return true;
         } else if (tab === 'finance') {
           // Same contract as above: the financial module reloads itself, and that is a
           // success. Returning undefined here made every refund action report a
@@ -213,7 +212,9 @@ const AdminDashboard = () => {
         } else if (tab === 'availability') {
           setBlocks(await getAdminAvailabilityBlocks());
         } else if (tab === 'portfolio') {
-          setMedia(await getAdminMedia());
+          const library = await getAdminMedia();
+          setMedia(library.items);
+          setMediaIntegrity(library.meta?.integrity ?? null);
         } else if (tab === 'governance') {
           setDataGovernance(await getAdminDataGovernance());
         } else if (tab === 'notifications') {
@@ -379,7 +380,6 @@ const AdminDashboard = () => {
     await logoutAdmin();
     setIsAuthenticated(false);
     setAdminUser(null);
-    setLeads([]);
     setPacks([]);
     setMedia([]);
     setBlocks([]);
@@ -590,11 +590,6 @@ const AdminDashboard = () => {
     fields: [], confirmLabel: label, ...config,
     onConfirm: () => runDialogAction(label, action),
   });
-
-  const updateLeadStatus = (lead, status) => simpleAction({
-    title: 'Mettre à jour la demande', summary: (lead.company || lead.name) + ' · ' + statusLabel(lead.status) + ' → ' + statusLabel(status),
-    consequence: 'Le nouveau statut sera enregistré dans le dossier.',
-  }, 'Mettre à jour', () => updateAdminLead(lead.id, { status }));
 
   const classifyNotification = (item, resolution) => {
     const note = resolution === 'OBSOLETE' ? 'Événement historique devenu sans objet; aucun renvoi autorisé.' : 'Événement potentiellement pertinent; examen individuel requis avant tout renvoi.';
@@ -916,7 +911,7 @@ const AdminDashboard = () => {
   const nav = [
     ['overview', 'Vue ensemble', Calendar],
     ['reservations', 'Réservations', Users],
-    ['leads', 'Leads', Briefcase],
+    ['leads', 'Demandes reçues', Briefcase],
     ['finance', 'Paiements', DollarSign],
     ['tarifs', 'Tarifs', DollarSign],
     ['availability', 'Disponibilités', Ban],
@@ -1060,7 +1055,6 @@ const AdminDashboard = () => {
           loadedReference={loadedRes?.reference}
           feedback={setFeedback}
           setReservation={setLoadedRes}
-          setLeadItems={setLeads}
           setFinance={setFinanceDestinationId}
         />
       </React.Suspense>
@@ -1308,7 +1302,11 @@ const AdminDashboard = () => {
           {activeTab === 'leads' && (
             <Motion.div key="leads" variants={pageTransition} initial="initial" animate="animate" exit="exit">
               <React.Suspense fallback={<div className="admin-card">Chargement des demandes...</div>}>
-                <AdminLeadsPanel leads={leads} cardRefs={leadCardRefs} onStatusChange={updateLeadStatus} />
+                <AdminRequestsPanel
+                  cardRefs={leadCardRefs}
+                  openActionDialog={openActionDialog}
+                  runAction={runAction}
+                />
               </React.Suspense>
             </Motion.div>
           )}
@@ -1359,6 +1357,8 @@ const AdminDashboard = () => {
               <React.Suspense fallback={<div className="admin-status-banner">Chargement du registre des droits médias…</div>}>
                 <AdminMediaRightsPanel
                   media={media}
+                  integrity={mediaIntegrity}
+                  onReorder={() => refreshAdminTab('portfolio')}
                   adminUser={adminUser}
                   onCreate={createMedia}
                   onToggle={toggleMediaFlag}

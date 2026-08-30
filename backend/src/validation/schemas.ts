@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { PUBLIC_MEDIA_CATEGORIES } from '../constants/media.js';
 
-import { LeadStatus, PackageBookingMode, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
+import { PackageBookingMode, PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
 import { CUSTOMER_REASON_CODES } from '../services/customer-decision-copy.js';
 import { paymentReferenceValidationMessage } from '../utils/payment-reference.js';
 import {
@@ -321,6 +321,24 @@ export const quoteRequestSchema = z.object({
   message: z.string().trim().min(10).max(5000),
 });
 
+/**
+ * A creative-services request. Same shape as a quote, but `service` names the creative
+ * service asked for rather than a photography package — the two were indistinguishable
+ * once they both became a QUOTE lead.
+ */
+export const creativeRequestSchema = z.object({
+  ...publicProtectionFields,
+  submissionKey: z.uuid(),
+  locale: z.enum(['fr', 'en']).default('fr'),
+  name: requiredString,
+  email: emailAddress.optional(),
+  phone,
+  whatsappConsent: z.boolean().default(false),
+  service: optionalString,
+  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  message: z.string().trim().min(10).max(5000),
+});
+
 export const adminLoginSchema = z.object({
   email: z.email(),
   password: z.string().min(8).max(200),
@@ -443,6 +461,18 @@ export const packageUpdateSchema = packageFieldsSchema
 export const packageValidationSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   mentionsApproved: z.literal(true),
+});
+
+export const dataRightsListQuerySchema = z.object({
+  q: z.string().trim().min(1).max(120).optional(),
+  status: repeatable(z.string().trim().min(1).max(40)),
+  requestType: repeatable(z.string().trim().min(1).max(40)),
+  dueWithinDays: z.coerce.number().int().min(0).max(365).optional(),
+  openOnly: queryBoolean.optional(),
+});
+
+export const mediaReorderSchema = z.object({
+  orderedIds: z.array(z.string().trim().min(1)).min(1).max(500),
 });
 
 export const packageReorderSchema = z.object({
@@ -690,9 +720,22 @@ export const reservationStatusUpdateSchema = z
     }
   });
 
+export const leadListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  q: z.string().trim().min(1).max(120).optional(),
+  type: repeatable(z.enum(['CONTACT', 'B2B', 'QUOTE', 'CREATIVE'])),
+  // WON and LOST are deliberately absent: they are the pipeline the report does not want,
+  // and nothing writes them any more.
+  status: repeatable(z.enum(['NEW', 'IN_PROGRESS', 'HANDLED', 'ARCHIVED'])),
+  from: businessDate.optional(),
+  to: businessDate.optional(),
+});
+
 export const leadUpdateSchema = z
   .object({
-    status: z.enum(Object.values(LeadStatus)),
+    status: z.enum(['NEW', 'IN_PROGRESS', 'HANDLED', 'ARCHIVED']),
+    internalNote: z.string().trim().max(4000).nullable(),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field must be provided' });

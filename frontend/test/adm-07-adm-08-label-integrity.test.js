@@ -31,7 +31,11 @@ const readAllBackendSources = () =>
 const enumMembers = (schema, name) => {
   const block = new RegExp(`enum ${name} \\{([^}]*)\\}`).exec(schema);
   assert.ok(block, `enum ${name} must exist in schema.prisma`);
-  return block[1].split('\n').map((line) => line.trim()).filter(Boolean);
+  // A Prisma enum may carry comments explaining a deprecated member; those are not members.
+  return block[1]
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('//'));
 };
 
 test('ADM-07/ADM-08 every status enum member resolves to a business label', () => {

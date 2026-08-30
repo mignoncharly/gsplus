@@ -233,6 +233,28 @@ export const listAdminMedia = () => prisma.mediaItem.findMany({
   include: adminMediaInclude,
 });
 
+/**
+ * Rewrite the portfolio order from an explicit sequence, spaced in tens.
+ *
+ * Same reasoning as the catalogue: order is a property of the list, so the whole list is
+ * what gets written. A partial list would leave the items it omits at stale positions.
+ */
+export const reorderMedia = async (orderedIds: string[]) => {
+  const existing = await prisma.mediaItem.findMany({ select: { id: true } });
+  const known = new Set(existing.map((item) => item.id));
+  const unknown = orderedIds.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    throw new HttpError(404, 'MEDIA_NOT_FOUND', 'Un média de cet ordre est introuvable.', { ids: unknown });
+  }
+  if (orderedIds.length !== known.size || new Set(orderedIds).size !== orderedIds.length) {
+    throw new HttpError(422, 'MEDIA_ORDER_INCOMPLETE', 'L’ordre doit lister chaque média une seule fois.');
+  }
+  await prisma.$transaction(
+    orderedIds.map((id, index) => prisma.mediaItem.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } })),
+  );
+  return listAdminMedia();
+};
+
 export const createMediaWithRights = async ({
   data,
   reservationReference,

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getAdminFinancialTask, getAdminLead, getAdminLeads, getAdminReservation } from '../lib/api';
+import { getAdminFinancialTask, getAdminLead, getAdminReservation } from '../lib/api';
 import { parseAdminDestination } from '../lib/admin-deep-links';
 import './AdminDeepLinkResolver.css';
 
@@ -22,7 +22,6 @@ const AdminDeepLinkResolver = ({
   loadedReference,
   feedback: setFeedback,
   setReservation: setSelectedRes,
-  setLeadItems: setLeads,
   setFinance: setFinanceDestinationId,
 }) => {
   const location = useLocation();
@@ -58,10 +57,10 @@ const AdminDeepLinkResolver = ({
           if (cancelled) return;
           setSelectedRes(reservation);
         } else if (destination.area === 'leads') {
-          const lead = await getAdminLead(destination.reference);
-          const currentLeads = await getAdminLeads();
-          if (cancelled) return;
-          setLeads([lead, ...currentLeads.filter((item) => item.id !== lead.id)]);
+          // The requests panel searches for the reference in the path itself, so the
+          // resolver only has to confirm the request exists — a link from an e-mail that
+          // no longer resolves must say so rather than land on an empty list.
+          await getAdminLead(destination.reference);
         } else {
           if (adminRole !== 'OWNER') throw new Error('Cette destination financière nécessite le rôle propriétaire.');
           await getAdminFinancialTask(destination.reference);
@@ -82,7 +81,7 @@ const AdminDeepLinkResolver = ({
       cancelled = true;
       if (resolvedLocationRef.current === locationKey) resolvedLocationRef.current = '';
     };
-  }, [adminRole, loadedReference, location.pathname, location.search, setFeedback, setFinanceDestinationId, setLeads, setSelectedRes]);
+  }, [adminRole, loadedReference, location.pathname, location.search, setFeedback, setFinanceDestinationId, setSelectedRes]);
 
   return null;
 };

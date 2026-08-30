@@ -1,5 +1,7 @@
 import './AdminDataGovernancePanel.css';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+import { adminDataRightsExportUrl, getAdminDataRightsResponseTemplate, searchAdminDataRights } from '../lib/api';
 
 const rightLabels = {
   ACCESS: 'Accès',
@@ -110,6 +112,144 @@ const RequestUpdateForm = ({ request, busy, onUpdate }) => {
   );
 };
 
+/**
+ * `ADM-10` — the register was complete and unworkable.
+ *
+ * Every field the report asks for already existed on the record: the due date, the
+ * identity evidence, the response evidence, the closure and the event trail. None of it
+ * could be searched, and a due date nobody is warned by is a due date that gets missed.
+ * The queue below is a view over the same rows, computed on read.
+ */
+const DataRightsQueue = ({ dateTime, rightLabels: labels, statusLabels: statuses }) => {
+  const [filters, setFilters] = useState({ q: '', status: [], requestType: [], openOnly: true, dueWithinDays: '' });
+  const [result, setResult] = useState({ items: [], meta: { total: 0, summary: { open: 0, overdue: 0, dueSoon: 0, answeredLate: 0 }, templates: [] } });
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState(null);
+
+  const query = useMemo(() => ({
+    q: filters.q || undefined,
+    status: filters.status,
+    requestType: filters.requestType,
+    openOnly: filters.openOnly ? 'true' : undefined,
+    dueWithinDays: filters.dueWithinDays || undefined,
+  }), [filters]);
+
+  useEffect(() => {
+    let cancelled = false;
+    searchAdminDataRights(query)
+      .then((payload) => { if (!cancelled) { setResult(payload); setError(''); } })
+      .catch((loadError) => { if (!cancelled) setError(loadError.message || 'Impossible de charger le registre.'); });
+    return () => { cancelled = true; };
+  }, [query]);
+
+  const { summary = {}, templates = [] } = result.meta || {};
+
+  const showTemplate = async (request, code) => {
+    try {
+      setPreview(await getAdminDataRightsResponseTemplate(request.id, code));
+    } catch (templateError) {
+      setError(templateError.message || 'Modèle de réponse indisponible.');
+    }
+  };
+
+  return (
+    <section className="admin-form-card admin-governance-queue" aria-labelledby="data-rights-queue-title">
+      <h2 id="data-rights-queue-title">Demandes à traiter</h2>
+      <ul className="admin-governance-summary">
+        <li><strong>{summary.open ?? 0}</strong> ouverte{(summary.open ?? 0) < 2 ? '' : 's'}</li>
+        <li className={summary.overdue ? 'is-overdue' : ''}><strong>{summary.overdue ?? 0}</strong> en retard</li>
+        <li><strong>{summary.dueSoon ?? 0}</strong> à échéance sous 3 jours</li>
+        <li><strong>{summary.answeredLate ?? 0}</strong> répondue{(summary.answeredLate ?? 0) < 2 ? '' : 's'} hors délai</li>
+      </ul>
+
+      <form
+        className="admin-governance-filters"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          setFilters({
+            q: form.get('q')?.trim() || '',
+            status: form.getAll('status'),
+            requestType: form.getAll('requestType'),
+            openOnly: form.get('openOnly') === 'on',
+            dueWithinDays: form.get('dueWithinDays') || '',
+          });
+        }}
+      >
+        <label htmlFor="rights-q">Rechercher
+          <input id="rights-q" name="q" className="form-input" defaultValue={filters.q}
+            placeholder="Référence, demandeur, courriel, téléphone ou réservation" />
+        </label>
+        <label htmlFor="rights-type">Droit exercé
+          <select id="rights-type" name="requestType" className="form-input" defaultValue={filters.requestType[0] || ''}>
+            <option value="">Tous</option>
+            {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label htmlFor="rights-status">Statut
+          <select id="rights-status" name="status" className="form-input" defaultValue={filters.status[0] || ''}>
+            <option value="">Tous</option>
+            {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label htmlFor="rights-due">Échéance sous (jours)
+          <input id="rights-due" name="dueWithinDays" type="number" min="0" max="365" className="form-input" defaultValue={filters.dueWithinDays} />
+        </label>
+        <label className="admin-check">
+          <input type="checkbox" name="openOnly" defaultChecked={filters.openOnly} /> Demandes ouvertes uniquement
+        </label>
+        <div className="admin-action-row">
+          <button type="submit" className="btn btn-primary admin-sm-btn">Filtrer</button>
+          <a className="btn btn-secondary admin-sm-btn" href={adminDataRightsExportUrl(query)}>Exporter le registre</a>
+        </div>
+      </form>
+
+      {error && <p className="admin-action-dialog-error" role="alert">{error}</p>}
+      <p className="admin-record-hint">{result.meta?.total ?? 0} demande(s) dans ce filtre.</p>
+
+      <ul className="admin-governance-queue-list">
+        {result.items.length === 0 && <li>Aucune demande ne correspond à ce filtre.</li>}
+        {result.items.map((request) => (
+          <li key={request.id} className={request.window?.isOverdue ? 'is-overdue' : ''}>
+            <div>
+              <strong>{request.reference}</strong> · {labels[request.requestType] || request.requestType} · {request.requesterName}
+              <small>
+                {request.window?.closed
+                  ? `Clôturée le ${dateTime(request.closedAt)}${request.window.answeredLate ? ' — hors délai' : ''}`
+                  : request.window?.isOverdue
+                    ? `En retard de ${Math.abs(request.window.dueInDays)} jour(s) — échéance ${dateTime(request.targetResponseAt)}`
+                    : `Échéance ${dateTime(request.targetResponseAt)} — dans ${request.window?.dueInDays} jour(s)`}
+              </small>
+              <small>Identité : {request.identityStatus} · preuve : {request.identityEvidenceReference || 'non référencée'}</small>
+              <small>Réponse : {request.responseEvidence || 'aucune preuve enregistrée'}</small>
+            </div>
+            <div className="admin-action-row">
+              {templates.map((template) => (
+                <button key={template.code} type="button" className="btn btn-secondary admin-sm-btn"
+                  aria-label={`${template.label} pour la demande ${request.reference}`}
+                  onClick={() => showTemplate(request, template.code)}>{template.label}</button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {preview && (
+        <div className="admin-governance-template" role="region" aria-label="Modèle de réponse">
+          <div className="admin-governance-heading">
+            <strong>{preview.label}</strong>
+            <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setPreview(null)}>Fermer</button>
+          </div>
+          {/* A template is a draft the operator sends from their own mailbox; nothing here
+              is queued or delivered by the application. */}
+          <p className="admin-action-dialog-help">Ce texte est à relire et à envoyer depuis votre messagerie. Rien n’est envoyé d’ici.</p>
+          <pre>{preview.text}</pre>
+        </div>
+      )}
+    </section>
+  );
+};
+
 const AdminDataGovernancePanel = ({ governance = { policies: [], requests: [] }, dateTime, busy, onCreate, onUpdate }) => {
   const [form, setForm] = useState({
     requestType: 'ACCESS',
@@ -189,6 +329,8 @@ const AdminDataGovernancePanel = ({ governance = { policies: [], requests: [] },
           <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Création…' : 'Créer la demande'}</button>
         </form>
       </div>
+
+      <DataRightsQueue dateTime={dateTime} rightLabels={rightLabels} statusLabels={statusLabels} />
 
       <div className="admin-section-header"><h2>Demandes de droits</h2></div>
       <div className="admin-governance-list">

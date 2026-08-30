@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { Palette, PenTool, Image as ImageIcon, Shirt, Check, Send, AlertTriangle } from 'lucide-react';
-import { submitQuoteRequest } from '../lib/api';
+import { submitCreativeRequest } from '../lib/api';
 import { createLeadSubmissionController, resetFormAfterSuccess } from '../lib/lead-submission';
 import { validateContactFields, validationErrorsFromApi } from '../lib/contact-validation';
 import { validationSummaryForApiError } from '../lib/form-errors';
@@ -78,13 +78,14 @@ const CreativeServices = () => {
     const message = form.get('message');
 
     try {
-      await submitQuoteRequest({
+      // A creative request is its own kind now; it used to arrive as a photography quote.
+      await submitCreativeRequest({
         submissionKey: submission.submissionKey,
         name: form.get('name'),
         phone: form.get('phone'),
         email: form.get('email') || undefined,
         whatsappConsent: form.get('whatsappConsent') === 'on',
-        packageName: service ? `${t('Service créatif', 'Creative service')}: ${service}` : t('Service créatif', 'Creative service'),
+        service: service || undefined,
         message: [service ? `${t('Service', 'Service')}: ${service}` : null, message || t('Demande de devis créatif.', 'Creative quote request.')]
           .filter(Boolean)
           .join('\n\n'),
@@ -94,7 +95,7 @@ const CreativeServices = () => {
       setSubmitted(true);
     } catch (err) {
       submissionController.current.fail();
-      const apiFields = validationErrorsFromApi(err, { name: 'name', phone: 'phone', email: 'email', packageName: 'service', message: 'message' }, locale);
+      const apiFields = validationErrorsFromApi(err, { name: 'name', phone: 'phone', email: 'email', service: 'service', message: 'message' }, locale);
       if (Object.keys(apiFields).length > 0) setFieldErrors((current) => ({ ...current, ...apiFields }));
       setError(validationSummaryForApiError(err, locale) || t("Impossible d’envoyer la demande. Veuillez réessayer.", 'Unable to send the request. Please try again.'));
     } finally {

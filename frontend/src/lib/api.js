@@ -102,6 +102,14 @@ export const submitQuoteRequest = async (data) => {
   return payload.data;
 };
 
+export const submitCreativeRequest = async (data) => {
+  const payload = await apiFetch('/api/creative-requests', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, locale: getStoredLocale() }),
+  });
+  return payload.data;
+};
+
 export const getAdminPackages = async () => {
   const payload = await apiFetch('/api/admin/packages');
   return payload.data;
@@ -158,6 +166,13 @@ export const getAdminLeads = async () => {
   const payload = await apiFetch('/api/admin/leads');
   return payload.data;
 };
+
+export const searchAdminRequests = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/leads?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta ?? { total: payload.data.length, limit: 50, offset: 0 } };
+};
+
+export const adminRequestsExportUrl = (filters = {}) => `/api/admin/leads/export.csv?${adminQuery(filters)}`;
 
 export const getAdminLead = async (reference) => {
   const payload = await apiFetch(`/api/admin/leads/${encodeURIComponent(reference)}`);
@@ -402,7 +417,7 @@ export const syncAdminReservationCalendar = async (reservationId) => {
 
 export const getAdminMedia = async () => {
   const payload = await apiFetch('/api/admin/media');
-  return payload.data;
+  return { items: payload.data, meta: payload.meta };
 };
 
 export const getAdminNotifications = async (filters = {}) => {
@@ -512,6 +527,25 @@ export const deleteAdminAvailabilityBlock = async (id) => {
 
 export const getAdminDataGovernance = async () => {
   const payload = await apiFetch('/api/admin/data-governance');
+  return payload.data;
+};
+
+export const searchAdminDataRights = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/data-rights-requests?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta };
+};
+
+export const adminDataRightsExportUrl = (filters = {}) => `/api/admin/data-rights-requests/export.csv?${adminQuery(filters)}`;
+
+export const getAdminDataRightsResponseTemplate = async (id, code, reason = '') => {
+  const params = new URLSearchParams({ code });
+  if (reason) params.set('reason', reason);
+  const payload = await apiFetch(`/api/admin/data-rights-requests/${id}/response-template?${params.toString()}`);
+  return payload.data;
+};
+
+export const reorderAdminMedia = async (orderedIds) => {
+  const payload = await apiFetch('/api/admin/media/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
   return payload.data;
 };
 

@@ -1,8 +1,10 @@
-import { Trash2, Upload } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Trash2, Upload } from 'lucide-react';
 
 import { formatBytes } from '../lib/admin-workflow';
-import { mediaUrl } from '../lib/api';
+import { mediaUrl, reorderAdminMedia } from '../lib/api';
 import { PORTFOLIO_CATEGORIES } from '../lib/portfolio-media';
+import './AdminMediaRightsPanel.css';
 
 const mediaRightsStatus = (item) => {
   if (item.rightsBasis === 'OWNER_APPROVED_CATALOG') return 'Catalogue propriétaire approuvé';
@@ -13,14 +15,71 @@ const mediaRightsStatus = (item) => {
   return 'Autorisation non vérifiée';
 };
 
-const AdminMediaRightsPanel = ({ media, adminUser, onCreate, onToggle, onRemove }) => {
+const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle, onRemove, onReorder }) => {
   const owner = adminUser?.role === 'OWNER';
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  const [moving, setMoving] = useState('');
+
+  const shown = alertsOnly ? media.filter((item) => (item.integrity?.alerts?.length ?? 0) > 0) : media;
+
+  /**
+   * Order is a property of the list, so the whole sequence is sent — the same reasoning
+   * as the catalogue, and the same reason: writing one item's position leaves every other
+   * item where it was.
+   */
+  const move = async (item, direction) => {
+    const index = media.findIndex((entry) => entry.id === item.id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= media.length) return;
+    const ids = media.map((entry) => entry.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    setMoving(item.id);
+    try {
+      await reorderAdminMedia(ids);
+      await onReorder?.();
+    } finally {
+      setMoving('');
+    }
+  };
 
   return (
     <>
       <div className="admin-page-header">
         <h1>Gestion du <span>Portfolio</span></h1>
       </div>
+
+      {integrity && (
+        <section className="admin-card admin-media-integrity" aria-labelledby="media-integrity-title">
+          <h2 id="media-integrity-title">Intégrité des médias</h2>
+          {integrity.alerts.length === 0 ? (
+            <p>Les {integrity.total} médias sont complets : droits établis, fichiers présents, dimensions connues.</p>
+          ) : (
+            <>
+              <p className="admin-record-hint">
+                {integrity.total} média{integrity.total < 2 ? '' : 's'} au total.
+                {integrity.liveWithBlocking > 0
+                  ? ` ${integrity.liveWithBlocking} publié${integrity.liveWithBlocking < 2 ? '' : 's'} malgré une anomalie bloquante.`
+                  : ' Aucun média publié ne porte d’anomalie bloquante.'}
+              </p>
+              <ul className="admin-media-alert-list">
+                {integrity.alerts.map((alert) => (
+                  <li key={alert.code}>
+                    <span className={`admin-pill ${alert.severity === 'blocking' ? 'pill-failed' : 'admin-pill--count'}`}>
+                      {alert.severity === 'blocking' ? 'Bloquant' : 'À corriger'}
+                    </span>
+                    <strong>{alert.label}</strong>
+                    <span>{alert.count} média{alert.count < 2 ? '' : 's'}</span>
+                  </li>
+                ))}
+              </ul>
+              <label className="admin-check">
+                <input type="checkbox" checked={alertsOnly} onChange={(event) => setAlertsOnly(event.target.checked)} />
+                {' '}N’afficher que les médias à corriger
+              </label>
+            </>
+          )}
+        </section>
+      )}
 
       <div className="admin-card" style={{ marginBottom: '2.5rem' }}>
         <h2>Ajouter un Média</h2>
@@ -76,7 +135,7 @@ const AdminMediaRightsPanel = ({ media, adminUser, onCreate, onToggle, onRemove 
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {media.map((item) => (
+        {shown.map((item) => (
           <div key={item.id} className="admin-stat-card" style={{ padding: 0, overflow: 'hidden' }}>
             <img
               src={mediaUrl(item.thumbnailUrl || item.url)}
@@ -102,6 +161,16 @@ const AdminMediaRightsPanel = ({ media, adminUser, onCreate, onToggle, onRemove 
               <p style={{ color: 'var(--dark-secondary)', fontSize: '0.8rem', marginBottom: '1rem' }}>
                 Référence de réservation : {item.reservation?.reference || 'Catalogue approuvé — sans réservation client'}
               </p>
+              {(item.integrity?.alerts?.length ?? 0) > 0 && (
+                <ul className="admin-media-item-alerts">
+                  {item.integrity.alerts.map((alert) => (
+                    <li key={alert.code} className={alert.severity === 'blocking' ? 'is-blocking' : ''}>
+                      <AlertTriangle size={12} aria-hidden="true" />
+                      <span><strong>{alert.label}</strong> — {alert.detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isPublished')} disabled={!owner} style={{ flex: 1 }}>
                   {item.isPublished ? 'Masquer' : 'Publier'}
@@ -109,6 +178,12 @@ const AdminMediaRightsPanel = ({ media, adminUser, onCreate, onToggle, onRemove 
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isFeatured')} disabled={!owner} style={{ flex: 1 }}>
                   {item.isFeatured ? 'Standard' : 'Vedette'}
                 </button>
+                <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, -1)}
+                  disabled={!owner || alertsOnly || Boolean(moving) || media[0]?.id === item.id}
+                  aria-label={`Monter ${item.title}`} style={{ flex: 1 }}>↑</button>
+                <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, 1)}
+                  disabled={!owner || alertsOnly || Boolean(moving) || media[media.length - 1]?.id === item.id}
+                  aria-label={`Descendre ${item.title}`} style={{ flex: 1 }}>↓</button>
                 <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onRemove(item)} disabled={!owner} style={{ width: '100%', marginTop: '0.5rem' }}>
                   <Trash2 size={12} /> Supprimer
                 </button>

@@ -42,14 +42,20 @@ enum LeadType {
   CONTACT
   B2B
   QUOTE
+  CREATIVE
 }
 
 enum LeadStatus {
   NEW
   IN_PROGRESS
+  HANDLED
+  ARCHIVED
+  // Deprecated. The report asks for a simple Nouveau / En cours / Traité / Archivé, not a
+  // sales pipeline. Existing rows were migrated to HANDLED and nothing writes these any
+  // more; they remain because PostgreSQL cannot drop an enum value that a column's type
+  // has ever carried without rewriting the type.
   WON
   LOST
-  ARCHIVED
 }
 
 enum NotificationStatus {
@@ -103,6 +109,7 @@ model AdminUser {
   updatedSiteContent                SiteContent[]                      @relation("SiteContentUpdatedBy")
   publishedMessageTemplates         MessageTemplate[]                  @relation("MessageTemplatePublishedBy")
   updatedMessageTemplates           MessageTemplate[]                  @relation("MessageTemplateUpdatedBy")
+  handledLeads              Lead[]                          @relation("LeadHandledBy")
   updatedMessageRules               MessageRule[]                      @relation("MessageRuleUpdatedBy")
   bookingRules                      BookingRule[]                      @relation("BookingRuleUpdatedBy")
   adminCommands                     AdminCommand[]
@@ -849,12 +856,17 @@ model Lead {
   locale            String              @default("fr")
   source            String?
   whatsappConsentAt DateTime?
+  internalNote      String?
+  handledAt         DateTime?
+  handledById       String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   notifications     NotificationEvent[]
+  handledBy         AdminUser?          @relation("LeadHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
 
   @@index([type, status])
   @@index([createdAt])
+  @@index([handledById])
 }
 
 model AvailabilityBlock {

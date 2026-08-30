@@ -7,7 +7,7 @@ import { allocateLeadReference } from '../utils/lead-reference.js';
 type LeadSubmission = {
   submissionKey: string;
   type: LeadType;
-  source: 'contact_form' | 'b2b_form' | 'quote_form';
+  source: 'contact_form' | 'b2b_form' | 'quote_form' | 'creative_form';
   locale: 'fr' | 'en';
   name: string;
   email?: string;

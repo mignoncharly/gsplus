@@ -86,3 +86,17 @@
     align-items: flex-start;
   }
 }
+
+/* === ADM-10 : le registre comme file de travail === */
+.admin-governance-queue { margin-bottom: 2rem; }
+.admin-governance-summary { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.admin-governance-summary strong { display: block; font-size: 1.4rem; }
+/* Lateness is carried by a word and a rule, not by colour alone. */
+.admin-governance-summary li.is-overdue { border-left: 3px solid currentColor; padding-left: 0.6rem; font-weight: 600; }
+.admin-governance-filters { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: end; margin-bottom: 1rem; }
+.admin-governance-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.admin-governance-queue-list li { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; padding: 0.75rem 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.admin-governance-queue-list li.is-overdue { border-left: 3px solid currentColor; padding-left: 0.6rem; }
+.admin-governance-queue-list small { display: block; }
+.admin-governance-template { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-governance-template pre { white-space: pre-wrap; margin: 0.5rem 0 0; }

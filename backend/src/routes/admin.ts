@@ -52,6 +52,7 @@ import {
   createMediaWithRights,
   deleteMediaWithRights,
   listAdminMedia,
+  reorderMedia,
   updateMediaWithRights,
 } from '../services/media-rights.js';
 import {
@@ -93,6 +94,9 @@ import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
 import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
 import { messageRuleStatus } from '../services/message-rules.js';
+import { listReceivedRequests, receivedRequestsCsv, updateReceivedRequest } from '../services/received-requests.js';
+import { mediaIntegrity, mediaIntegritySummary } from '../services/media-integrity.js';
+import { DATA_RIGHTS_RESPONSE_TEMPLATES, dataRightsCsv, listDataRightsRequests, renderResponseTemplate } from '../services/data-rights-queue.js';
 import {
   listMessageRules,
   listMessageTemplates,
@@ -158,6 +162,9 @@ import {
   packageDuplicateSchema,
   packageUpdateSchema,
   packageValidationSchema,
+  dataRightsListQuerySchema,
+  leadListQuerySchema,
+  mediaReorderSchema,
   packageReorderSchema,
   packageVersionCommandSchema,
   paymentAddSchema,
@@ -294,6 +301,43 @@ router.get(
     const admin = res.locals.admin;
     assertAdminPermission(admin, 'DATA_GOVERNANCE_MANAGE');
     res.json({ data: await listDataGovernance() });
+  }),
+);
+
+router.get(
+  '/data-rights-requests',
+  validate('query', dataRightsListQuerySchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'DATA_GOVERNANCE_MANAGE');
+    const result = await listDataRightsRequests(res.locals.validated.query);
+    res.json({ data: result.items, meta: { total: result.total, summary: result.summary, templates: DATA_RIGHTS_RESPONSE_TEMPLATES } });
+  }),
+);
+
+router.get(
+  '/data-rights-requests/export.csv',
+  validate('query', dataRightsListQuerySchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'DATA_GOVERNANCE_MANAGE');
+    const result = await listDataRightsRequests(res.locals.validated.query);
+    // The register is evidence; exporting it is an act worth recording in its own right.
+    await writeAuditLog(res.locals.admin?.id, 'data_rights.export', 'DataRightsRequest', undefined, { total: result.total, query: res.locals.validated.query });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="droits-personnes-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(dataRightsCsv(result.items));
+  }),
+);
+
+router.get(
+  '/data-rights-requests/:id/response-template',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'DATA_GOVERNANCE_MANAGE');
+    const request = await prisma.dataRightsRequest.findUnique({ where: { id: routeParam(req.params.id) } });
+    if (!request) throw notFound('Data rights request not found');
+    const rendered = renderResponseTemplate(String(req.query.code ?? ''), request, String(req.query.reason ?? ''));
+    if (!rendered) throw new HttpError(404, 'RESPONSE_TEMPLATE_NOT_FOUND', 'Modèle de réponse inconnu.');
+    res.json({ data: rendered });
   }),
 );
 
@@ -879,16 +923,25 @@ router.post(
 
 router.get(
   '/leads',
-  validate('query', listQuerySchema),
+  validate('query', leadListQuerySchema),
   asyncHandler(async (req, res) => {
-    const query = res.locals.validated.query;
-    const leads = await prisma.lead.findMany({
-      take: query.limit,
-      skip: query.offset,
-      orderBy: { createdAt: 'desc' },
-    });
+    const result = await listReceivedRequests(res.locals.validated.query);
+    res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
+  }),
+);
 
-    res.json({ data: leads });
+// Declared before '/leads/:id' so the literal path is not read as an identifier.
+router.get(
+  '/leads/export.csv',
+  validate('query', leadListQuerySchema),
+  asyncHandler(async (req, res) => {
+    // The export is the filtered list, not the whole table: an export that quietly
+    // ignored the filters would be a different document from the one on screen.
+    const result = await listReceivedRequests({ ...res.locals.validated.query, limit: 1000, offset: 0 });
+    await writeAuditLog(res.locals.admin?.id, 'lead.export', 'Lead', undefined, { total: result.total, query: res.locals.validated.query });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="demandes-recues-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(receivedRequestsCsv(result.items));
   }),
 );
 
@@ -909,10 +962,8 @@ router.patch(
   validate('body', leadUpdateSchema),
   asyncHandler(async (req, res) => {
     const id = routeParam(req.params.id);
-    const lead = await prisma.lead.update({
-      where: { id },
-      data: req.body,
-    });
+    const lead = await updateReceivedRequest(id, req.body, res.locals.admin?.id);
+    if (!lead) throw notFound('Lead not found');
     await writeAuditLog(res.locals.admin?.id, 'lead.update', 'Lead', lead.id, req.body);
 
     res.json({ data: lead });
@@ -1092,7 +1143,20 @@ router.get(
   '/media',
   asyncHandler(async (_req, res) => {
     const media = await listAdminMedia();
-    res.json({ data: media });
+    // §10: the alerts are computed from the columns already on each item, so the list and
+    // the summary can never disagree about what is wrong with a media.
+    const data = media.map((item) => ({ ...item, integrity: mediaIntegrity(item) }));
+    res.json({ data, meta: { integrity: mediaIntegritySummary(media) } });
+  }),
+);
+
+router.post(
+  '/media/reorder',
+  validate('body', mediaReorderSchema),
+  asyncHandler(async (req, res) => {
+    const data = await reorderMedia(req.body.orderedIds);
+    await writeAuditLog(res.locals.admin?.id, 'media.reorder', 'MediaItem', undefined, { orderedIds: req.body.orderedIds });
+    res.json({ data: data.map((item) => ({ ...item, integrity: mediaIntegrity(item) })) });
   }),
 );
 

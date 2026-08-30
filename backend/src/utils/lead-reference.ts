@@ -4,9 +4,16 @@ import { LeadType } from '../generated/prisma/enums.js';
 import { businessDateKey } from './business-time.js';
 
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-export const LEAD_REFERENCE_PATTERN = /^(CONTACT|B2B|DEVIS)-\d{6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
+// CREA joins the pattern rather than replacing anything: the creative requests that
+// already exist keep the DEVIS references they were given, because a reference is an
+// identifier the studio and the customer may both have written down.
+export const LEAD_REFERENCE_PATTERN = /^(CONTACT|B2B|DEVIS|CREA)-\d{6}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
 
-const prefixForType = (type: LeadType) => type === LeadType.CONTACT ? 'CONTACT' : type === LeadType.B2B ? 'B2B' : 'DEVIS';
+const prefixForType = (type: LeadType) =>
+  type === LeadType.CONTACT ? 'CONTACT'
+    : type === LeadType.B2B ? 'B2B'
+      : type === LeadType.CREATIVE ? 'CREA'
+        : 'DEVIS';
 
 export const generateLeadReference = (type: LeadType, now = new Date(), randomBytes: (size: number) => Uint8Array = cryptoRandomBytes) => {
   const compactDate = businessDateKey(now).slice(2).replaceAll('-', '');

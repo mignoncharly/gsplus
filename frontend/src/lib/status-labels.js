@@ -20,6 +20,8 @@ export const STATUS_LABELS = Object.freeze({
   REFUNDED: 'Remboursé',
   NEW: 'Nouveau',
   IN_PROGRESS: 'En cours',
+  HANDLED: 'Traité',
+  // Kept only so historical rows stay readable; nothing writes these any more.
   WON: 'Gagné',
   LOST: 'Perdu',
   DRAFT: 'Brouillon',
@@ -40,6 +42,7 @@ export const STATUS_LABELS = Object.freeze({
   CONTACT: 'Contact',
   B2B: 'Entreprise',
   QUOTE: 'Demande de devis',
+  CREATIVE: 'Service créatif',
   OWNER: 'Propriétaire',
   STAFF: 'Collaborateur',
   ADMIN: 'Administrateur',
