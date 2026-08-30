@@ -78,6 +78,41 @@ const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format
 const clockTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Utilisez le format HH:MM.');
 const breakList = z.array(z.object({ start: clockTime, end: clockTime })).max(6).optional();
 
+export const notificationListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  channel: z.enum(['email', 'whatsapp']).optional(),
+  status: repeatable(z.enum(['PENDING', 'PROCESSING', 'SENT', 'FAILED', 'CANCELLED'])),
+  type: z.string().trim().min(1).max(80).optional(),
+  from: businessDate.optional(),
+  to: businessDate.optional(),
+  actionableOnly: queryBoolean.optional(),
+  includeDisabledChannels: queryBoolean.optional(),
+});
+
+export const messageTemplateDraftSchema = z.object({
+  locale: z.enum(['fr', 'en']).default('fr'),
+  subject: requiredString.max(300),
+  preheader: z.string().trim().max(300).default(''),
+  body: z.array(z.string()).min(1).max(60),
+});
+
+export const messagePreviewSchema = z.object({
+  locale: z.enum(['fr', 'en']).default('fr'),
+  subject: z.string().trim().max(300).optional(),
+  preheader: z.string().trim().max(300).optional(),
+  body: z.array(z.string()).max(60).optional(),
+});
+
+export const messageRuleSchema = z.object({
+  event: requiredString.max(80),
+  delayMinutes: z.coerce.number().int().min(0).max(10080).nullable(),
+  groupingWindowMinutes: z.coerce.number().int().min(0).max(1440).nullable(),
+  maxAttempts: z.coerce.number().int().min(1).max(20).nullable(),
+  fallbackChannel: z.enum(['email', 'whatsapp']).nullable(),
+  isEnabled: z.boolean().default(true),
+});
+
 export const settingGroupUpdateSchema = z.object({
   values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 });

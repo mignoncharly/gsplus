@@ -43,7 +43,7 @@ import {
   getAdminLeads,
   getAdminMe,
   getAdminMedia,
-  getAdminNotifications,
+  getAdminMessages,
   getAdminPackages,
   getAdminReservation,
   getApiHealth,
@@ -63,14 +63,12 @@ import {
 } from '../lib/api';
 import {
   canConfirmReservation,
-  maskedProviderId,
   canVerifyAndConfirm,
   isReservationEndReached,
   paymentActions,
   reservationActions,
   statusLabel,
 } from '../lib/admin-workflow';
-import { NOTIFICATION_AUDIENCE_LABELS, notificationTypeDescriptor } from '../lib/status-labels';
 import { resetFormAfterSuccess } from '../lib/lead-submission';
 import { isValidCameroonPhone, PHONE_INVALID_MESSAGE } from '../lib/contact-validation';
 import { ADMIN_REFRESH_INTERVAL_MS, shouldRunAdminRefresh } from '../lib/admin-refresh';
@@ -96,25 +94,16 @@ const AdminOverviewPanel = React.lazy(() => import('../components/AdminOverviewP
 const AdminReservationsPanel = React.lazy(() => import('../components/AdminReservationsPanel'));
 const AdminPlanningPanel = React.lazy(() => import('../components/AdminPlanningPanel'));
 const AdminSettingsPanel = React.lazy(() => import('../components/AdminSettingsPanel'));
+const AdminMessagesPanel = React.lazy(() => import('../components/AdminMessagesPanel'));
 
 const dateTime = formatBusinessDateTime;
 
-const statusClass = (status) => {
-  return `pill-${String(status).toLowerCase()}`;
-};
-
-const pill = (status) => (
-  <span className={`admin-pill ${statusClass(status)}`}>
-    {statusLabel(status)}
-  </span>
-);
 
 const latestCalendarSync = (reservation) => reservation?.calendarSync || reservation?.calendarSyncLogs?.[0] || null;
 
 
 
 
-const notificationResolutionLabel = (code) => statusLabel(code || 'UNCLASSIFIED');
 
 const pageTransition = {
   initial: { opacity: 0, y: 15 },
@@ -181,7 +170,8 @@ const AdminDashboard = () => {
   const [packs, setPacks] = useState([]);
   const [media, setMedia] = useState([]);
   const [blocks, setBlocks] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [messageTemplates, setMessageTemplates] = useState([]);
+  const [messageTemplatesMeta, setMessageTemplatesMeta] = useState(null);
   const [dataGovernance, setDataGovernance] = useState({ policies: [], requests: [] });
 
   const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
@@ -212,7 +202,10 @@ const AdminDashboard = () => {
         } else if (tab === 'governance') {
           setDataGovernance(await getAdminDataGovernance());
         } else if (tab === 'notifications') {
-          setNotifications(await getAdminNotifications());
+          // The journal reads its own filters from the URL; only the library is shared.
+          const library = await getAdminMessages();
+          setMessageTemplates(library.items);
+          setMessageTemplatesMeta(library.meta);
         }
 
         setLastSyncedAt((current) => ({ ...current, [tab]: Date.now() }));
@@ -374,7 +367,7 @@ const AdminDashboard = () => {
     setPacks([]);
     setMedia([]);
     setBlocks([]);
-    setNotifications([]);
+    setMessageTemplates([]);
     setDataGovernance({ policies: [], requests: [] });
     setLastSyncedAt({});
     tabRefreshInFlightRef.current.clear();
@@ -1381,120 +1374,19 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'notifications' && (
-            <Motion.div 
-              key="notifications"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Notifications <span>Transactionnelles</span></h1>
-              </div>
-
-              <div className="admin-card" style={{ padding: '2rem' }}>
-                <div className="admin-table-wrap">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Créée le</th>
-                        <th>Canal</th>
-                        <th>Type</th>
-                        <th>Destinataire</th>
-                        <th>Statut</th>
-                        <th>Tentatives</th>
-                        <th>Rapport d'erreur</th>
-                        <th>Disposition</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {notifications.map((item) => {
-                        const messageType = notificationTypeDescriptor(item.type);
-                        return (
-                        <tr key={item.id}>
-                          <td>{dateTime(item.createdAt)}</td>
-                          <td>{item.channel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}</td>
-                          <td>
-                            <strong>{messageType.name}</strong>
-                            {messageType.audience && (
-                              <span className={`admin-pill admin-pill--audience audience-${messageType.audience.toLowerCase()}`}>
-                                {NOTIFICATION_AUDIENCE_LABELS[messageType.audience]}
-                              </span>
-                            )}
-                            {messageType.trigger && <small>{messageType.trigger}</small>}
-                            <small>{item.reservation?.reference || item.lead?.name || 'Général'}</small>
-                            {item.templateCode && (
-                              <small>Modèle {item.templateCode}{item.templateVersion ? ` · v${item.templateVersion}` : ''}</small>
-                            )}
-                          </td>
-                          <td>{item.recipient}</td>
-                          <td>
-                            {pill(item.status)}
-                            {item.providerStatus && <small>Fournisseur : {item.providerStatus}</small>}
-                            {item.deliveredAt && <small>Livré : {dateTime(item.deliveredAt)}</small>}
-                            {item.readAt && <small>Lu : {dateTime(item.readAt)}</small>}
-                          </td>
-                          <td>
-                            {item.attemptCount}/{item.maxAttempts}
-                            {item.nextAttemptAt && <small>Prochain essai : {dateTime(item.nextAttemptAt)}</small>}
-                            {item.attempts?.map((attempt) => (
-                              <small key={attempt.id}>
-                                Essai {attempt.attemptNumber} : {statusLabel(attempt.status)}
-                                {attempt.startedAt ? ` · ${dateTime(attempt.startedAt)}` : ''}
-                                {attempt.providerStatus ? ` · ${attempt.providerStatus}` : ''}
-                                {attempt.providerMessageId ? ` · ID ${maskedProviderId(attempt.providerMessageId)}` : ''}
-                              </small>
-                            ))}
-                          </td>
-                          <td style={{ color: item.error ? '#ff6b6b' : 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
-                            {item.error || 'Aucune erreur détectée'}
-                          </td>
-                          <td>
-                            <strong>{notificationResolutionLabel(item.resolution)}</strong>
-                            {item.resolutionNote && <small>{item.resolutionNote}</small>}
-                            {item.resolvedAt && <small>Classée le {dateTime(item.resolvedAt)}</small>}
-                          </td>
-                          <td>
-                            {item.status !== 'FAILED' ? '—' : !item.resolution ? (
-                              <div style={{ display: 'grid', gap: '0.4rem' }}>
-                                <button
-                                  className="btn btn-secondary admin-sm-btn"
-                                  disabled={Boolean(busyActions['notifications:Classification notification'])}
-                                  onClick={() => classifyNotification(item, 'OBSOLETE')}
-                                >
-                                  Classer obsolète
-                                </button>
-                                <button
-                                  className="btn btn-secondary admin-sm-btn"
-                                  disabled={Boolean(busyActions['notifications:Classification notification'])}
-                                  onClick={() => classifyNotification(item, 'ACTIONABLE_REVIEW_REQUIRED')}
-                                >
-                                  À examiner
-                                </button>
-                              </div>
-                            ) : item.resolution === 'ACTIONABLE_REVIEW_REQUIRED' ? (
-                              <button
-                                className="btn btn-secondary admin-sm-btn"
-                                disabled={Boolean(busyActions[`notifications:Réessai notification ${item.id}`])}
-                                onClick={() => retryNotification(item)}
-                              >
-                                <RefreshCw size={12} /> Réessayer après examen
-                              </button>
-                            ) : 'Classée — aucun renvoi'}
-                          </td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {notifications.length === 0 && (
-                    <p style={{ padding: '2rem 0', color: 'var(--dark-muted)', textAlign: 'center', margin: 0 }}>
-                      Aucune notification journalisée dans le système.
-                    </p>
-                  )}
-                </div>
-              </div>
+            <Motion.div key="notifications" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement des messages…</div>}>
+                <AdminMessagesPanel
+                  templates={messageTemplates}
+                  templatesMeta={messageTemplatesMeta}
+                  onReloadTemplates={() => refreshAdminTab('notifications')}
+                  openActionDialog={openActionDialog}
+                  runAction={runAction}
+                  onResolve={classifyNotification}
+                  onRetry={retryNotification}
+                  busyActions={busyActions}
+                />
+              </React.Suspense>
             </Motion.div>
           )}
         </AnimatePresence>

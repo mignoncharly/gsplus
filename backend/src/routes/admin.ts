@@ -17,6 +17,9 @@ import {
   retryNotificationEvent,
 } from '../emails/notifications.js';
 import { PaymentStatus, ReservationStatus } from '../generated/prisma/enums.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { env } from '../config/env.js';
+import { enqueueInternalEmailNotification } from '../emails/internal-notification-policy.js';
 import { requireAdmin } from '../middleware/admin-auth.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { mediaUpload } from '../middleware/media-upload.js';
@@ -89,6 +92,18 @@ import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
 import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
 import {
+  listMessageRules,
+  listMessageTemplates,
+  previewTemplate,
+  publishTemplate,
+  renderWithSampleData,
+  revertTemplate,
+  saveTemplateDraft,
+  upsertMessageRule,
+} from '../services/message-library.js';
+import { listNotifications } from '../services/notification-journal.js';
+import { templateOverrideStatus } from '../services/message-template-overrides.js';
+import {
   deleteScheduleException,
   getCalendarHealth,
   getPlanningWindow,
@@ -132,6 +147,10 @@ import {
   mediaUpdateSchema,
   mediaUploadFieldsSchema,
   mediaUploadSchema,
+  messagePreviewSchema,
+  messageRuleSchema,
+  messageTemplateDraftSchema,
+  notificationListQuerySchema,
   notificationResolutionSchema,
   packageCreateSchema,
   packageDuplicateSchema,
@@ -1415,32 +1434,112 @@ router.post(
 
 router.get(
   '/notifications',
-  validate('query', listQuerySchema),
+  validate('query', notificationListQuerySchema),
   asyncHandler(async (_req, res) => {
-    const query = res.locals.validated.query;
-    const notifications = await prisma.notificationEvent.findMany({
-      take: query.limit,
-      skip: query.offset,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        attempts: { orderBy: { attemptNumber: 'asc' } },
-        reservation: {
-          select: {
-            id: true,
-            reference: true,
-          },
-        },
-        lead: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-          },
-        },
-      },
+    const result = await listNotifications(res.locals.validated.query);
+    res.json({
+      data: result.items,
+      meta: { total: result.total, limit: result.limit, offset: result.offset, hiddenChannels: result.hiddenChannels },
     });
+  }),
+);
 
-    res.json({ data: notifications });
+// === Phase 7 (§8.1): the message library ===
+
+router.get(
+  '/messages',
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    res.json({ data: await listMessageTemplates(locale), meta: { overrides: templateOverrideStatus() } });
+  }),
+);
+
+router.post(
+  '/messages/:code',
+  validate('body', messageTemplateDraftSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await saveTemplateDraft(routeParam(req.params.code), req.body.locale, req.body, admin?.id) });
+  }),
+);
+
+router.post(
+  '/messages/:code/publish',
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    res.json({ data: await publishTemplate(routeParam(req.params.code), locale, admin?.id) });
+  }),
+);
+
+// Going back to the version compiled into the application, without deleting history.
+router.post(
+  '/messages/:code/revert',
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    await revertTemplate(routeParam(req.params.code), locale, admin?.id);
+    res.status(204).send();
+  }),
+);
+
+router.post(
+  '/messages/:code/preview',
+  validate('body', messagePreviewSchema),
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    const { locale, subject, preheader, body } = req.body;
+    const draft = subject !== undefined && body !== undefined
+      ? { subject, preheader: preheader ?? '', body }
+      : undefined;
+    res.json({ data: previewTemplate(routeParam(req.params.code), locale, draft) });
+  }),
+);
+
+// A test send renders through the real pipeline and goes to the studio's own address,
+// never to a customer.
+router.post(
+  '/messages/:code/test-send',
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    const code = routeParam(req.params.code);
+    const rendered = renderWithSampleData(code, locale);
+    const recipient = env.ADMIN_NOTIFICATION_EMAIL;
+    await enqueueInternalEmailNotification({
+      destination: { type: 'SHARED_OPERATIONAL' },
+      type: 'message_template_test_admin',
+      recipient,
+      idempotencyKey: `template-test:${code}:${locale}:${Date.now()}`,
+      templateCode: code,
+      templateVersion: rendered.version,
+      renderedContent: rendered as unknown as Prisma.InputJsonValue,
+    });
+    await writeAuditLog(admin?.id, 'message_template.test_send', 'MessageTemplate', code, { locale, recipient });
+    res.status(202).json({ data: { recipient, subject: rendered.subject } });
+  }),
+);
+
+router.get(
+  '/message-rules',
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await listMessageRules() });
+  }),
+);
+
+router.put(
+  '/message-rules',
+  validate('body', messageRuleSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await upsertMessageRule(req.body, admin?.id) });
   }),
 );
 

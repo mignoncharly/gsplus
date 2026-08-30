@@ -1,3 +1,5 @@
+import { getTemplateOverride } from '../services/message-template-overrides.js';
+
 export const EMAIL_TEMPLATE_VERSION = '2026-08-20-phase4';
 
 export const EMAIL_TEMPLATE_CODES = [
@@ -353,7 +355,7 @@ export const emailTemplateRegistry: Record<EmailTemplateCode, EmailTemplateDefin
 
 export type EmailLocale = 'fr' | 'en';
 
-const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDefinition>> = {
+export const englishTemplateRegistry: Partial<Record<EmailTemplateCode, EmailTemplateDefinition>> = {
   'E-01': external('E-01', 'We received your booking request — [reference_courte]', 'Your requested time slot is not yet confirmed.', [
     'Hello [prenom_client],', 'We received your booking request for [nom_prestation].',
     'Your request is for [date_seance], from [heure_debut] to [heure_fin], Douala time. It is awaiting payment verification and booking approval.',
@@ -449,7 +451,14 @@ export const renderEmailTemplate = (
   input: EmailTemplateVariables,
   locale: EmailLocale = 'fr',
 ): RenderedEmailTemplate => {
-  const template = locale === 'en' ? englishTemplateRegistry[code] ?? emailTemplateRegistry[code] : emailTemplateRegistry[code];
+  const compiled = locale === 'en' ? englishTemplateRegistry[code] ?? emailTemplateRegistry[code] : emailTemplateRegistry[code];
+  // A published override replaces the compiled copy; anything else — no override, an
+  // empty cache, a database that was unreachable at refresh time — renders from code.
+  const override = getTemplateOverride(code, locale);
+  const template: EmailTemplateDefinition = override
+    ? { ...compiled, subject: override.subject, preheader: override.preheader, body: override.body,
+        requiredVariables: placeholders([override.subject, override.preheader, ...override.body]) }
+    : compiled;
   const variables = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value)]));
   for (const required of template.requiredVariables) {
     if (!variables[required]?.trim() && !OPTIONAL_TEMPLATE_VARIABLES.has(required)) throw new Error(`EMAIL_TEMPLATE_VARIABLE_MISSING:${code}:${required}`);

@@ -39,6 +39,9 @@ test('P2-04 applique les formatteurs FCFA et Douala dans le code et dans les dat
     assert.doesNotMatch(source, /toLocaleString\('fr-FR'\).*FCFA/);
   }
   assert.match(reservation, /formatBusinessDateKey/);
-  assert.match(dashboard, /statusLabel\(code \|\| 'UNCLASSIFIED'\)/);
+  // The journal moved to AdminMessagesPanel in Phase 7; an unclassified failure must
+  // still read as something rather than as a blank cell.
+  const journal = readFileSync(new URL('../src/components/AdminMessagesPanel.jsx', import.meta.url), 'utf8');
+  assert.match(journal, /statusLabel\(code \|\| 'UNCLASSIFIED'\)/);
   assert.doesNotMatch(packagesPanel, /FCFA.*XAF/);
 });

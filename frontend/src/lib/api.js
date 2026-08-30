@@ -380,10 +380,31 @@ export const getAdminMedia = async () => {
   return payload.data;
 };
 
-export const getAdminNotifications = async () => {
-  const payload = await apiFetch('/api/admin/notifications');
+export const getAdminNotifications = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/notifications?${adminQuery(filters)}`);
   return payload.data;
 };
+
+export const searchAdminNotifications = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/notifications?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta ?? { total: payload.data.length, limit: 50, offset: 0, hiddenChannels: [] } };
+};
+
+// === Phase 7 message library ===
+export const getAdminMessages = async (locale = 'fr') => {
+  const payload = await apiFetch(`/api/admin/messages?locale=${locale}`);
+  return { items: payload.data, meta: payload.meta };
+};
+export const saveAdminMessageDraft = async (code, body) =>
+  (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}`, { method: 'POST', body: JSON.stringify(body) })).data;
+export const publishAdminMessage = async (code, locale = 'fr') =>
+  (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/publish?locale=${locale}`, { method: 'POST' })).data;
+export const revertAdminMessage = async (code, locale = 'fr') =>
+  apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/revert?locale=${locale}`, { method: 'POST' });
+export const previewAdminMessage = async (code, body) =>
+  (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/preview`, { method: 'POST', body: JSON.stringify(body) })).data;
+export const testSendAdminMessage = async (code, locale = 'fr') =>
+  (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/test-send?locale=${locale}`, { method: 'POST' })).data;
 
 export const resolveAdminNotification = async (id, data) => {
   const payload = await apiFetch(`/api/admin/notifications/${id}/resolve`, {

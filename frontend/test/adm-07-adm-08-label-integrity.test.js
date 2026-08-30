@@ -126,12 +126,15 @@ test('ADM-07 the reference count no longer travels through the status formatter'
 });
 
 test('ADM-08 the journal renders the business name, not the raw outbox code', () => {
-  const dashboard = readFileSync(new URL('../src/pages/AdminDashboard.jsx', import.meta.url), 'utf8');
+  // Phase 7 moved the journal into its own panel; the guarantees are unchanged.
+  const journal = readFileSync(new URL('../src/components/AdminMessagesPanel.jsx', import.meta.url), 'utf8');
 
-  assert.doesNotMatch(dashboard, /statusLabel\(item\.type\)/, 'item.type is not a status');
-  assert.match(dashboard, /notificationTypeDescriptor\(item\.type\)/);
-  assert.match(dashboard, /messageType\.name/);
-  assert.match(dashboard, /NOTIFICATION_AUDIENCE_LABELS\[messageType\.audience\]/);
-  // The template code stays available as secondary technical detail.
-  assert.match(dashboard, /Modèle \{item\.templateCode\}/);
+  assert.doesNotMatch(journal, /statusLabel\(item\.type\)/, 'item.type is not a status');
+  assert.match(journal, /notificationTypeDescriptor\(item\.type\)/);
+  assert.match(journal, /descriptor\.name/);
+  assert.match(journal, /NOTIFICATION_AUDIENCE_LABELS\[descriptor\.audience\]/);
+  // The raw code and the template stay available, behind an explicit toggle.
+  assert.match(journal, /Code technique/);
+  assert.match(journal, /item\.templateCode/);
+  assert.match(journal, /Détail technique/);
 });

@@ -101,6 +101,9 @@ model AdminUser {
   studioSettings                    StudioSetting[]                    @relation("StudioSettingUpdatedBy")
   publishedSiteContent              SiteContent[]                      @relation("SiteContentPublishedBy")
   updatedSiteContent                SiteContent[]                      @relation("SiteContentUpdatedBy")
+  publishedMessageTemplates         MessageTemplate[]                  @relation("MessageTemplatePublishedBy")
+  updatedMessageTemplates           MessageTemplate[]                  @relation("MessageTemplateUpdatedBy")
+  updatedMessageRules               MessageRule[]                      @relation("MessageRuleUpdatedBy")
   bookingRules                      BookingRule[]                      @relation("BookingRuleUpdatedBy")
   adminCommands                     AdminCommand[]
   financialTasks                    FinancialTask[]
@@ -917,6 +920,52 @@ model SiteContent {
   @@unique([key, locale, version])
   @@index([key, locale, status])
   @@index([publishedById])
+  @@index([updatedById])
+}
+
+/// An editable override of a code template, versioned like SiteContent.
+///
+/// The code registry in src/emails/templates.ts stays the source of truth: rendering
+/// consults a cache of published overrides and falls back to the compiled template
+/// whenever there is none, or whenever the database is unreachable. The outbox can
+/// therefore never lose a template.
+model MessageTemplate {
+  id            String     @id @default(cuid())
+  code          String
+  locale        String     @default("fr")
+  version       Int        @default(1)
+  status        String     @default("DRAFT")
+  subject       String
+  preheader     String
+  /// Body lines as a JSON array of strings, matching the code registry's shape.
+  body          Json
+  publishedAt   DateTime?
+  publishedById String?
+  updatedById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  publishedBy   AdminUser? @relation("MessageTemplatePublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  updatedBy     AdminUser? @relation("MessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([code, locale, version])
+  @@index([code, locale, status])
+  @@index([status])
+}
+
+/// Send policy per event: delay, grouping window, attempts and fallback channel.
+/// A missing row means the behaviour compiled into the notification workers.
+model MessageRule {
+  event                 String     @id
+  delayMinutes          Int?
+  groupingWindowMinutes Int?
+  maxAttempts           Int?
+  fallbackChannel       String?
+  isEnabled             Boolean    @default(true)
+  updatedById           String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  updatedBy             AdminUser? @relation("MessageRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
   @@index([updatedById])
 }
 

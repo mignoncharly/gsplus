@@ -134,6 +134,7 @@ export const NOTIFICATION_TYPE_LABELS = Object.freeze({
   whatsapp_delivery_failed_admin: internalMessage('WhatsApp non livré', 'Le message n’a pas été livré après les reprises prévues.'),
   email_permanent_bounce_admin: internalMessage('E-mail client non distribué', 'L’adresse du client a rejeté définitivement l’envoi.'),
   data_integrity_incident_admin: internalMessage('Incohérence de données client', 'Un dossier risque d’utiliser l’identité d’un autre client.'),
+  message_template_test_admin: internalMessage('Test de modèle de message', 'Un administrateur a demandé un envoi de test depuis la bibliothèque.'),
 
   refund_action_required_admin: financialMessage('Remboursement à traiter', 'Une opération de remboursement doit être engagée ou reprise.'),
   cancellation_financial_action_required_admin: financialMessage('Annulation — action financière', 'Une annulation payée exige un traitement financier.'),

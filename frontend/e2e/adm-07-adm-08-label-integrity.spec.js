@@ -60,7 +60,10 @@ const installAdminApi = async (page) => {
       return json(route, { data: { id: 'owner-labels', name: 'Owner', email: 'owner@example.test', role: 'OWNER' } });
     }
     if (path === '/api/admin/packages') return json(route, { data: packages });
-    if (path === '/api/admin/notifications') return json(route, { data: notifications });
+    if (path === '/api/admin/notifications') {
+      return json(route, { data: notifications, meta: { total: notifications.length, limit: 50, offset: 0, hiddenChannels: [] } });
+    }
+    if (path === '/api/admin/messages') return json(route, { data: [], meta: { overrides: { count: 0 } } });
     if (path === '/api/admin/catalogue-taxonomy') return json(route, { data: [] });
     if (path === '/api/admin/catalogue-benefits') return json(route, { data: [] });
     if ([
@@ -104,12 +107,15 @@ test('ADM-08 — journal row is readable without knowing the template code', asy
   await installAdminApi(page);
   await openAdminTab(page, 'Communications');
 
-  await expect(page.getByRole('heading', { name: /Notifications/ })).toBeVisible();
+  // Phase 7 moved the journal into its own panel and put the codes behind a toggle.
+  // The guarantee this test protects is unchanged: a row must read as business
+  // language, never as an unrecognised status.
+  await expect(page.getByRole('heading', { level: 1, name: /Messages/ })).toBeVisible();
   await expect(page.getByText('Statut non reconnu')).toHaveCount(0);
 
   await expect(page.getByText('Demande de réservation reçue')).toBeVisible();
   await expect(page.getByText('Nouvelle réservation à traiter')).toBeVisible();
-  await expect(page.getByText('Remboursement à traiter')).toBeVisible();
+  await expect(page.getByText('Remboursement à traiter').first()).toBeVisible();
   await expect(page.getByText('Paiement vérifié')).toBeVisible();
 
   // Audience separates client, internal and financial traffic.
@@ -123,6 +129,8 @@ test('ADM-08 — journal row is readable without knowing the template code', asy
   // An unregistered backend code still reads as language, not as a broken status.
   await expect(page.getByText('A future backend message customer')).toBeVisible();
 
-  // Technical detail stays available, in a secondary position.
-  await expect(page.getByText('Modèle E-01 · v2026-08-20-phase4')).toBeVisible();
+  // Technical detail stays available, now behind an explicit toggle.
+  await expect(page.getByText('E-01')).toHaveCount(0);
+  await page.locator('.admin-journal-row').first().getByRole('button', { name: 'Détail technique' }).click();
+  await expect(page.getByText(/E-01/).first()).toBeVisible();
 });
