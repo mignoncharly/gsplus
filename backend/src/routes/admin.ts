@@ -91,6 +91,7 @@ import { getFinancialTask, listFinancialTasks } from '../services/financial-task
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
 import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
+import { messageRuleStatus } from '../services/message-rules.js';
 import {
   listMessageRules,
   listMessageTemplates,
@@ -1529,7 +1530,7 @@ router.get(
   '/message-rules',
   asyncHandler(async (_req, res) => {
     assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
-    res.json({ data: await listMessageRules() });
+    res.json({ data: await listMessageRules(), meta: { applied: messageRuleStatus() } });
   }),
 );
 

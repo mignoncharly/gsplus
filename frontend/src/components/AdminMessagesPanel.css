@@ -45,3 +45,9 @@
 }
 
 .admin-journal-resolution { color: var(--dark-accent); }
+
+/* === Règles d'envoi === */
+.admin-rule-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.admin-rule__head { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; justify-content: space-between; }
+.admin-rule__head h2 { margin: 0; font-size: 1rem; }
+.admin-rule__head small { color: var(--admin-muted, #6b7280); }

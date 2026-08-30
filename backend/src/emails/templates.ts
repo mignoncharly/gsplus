@@ -26,7 +26,10 @@ export type EmailTemplateDefinition = {
 
 export type RenderedEmailTemplate = {
   code: EmailTemplateCode;
-  version: typeof EMAIL_TEMPLATE_VERSION;
+  // Not the compiled literal: a render from a published override names that override,
+  // so the journal says which text actually went out rather than which text is in the
+  // code that sent it.
+  version: string;
   audience: EmailTemplateAudience;
   subject: string;
   locale: EmailLocale;
@@ -459,6 +462,7 @@ export const renderEmailTemplate = (
     ? { ...compiled, subject: override.subject, preheader: override.preheader, body: override.body,
         requiredVariables: placeholders([override.subject, override.preheader, ...override.body]) }
     : compiled;
+  const version = override ? `${EMAIL_TEMPLATE_VERSION}+override.v${override.version}` : template.version;
   const variables = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value)]));
   for (const required of template.requiredVariables) {
     if (!variables[required]?.trim() && !OPTIONAL_TEMPLATE_VARIABLES.has(required)) throw new Error(`EMAIL_TEMPLATE_VARIABLE_MISSING:${code}:${required}`);
@@ -473,5 +477,5 @@ export const renderEmailTemplate = (
     ...body.map((line) => `<p>${escapeHtml(line)}</p>`),
   ].join('');
 
-  return { code, version: template.version, audience: template.audience, locale, subject, preheader, text, html, variables };
+  return { code, version, audience: template.audience, locale, subject, preheader, text, html, variables };
 };

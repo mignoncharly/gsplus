@@ -44,6 +44,7 @@ import {
   getAdminMe,
   getAdminMedia,
   getAdminMessages,
+  getAdminMessageRules,
   getAdminPackages,
   getAdminReservation,
   getApiHealth,
@@ -172,6 +173,7 @@ const AdminDashboard = () => {
   const [blocks, setBlocks] = useState([]);
   const [messageTemplates, setMessageTemplates] = useState([]);
   const [messageTemplatesMeta, setMessageTemplatesMeta] = useState(null);
+  const [messageRules, setMessageRules] = useState([]);
   const [dataGovernance, setDataGovernance] = useState({ policies: [], requests: [] });
 
   const refreshAdminTab = useCallback((tab, { reportError = true } = {}) => {
@@ -203,9 +205,10 @@ const AdminDashboard = () => {
           setDataGovernance(await getAdminDataGovernance());
         } else if (tab === 'notifications') {
           // The journal reads its own filters from the URL; only the library is shared.
-          const library = await getAdminMessages();
+          const [library, rules] = await Promise.all([getAdminMessages(), getAdminMessageRules()]);
           setMessageTemplates(library.items);
           setMessageTemplatesMeta(library.meta);
+          setMessageRules(rules.items);
         }
 
         setLastSyncedAt((current) => ({ ...current, [tab]: Date.now() }));
@@ -1379,6 +1382,7 @@ const AdminDashboard = () => {
                 <AdminMessagesPanel
                   templates={messageTemplates}
                   templatesMeta={messageTemplatesMeta}
+                  rules={messageRules}
                   onReloadTemplates={() => refreshAdminTab('notifications')}
                   openActionDialog={openActionDialog}
                   runAction={runAction}

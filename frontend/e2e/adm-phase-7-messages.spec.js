@@ -26,8 +26,15 @@ const templates = [
     isOverridden: true, history: [{ id: 'v1', version: 1, status: 'PUBLISHED' }, { id: 'v2', version: 2, status: 'DRAFT' }] },
 ];
 
+const rules = [
+  { event: 'payment_added_admin', canBeDisabled: true, isConfigured: false, delayMinutes: null,
+    groupingWindowMinutes: null, maxAttempts: null, isEnabled: true, updatedAt: null, updatedBy: null },
+  { event: 'calendar_sync_failed_admin', canBeDisabled: false, isConfigured: true, delayMinutes: 15,
+    groupingWindowMinutes: 60, maxAttempts: 3, isEnabled: true, updatedAt: '2026-08-29T09:00:00.000Z', updatedBy: null },
+];
+
 const installAdminApi = async (page) => {
-  const calls = { lists: [], drafts: [], publishes: [], reverts: [], tests: [], previews: [] };
+  const calls = { lists: [], drafts: [], publishes: [], reverts: [], tests: [], previews: [], rules: [] };
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -42,6 +49,10 @@ const installAdminApi = async (page) => {
       return json(route, { data: items, meta: { total: items.length, limit: 50, offset: 0, hiddenChannels: ['whatsapp'] } });
     }
     if (path === '/api/admin/messages') return json(route, { data: templates, meta: { overrides: { count: 1, lastLoadedAt: null, lastError: null } } });
+    if (path === '/api/admin/message-rules') {
+      if (request.method() === 'PUT') { calls.rules.push(request.postDataJSON()); return json(route, { data: {} }); }
+      return json(route, { data: rules, meta: { applied: { count: 1, lastLoadedAt: null, lastError: null } } });
+    }
     if (path.endsWith('/preview')) { calls.previews.push(request.postDataJSON()); return json(route, { data: { locale: 'fr', subject: 'Aperçu GSP-260830-EXEMPLE', preheader: '', text: 'Corps de l’aperçu' } }); }
     if (path.endsWith('/publish')) { calls.publishes.push(path); return json(route, { data: {} }); }
     if (path.endsWith('/revert')) { calls.reverts.push(path); return route.fulfill({ status: 204, body: '' }); }
@@ -126,4 +137,50 @@ test('§8.1 a template is edited, previewed and published, and can return to the
   await page.getByRole('button', { name: 'Revenir à la version d’origine du modèle I-06' }).click();
   await page.locator('.admin-action-dialog').getByRole('button', { name: 'Revenir à l’origine' }).click();
   await expect.poll(() => calls.reverts.length).toBe(1);
+});
+
+test('§8.1 an event with no rule states the application behaviour rather than showing nothing', async ({ page }) => {
+  await installAdminApi(page);
+  await open(page, '/admin/messages');
+
+  const unconfigured = page.locator('.admin-rule').filter({ hasText: 'Paiement à vérifier' });
+  await expect(unconfigured.getByText('Comportement de l’application')).toBeVisible();
+  await expect(unconfigured.getByText('Immédiat')).toBeVisible();
+  await expect(unconfigured.getByText('5 (application)')).toBeVisible();
+
+  const configured = page.locator('.admin-rule').filter({ hasText: 'Échec de synchronisation Cal.com' });
+  await expect(configured.getByText('15 min')).toBeVisible();
+  await expect(configured.getByText('Réglée par le studio')).toBeVisible();
+  // The rules are named in business terms, like the journal rows above them.
+  await expect(page.getByText('payment_added_admin')).toHaveCount(0);
+});
+
+test('§8.1 an alarm offers delay and grouping but no way to switch it off', async ({ page }) => {
+  const calls = await installAdminApi(page);
+  await open(page, '/admin/messages');
+
+  await page.getByRole('button', { name: 'Modifier la règle d’envoi de Échec de synchronisation Cal.com' }).click();
+  const dialog = page.locator('.admin-action-dialog');
+  await expect(dialog.getByText(/ne peut pas être désactivée/)).toBeVisible();
+  // No switch is offered, rather than one that would be refused on save.
+  await expect(dialog.getByLabel('Envoyer ce message')).toHaveCount(0);
+  await dialog.getByLabel('Regroupement, en minutes').fill('120');
+  await dialog.getByRole('button', { name: 'Enregistrer la règle' }).click();
+
+  await expect.poll(() => calls.rules.length).toBe(1);
+  expect(calls.rules[0]).toMatchObject({ event: 'calendar_sync_failed_admin', groupingWindowMinutes: 120, isEnabled: true });
+});
+
+test('§8.1 an ordinary internal message can be delayed or switched off', async ({ page }) => {
+  const calls = await installAdminApi(page);
+  await open(page, '/admin/messages');
+
+  await page.getByRole('button', { name: 'Modifier la règle d’envoi de Paiement à vérifier' }).click();
+  const dialog = page.locator('.admin-action-dialog');
+  await dialog.getByLabel('Délai avant envoi, en minutes').fill('45');
+  await dialog.getByLabel('Envoyer ce message').selectOption('false');
+  await dialog.getByRole('button', { name: 'Enregistrer la règle' }).click();
+
+  await expect.poll(() => calls.rules.length).toBe(1);
+  expect(calls.rules[0]).toMatchObject({ event: 'payment_added_admin', delayMinutes: 45, isEnabled: false, maxAttempts: null });
 });

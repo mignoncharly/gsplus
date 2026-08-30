@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { NotificationStatus, Prisma } from '../generated/prisma/client.js';
-import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from '../emails/templates.js';
+import { renderEmailTemplate } from '../emails/templates.js';
 import { adminReservationUrl } from '../utils/admin-links.js';
 
 const maskPhone = (phone: string) => `•••• ${phone.slice(-3)}`;
@@ -57,7 +57,7 @@ export const recordMissingReservationSnapshot = async (reservationId: string, co
         recipient: env.ADMIN_NOTIFICATION_EMAIL,
         idempotencyKey: `integrity-incident:${incident.id}:I-10:email`,
         templateCode: 'I-10',
-        templateVersion: EMAIL_TEMPLATE_VERSION,
+        templateVersion: rendered.version,
         renderedContent: rendered as unknown as Prisma.InputJsonValue,
         metadata: {
           templateCode: 'I-10',

@@ -67,6 +67,26 @@ describe('§8.1 the message library never costs the outbox a template', () => {
     expect((await prisma.messageTemplate.findFirstOrThrow({ where: { code: 'E-01' } })).status).toBe('ARCHIVED');
   });
 
+  it('records the override version that rendered, not the compiled one', async () => {
+    await seed();
+    const agent = await signIn();
+    const compiledVersion = renderE01().version;
+
+    await agent.post('/api/admin/messages/E-01')
+      .send({ locale: 'fr', subject: 'Objet suivi — [reference_courte]', preheader: 'Aperçu suivi', body: ['Ligne suivie pour [reference_courte].'] })
+      .expect(200);
+    await agent.post('/api/admin/messages/E-01/publish').expect(200);
+
+    // The journal exists to say what went out. Recording the compiled version here
+    // would attribute the studio's own text to the code that did not write it.
+    const version = renderE01().version;
+    expect(version).not.toBe(compiledVersion);
+    expect(version).toBe(`${compiledVersion}+override.v1`);
+
+    await agent.post('/api/admin/messages/E-01/revert').expect(204);
+    expect(renderE01().version).toBe(compiledVersion);
+  });
+
   it('refuses an override that would blank a message', async () => {
     await seed();
     const agent = await signIn();

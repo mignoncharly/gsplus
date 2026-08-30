@@ -4,13 +4,18 @@ import { startNotificationWorker } from './emails/notifications.js';
 import { startCalendarWorker } from './services/calendar.js';
 import { startZohoMailSmtpLogsWorker } from './services/zoho-mail-smtp-logs-sync.js';
 import { refreshTemplateOverrides } from './services/message-template-overrides.js';
+import { refreshMessageRules } from './services/message-rules.js';
 
 const app = createApp();
 // Load published template overrides before the workers start rendering. A failure here
 // is not fatal: the cache stays empty and every template renders from code.
 void refreshTemplateOverrides();
+void refreshMessageRules();
 // Re-read periodically so a publish from another process is picked up without a restart.
-const templateOverrideTimer = setInterval(() => { void refreshTemplateOverrides(); }, 60_000);
+const templateOverrideTimer = setInterval(() => {
+  void refreshTemplateOverrides();
+  void refreshMessageRules();
+}, 60_000);
 templateOverrideTimer.unref?.();
 
 const stopNotificationWorker = startNotificationWorker();

@@ -7,6 +7,7 @@ import {
   publishAdminMessage,
   revertAdminMessage,
   saveAdminMessageDraft,
+  saveAdminMessageRule,
   searchAdminNotifications,
   testSendAdminMessage,
 } from '../lib/api';
@@ -36,7 +37,7 @@ const filtersFromParams = (params) => ({
  * provider states and attempts stay available in a panel the operator opens, rather
  * than filling the row.
  */
-const AdminMessagesPanel = ({ templates, templatesMeta, onReloadTemplates, openActionDialog, runAction, onResolve, onRetry, busyActions }) => {
+const AdminMessagesPanel = ({ templates, templatesMeta, rules = [], onReloadTemplates, openActionDialog, runAction, onResolve, onRetry, busyActions }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
   const queryKey = searchParams.toString();
@@ -95,6 +96,43 @@ const AdminMessagesPanel = ({ templates, templatesMeta, onReloadTemplates, openA
         const success = await runAction(`Brouillon ${template.code}`, () => saveAdminMessageDraft(template.code, {
           locale: 'fr', subject: values.subject.trim(), preheader: values.preheader.trim(),
           body: String(values.body || '').split('\n').filter((line) => line.trim()),
+        }), true);
+        if (success) onReloadTemplates();
+      },
+    });
+  };
+
+  const editRule = (rule) => {
+    const descriptor = notificationTypeDescriptor(rule.event);
+    openActionDialog({
+      title: `Règle d’envoi — ${descriptor.name}`,
+      summary: descriptor.trigger || 'Message interne au studio.',
+      consequence: rule.canBeDisabled
+        ? 'La règle s’applique aux messages encore en attente, pas à ceux déjà partis.'
+        : 'Cette alerte ne peut pas être désactivée. Vous pouvez la retarder ou la regrouper.',
+      confirmLabel: 'Enregistrer la règle',
+      fields: [
+        { name: 'delayMinutes', label: 'Délai avant envoi, en minutes', type: 'number', min: 0, max: 10080, wide: false,
+          defaultValue: rule.delayMinutes ?? '', help: 'Vide : envoi immédiat.' },
+        { name: 'groupingWindowMinutes', label: 'Regroupement, en minutes', type: 'number', min: 0, max: 1440, wide: false,
+          defaultValue: rule.groupingWindowMinutes ?? '',
+          help: 'Vide : aucun regroupement. Un message identique déjà envoyé dans la fenêtre remplace le suivant.' },
+        { name: 'maxAttempts', label: 'Tentatives maximum', type: 'number', min: 1, max: 20, wide: false,
+          defaultValue: rule.maxAttempts ?? '', help: 'Vide : la valeur de l’application (5).' },
+        ...(rule.canBeDisabled
+          ? [{ name: 'isEnabled', label: 'Envoyer ce message', type: 'select', wide: false,
+              defaultValue: rule.isEnabled ? 'true' : 'false',
+              options: [{ value: 'true', label: 'Oui' }, { value: 'false', label: 'Non, ne plus l’envoyer' }] }]
+          : []),
+      ],
+      onConfirm: async (values) => {
+        const number = (value) => (String(value ?? '').trim() === '' ? null : Number(value));
+        const success = await runAction(`Règle ${rule.event}`, () => saveAdminMessageRule({
+          event: rule.event,
+          delayMinutes: number(values.delayMinutes),
+          groupingWindowMinutes: number(values.groupingWindowMinutes),
+          maxAttempts: number(values.maxAttempts),
+          isEnabled: rule.canBeDisabled ? values.isEnabled !== 'false' : true,
         }), true);
         if (success) onReloadTemplates();
       },
@@ -302,6 +340,40 @@ const AdminMessagesPanel = ({ templates, templatesMeta, onReloadTemplates, openA
           )}
         </section>
       ))}
+
+      <div className="admin-page-header"><h1>Règles <span>d’envoi</span></h1></div>
+      <p className="admin-record-hint admin-library-note">
+        Ces règles ne concernent que les messages internes au studio ; aucun message client n’en dépend. Un événement
+        sans règle suit le comportement de l’application : envoi immédiat, aucun regroupement, cinq tentatives.
+      </p>
+      <ul className="admin-rule-list">
+        {rules.map((rule) => {
+          const descriptor = notificationTypeDescriptor(rule.event);
+          return (
+            <li key={rule.event} className="admin-card admin-rule">
+              <div className="admin-rule__head">
+                <div>
+                  <h2>{descriptor.name}</h2>
+                  {descriptor.trigger && <small>{descriptor.trigger}</small>}
+                </div>
+                <div className="admin-action-row">
+                  {!rule.isEnabled && <span className="admin-pill admin-pill--count">Désactivé</span>}
+                  {!rule.canBeDisabled && <span className="admin-pill admin-pill--audience audience-internal">Alerte</span>}
+                  <button type="button" className="btn btn-secondary admin-sm-btn"
+                    aria-label={`Modifier la règle d’envoi de ${descriptor.name}`}
+                    onClick={() => editRule(rule)}>Modifier</button>
+                </div>
+              </div>
+              <dl className="admin-settings-grid">
+                <div><dt>Délai</dt><dd>{rule.delayMinutes ? `${rule.delayMinutes} min` : 'Immédiat'}</dd></div>
+                <div><dt>Regroupement</dt><dd>{rule.groupingWindowMinutes ? `${rule.groupingWindowMinutes} min` : 'Aucun'}</dd></div>
+                <div><dt>Tentatives</dt><dd>{rule.maxAttempts ?? '5 (application)'}</dd></div>
+                <div><dt>Source</dt><dd>{rule.isConfigured ? 'Réglée par le studio' : 'Comportement de l’application'}</dd></div>
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 };

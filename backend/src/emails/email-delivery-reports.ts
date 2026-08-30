@@ -5,7 +5,7 @@ import { prisma } from '../db/prisma.js';
 import { HttpError } from '../errors/http-error.js';
 import { NotificationStatus, Prisma } from '../generated/prisma/client.js';
 import { adminReservationUrl } from '../utils/admin-links.js';
-import { EMAIL_TEMPLATE_VERSION, renderEmailTemplate } from './templates.js';
+import { renderEmailTemplate } from './templates.js';
 
 export type EmailDeliveryReportStatus = 'DELIVERED' | 'TEMPORARY_FAILURE' | 'PERMANENT_FAILURE';
 export type EmailDeliveryReportInput = {
@@ -159,7 +159,7 @@ export const handleEmailDeliveryReport = async (input: EmailDeliveryReportInput)
             recipient: env.ADMIN_NOTIFICATION_EMAIL,
             idempotencyKey: `notification:${event.id}:I-09:permanent-bounce`,
             templateCode: 'I-09',
-            templateVersion: EMAIL_TEMPLATE_VERSION,
+            templateVersion: rendered.version,
             renderedContent: rendered as unknown as Prisma.InputJsonValue,
             metadata: {
               templateCode: 'I-09',

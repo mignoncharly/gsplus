@@ -109,7 +109,6 @@ export const messageRuleSchema = z.object({
   delayMinutes: z.coerce.number().int().min(0).max(10080).nullable(),
   groupingWindowMinutes: z.coerce.number().int().min(0).max(1440).nullable(),
   maxAttempts: z.coerce.number().int().min(1).max(20).nullable(),
-  fallbackChannel: z.enum(['email', 'whatsapp']).nullable(),
   isEnabled: z.boolean().default(true),
 });
 

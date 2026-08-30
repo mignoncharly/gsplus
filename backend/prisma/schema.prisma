@@ -959,7 +959,6 @@ model MessageRule {
   delayMinutes          Int?
   groupingWindowMinutes Int?
   maxAttempts           Int?
-  fallbackChannel       String?
   isEnabled             Boolean    @default(true)
   updatedById           String?
   createdAt             DateTime   @default(now())

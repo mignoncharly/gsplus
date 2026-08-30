@@ -405,6 +405,12 @@ export const previewAdminMessage = async (code, body) =>
   (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/preview`, { method: 'POST', body: JSON.stringify(body) })).data;
 export const testSendAdminMessage = async (code, locale = 'fr') =>
   (await apiFetch(`/api/admin/messages/${encodeURIComponent(code)}/test-send?locale=${locale}`, { method: 'POST' })).data;
+export const getAdminMessageRules = async () => {
+  const payload = await apiFetch('/api/admin/message-rules');
+  return { items: payload.data, meta: payload.meta };
+};
+export const saveAdminMessageRule = async (body) =>
+  (await apiFetch('/api/admin/message-rules', { method: 'PUT', body: JSON.stringify(body) })).data;
 
 export const resolveAdminNotification = async (id, data) => {
   const payload = await apiFetch(`/api/admin/notifications/${id}/resolve`, {

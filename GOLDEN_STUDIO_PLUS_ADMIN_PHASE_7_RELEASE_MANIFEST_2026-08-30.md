@@ -36,8 +36,31 @@ refreshed immediately on publish or revert.
 - Test send renders through the real pipeline and goes to the studio's own address — a test asserts it is queued
   with no reservation attached.
 - An override with an empty subject or no body is refused at the API.
-- `MessageRule` records delay, grouping window, attempts, fallback channel and enablement per event. A missing row
-  means the behaviour compiled into the workers, so recording rules changes nothing until one is set.
+## §8.1 — the sending rules
+
+The first build of this stored rules and served them, and nothing read them. An owner could have set a delay and
+believed it took effect. That is worse than not shipping the feature, so the rules are now applied — and the parts
+that could not be honoured were removed rather than left as controls that do nothing.
+
+- Rules are applied in `processNotificationEvent`, the single point every internal e-mail passes on its way out.
+  Applying them there rather than at each of the fifteen places that enqueue one means a rule cannot be forgotten at
+  a call site, and an event **already queued** obeys a rule set after it was queued.
+- **A missing row is not a gap**: the twelve governed events are all listed, and one with no rule reads *Comportement
+  de l'application* — immediate, no grouping, five attempts. Nothing changes until an owner sets a rule.
+- **Delay** defers the first attempt to `createdAt + delay`; a test asserts the same event then goes out, so nothing
+  is lost.
+- **Grouping** cancels a repeat only when a message of the same type and recipient was already **sent** inside the
+  window, and points at it through `replacementEventId`. No notice disappears without one of its kind having arrived.
+- **Four alarms cannot be switched off** — Cal.com sync failure, WhatsApp delivery failure, permanent bounce, data
+  integrity incident. They are the only signal that something is broken. The API refuses `isEnabled: false` with a
+  message saying so, the cache re-enables them whatever a stored row says, and the dialog offers no switch at all
+  rather than one that would be refused on save. Delay and grouping still apply.
+- **Customer messages are out of reach by construction**: `GOVERNED_EVENTS` lists only the studio's own internal
+  e-mails, and a rule for anything else is refused with 404 and ignored by the cache.
+- `fallbackChannel` was dropped from the schema by a second migration. Nothing read it, WhatsApp is switched off in
+  production, and a column an owner could set and no code would honour is worse than no column.
+- The cache follows the template overrides exactly: loaded at startup, refreshed on write and every 60 seconds, and
+  an unreadable rule table leaves the outbox on the compiled behaviour. A test holds that line.
 
 ## ADM-08b — the journal
 
@@ -57,12 +80,23 @@ anywhere. `p2-04` caught it. The label is restored on the business line, where i
 The Phase 1 label guard also fired as designed: the new `message_template_test_admin` type had no French name, and
 the completeness test failed until it was registered.
 
+## Two defects found by the production replay
+
+**The journal misattributed every overridden send.** `renderEmailTemplate` returned the compiled version string even
+when a published override had supplied the text, and all fifteen enqueue sites wrote that constant into
+`NotificationEvent.templateVersion`. The replay caught it directly: a message rendered from override v1 was recorded
+as `2026-08-20-phase4`. The render now returns `<compiled>+override.v<n>` when an override is used, every site records
+what actually rendered rather than a constant, and a test pins it. This is the one thing the journal exists to say,
+so recording the wrong answer was worth a second deployment.
+
+**The sending rules were inert.** Described above.
+
 ## Verification evidence
 
-- Backend suite: **236 passed, 0 failed across 32 files** (226 before, plus 10 new).
+- Backend suite: **244 passed, 0 failed across 33 files** (226 before, plus 18 new).
 - Frontend unit suite: **128 passed, 0 failed**.
-- New browser suite: **10 passed** across Chromium and WebKit.
-- Full local Chromium regression: **119 passed, 0 failed** (114 before, plus 5 new).
+- New browser suite: **8 passed** on Chromium (5 for the library and journal, 3 for the rules).
+- Full local Chromium regression: **122 passed, 0 failed** (114 before this phase).
 - Frontend lint and backend TypeScript build: clean.
 - Build into a scratch directory: budgets and tracker audit passed, production `dist` untouched.
 
@@ -80,10 +114,29 @@ loaded panel. Public CSS is unchanged at 66,576 and the public entry is unchange
 | Disabled channels hidden by default | Hidden with the fact stated and an explicit override | Passed |
 | Editable library with preview, test send, version and rollback | Draft, preview with sample data, publish, archive, revert | Passed locally |
 | The outbox never loses a template | Four tests, including an unloaded cache and an empty-body override | Passed |
-| Production replay | **Outstanding** — needs deployment, including a migration | Pending |
+| Editable sending rules | Applied at the dispatch gate; alarms refuse to be silenced | Passed locally |
+| Production replay of §8.1 | 37 codes listed, draft inert, publish switches the send path, revert restores the compiled copy | **Passed in production** |
+| Production replay of the rules | Outstanding — needs the second deployment | Pending |
 
 ## Deployment
 
-Same shape as Phases 3 to 6. The migration creates two empty tables and nothing else. With no published override the
-render path uses the compiled registry, so the running backend is unaffected and the migration can be applied before
-the restart.
+**First deployment — done.** The migration created two empty tables; the backend was restarted and the frontend
+rebuilt. §8.1 was then replayed against production end to end:
+
+| Step | Result |
+| --- | --- |
+| List the library | 37 codes, 0 overrides in the send path |
+| Save a draft | Stored; send path still 0 overrides |
+| Render through the real pipeline with the draft unpublished | Compiled text, no marker |
+| Publish | 1 override in the send path, draft cleared, version 1 |
+| Render again | The studio's text, marker present |
+| Revert to the original | 0 overrides, compiled text restored, the override archived not deleted |
+| Journal filters | Channel, status, type, date and *actionable only* all answered with a real total |
+
+Production ends on the compiled copy, exactly as it started. The one archived `MessageTemplate` row is the deliberate
+history of that replay.
+
+**Second deployment — pending.** Carries the version-attribution fix and the applied sending rules. Its migration
+drops `MessageRule.fallbackChannel`, and the table is empty in production, so there is nothing to lose. The rules
+cache starts empty and every event stays on the behaviour compiled into the application until an owner sets a rule,
+so the restart changes no delivery behaviour on its own.

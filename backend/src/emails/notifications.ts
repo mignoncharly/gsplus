@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { hasOwnerExplicitDeliveryLabel } from '../catalogue/delivery-labels.js';
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
+import { getMessageRule } from '../services/message-rules.js';
 import { HttpError } from '../errors/http-error.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
@@ -20,7 +21,6 @@ import {
   type NotificationActor,
 } from './internal-notification-policy.js';
 import {
-  EMAIL_TEMPLATE_VERSION,
   renderEmailTemplate,
   type EmailTemplateCode,
   type EmailTemplateVariables,
@@ -216,7 +216,7 @@ export const previewCustomerDecisionEmail = async (input: CustomerDecisionPrevie
     }
   }
   const rendered = renderReservationEmail(reservation, code!, variables);
-  return { ...rendered, locale: locale === 'en' ? 'en' : 'fr', templateVersion: EMAIL_TEMPLATE_VERSION, previewHash: createHash('sha256').update(JSON.stringify(rendered)).digest('hex') };
+  return { ...rendered, locale: locale === 'en' ? 'en' : 'fr', templateVersion: rendered.version, previewHash: createHash('sha256').update(JSON.stringify(rendered)).digest('hex') };
 };
 
 const reservationLines = (reservation: ReservationForMessage) => {
@@ -490,6 +490,91 @@ const obsoleteEmailReason = (event: NotificationEvent) => {
   return null;
 };
 
+/**
+ * The studio's sending rules, applied at the one point every internal e-mail passes on
+ * its way out. Applying them here rather than at each of the fifteen places that enqueue
+ * one means a rule cannot be forgotten at a call site, and an event already in the
+ * outbox obeys a rule set after it was queued.
+ *
+ * Returns 'deferred' or 'cancelled' when the rule stops this pass, null to carry on.
+ */
+const applyMessageRule = async (
+  event: { id: string; type: string; recipient: string; createdAt: Date; attemptCount: number; maxAttempts: number },
+  now: Date,
+): Promise<'deferred' | 'cancelled' | null> => {
+  const rule = getMessageRule(event.type);
+  if (!rule) return null;
+
+  if (!rule.isEnabled) {
+    await prisma.notificationEvent.updateMany({
+      where: { id: event.id, status: NotificationStatus.PENDING },
+      data: {
+        status: NotificationStatus.CANCELLED,
+        nextAttemptAt: null,
+        providerStatus: 'suppressed_rule_disabled',
+        resolution: 'SUPPRESSED',
+        resolutionNote: 'DISABLED_BY_RULE',
+        resolvedAt: now,
+        resolvedBy: 'SYSTEM',
+      },
+    });
+    return 'cancelled';
+  }
+
+  // Grouping only ever collapses a repeat into a message the studio has already been
+  // sent, so no notice disappears without one of its kind having arrived.
+  if (rule.groupingWindowMinutes && rule.groupingWindowMinutes > 0 && event.attemptCount === 0) {
+    const since = new Date(now.getTime() - rule.groupingWindowMinutes * 60_000);
+    const kept = await prisma.notificationEvent.findFirst({
+      where: {
+        id: { not: event.id },
+        type: event.type,
+        recipient: event.recipient,
+        status: NotificationStatus.SENT,
+        sentAt: { gte: since },
+      },
+      orderBy: { sentAt: 'desc' },
+      select: { id: true },
+    });
+    if (kept) {
+      await prisma.notificationEvent.updateMany({
+        where: { id: event.id, status: NotificationStatus.PENDING },
+        data: {
+          status: NotificationStatus.CANCELLED,
+          nextAttemptAt: null,
+          providerStatus: 'grouped_by_rule',
+          resolution: 'GROUPED',
+          resolutionNote: `GROUPED_INTO:${kept.id}`,
+          replacementEventId: kept.id,
+          resolvedAt: now,
+          resolvedBy: 'SYSTEM',
+        },
+      });
+      return 'cancelled';
+    }
+  }
+
+  if (rule.maxAttempts !== null && rule.maxAttempts !== event.maxAttempts) {
+    await prisma.notificationEvent.updateMany({
+      where: { id: event.id, status: NotificationStatus.PENDING },
+      data: { maxAttempts: rule.maxAttempts },
+    });
+  }
+
+  if (rule.delayMinutes && rule.delayMinutes > 0 && event.attemptCount === 0) {
+    const due = new Date(event.createdAt.getTime() + rule.delayMinutes * 60_000);
+    if (due > now) {
+      await prisma.notificationEvent.updateMany({
+        where: { id: event.id, status: NotificationStatus.PENDING },
+        data: { nextAttemptAt: due },
+      });
+      return 'deferred';
+    }
+  }
+
+  return null;
+};
+
 export const processNotificationEvent = async (id: string, adapters: NotificationDeliveryAdapters = {}) => {
   const now = adapters.now?.() ?? new Date();
   const candidate = await getNotificationEvent(id);
@@ -508,6 +593,10 @@ export const processNotificationEvent = async (id: string, adapters: Notificatio
       },
     });
     return 'skipped' as const;
+  }
+  if (candidate?.status === NotificationStatus.PENDING && !obsoleteReason) {
+    const ruled = await applyMessageRule(candidate, now);
+    if (ruled) return 'skipped' as const;
   }
   const claim = await prisma.notificationEvent.updateMany({
     where: {
@@ -731,7 +820,7 @@ const enqueueReservationEmail = async (
     idempotencyKey: input.idempotencyKey,
     nextAttemptAt: input.nextAttemptAt,
     templateCode: input.code,
-    templateVersion: EMAIL_TEMPLATE_VERSION,
+    templateVersion: rendered.version,
     renderedContent: rendered as unknown as Prisma.InputJsonValue,
     metadata: input.metadata,
   });
@@ -760,7 +849,7 @@ const enqueueReservationInternalEmail = (
     idempotencyKey: input.idempotencyKey,
     nextAttemptAt: input.nextAttemptAt,
     templateCode: input.code,
-    templateVersion: EMAIL_TEMPLATE_VERSION,
+    templateVersion: rendered.version,
     renderedContent: rendered as unknown as Prisma.InputJsonValue,
     metadata: input.metadata,
     actor: input.actor,
@@ -1535,7 +1624,7 @@ export const scheduleDailyOperationsDigest = async (now = new Date()) => {
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
     idempotencyKey: `digest:${dateKey}:I-11:email`,
     templateCode: 'I-11',
-    templateVersion: EMAIL_TEMPLATE_VERSION,
+    templateVersion: rendered.version,
     renderedContent: rendered as unknown as Prisma.InputJsonValue,
     metadata: { templateCode: 'I-11', dateDouala: dateKey },
     destination: { type: 'SHARED_OPERATIONAL' },
@@ -1808,7 +1897,7 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
       recipient: lead.email,
       idempotencyKey: `lead:${leadId}:created:${customerCode}:email:customer`,
       templateCode: customerCode,
-      templateVersion: EMAIL_TEMPLATE_VERSION,
+      templateVersion: rendered.version,
       renderedContent: rendered as unknown as Prisma.InputJsonValue,
     }));
   }
@@ -1831,7 +1920,7 @@ export const queueLeadCreatedNotification = async (leadId: string) => {
     recipient: env.ADMIN_NOTIFICATION_EMAIL,
     idempotencyKey: `lead:${leadId}:created:email:admin`,
     templateCode: 'I-12',
-    templateVersion: EMAIL_TEMPLATE_VERSION,
+    templateVersion: adminRendered.version,
     renderedContent: adminRendered as unknown as Prisma.InputJsonValue,
     actorType: 'EXTERNAL',
     metadata: { templateCode: 'I-12' },

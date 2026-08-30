@@ -8,6 +8,7 @@ import {
   renderEmailTemplate,
 } from '../emails/templates.js';
 import { refreshTemplateOverrides } from './message-template-overrides.js';
+import { GOVERNED_EVENTS, UNSILENCEABLE_EVENTS, isGovernedEvent, refreshMessageRules } from './message-rules.js';
 
 const isKnownCode = (code: string): code is EmailTemplateCode =>
   (EMAIL_TEMPLATE_CODES as readonly string[]).includes(code);
@@ -154,9 +155,30 @@ export const renderWithSampleData = (code: string, locale: 'fr' | 'en') => {
   return renderEmailTemplate(code, sampleVariables(compiled.requiredVariables), locale);
 };
 
+/**
+ * Every governed event, whether or not a rule has been stored for it. An event with no
+ * row is not missing — it is running on the behaviour compiled into the application, and
+ * the panel says so rather than showing an empty list.
+ */
 export const listMessageRules = async () => {
-  const rows = await prisma.messageRule.findMany({ orderBy: { event: 'asc' }, include: { updatedBy: { select: { id: true, name: true } } } });
-  return rows;
+  const rows = await prisma.messageRule.findMany({ include: { updatedBy: { select: { id: true, name: true } } } });
+  const stored = new Map(rows.map((row) => [row.event, row]));
+  return GOVERNED_EVENTS.map((event) => {
+    const row = stored.get(event);
+    return {
+      event,
+      // No label here on purpose: the French names live in the panel's single label
+      // registry, which has a completeness guard. A second copy would drift from it.
+      canBeDisabled: !UNSILENCEABLE_EVENTS.has(event),
+      isConfigured: Boolean(row),
+      delayMinutes: row?.delayMinutes ?? null,
+      groupingWindowMinutes: row?.groupingWindowMinutes ?? null,
+      maxAttempts: row?.maxAttempts ?? null,
+      isEnabled: row ? row.isEnabled || UNSILENCEABLE_EVENTS.has(event) : true,
+      updatedAt: row?.updatedAt ?? null,
+      updatedBy: row?.updatedBy ?? null,
+    };
+  });
 };
 
 export const upsertMessageRule = async (input: {
@@ -164,14 +186,18 @@ export const upsertMessageRule = async (input: {
   delayMinutes: number | null;
   groupingWindowMinutes: number | null;
   maxAttempts: number | null;
-  fallbackChannel: string | null;
   isEnabled: boolean;
 }, adminUserId?: string) => {
+  if (!isGovernedEvent(input.event)) throw new HttpError(404, 'MESSAGE_EVENT_NOT_FOUND', 'Événement inconnu.');
+  // Refusing is the point: silently storing isEnabled=false and ignoring it would leave
+  // the owner believing an alarm is off when it is not.
+  if (!input.isEnabled && UNSILENCEABLE_EVENTS.has(input.event)) {
+    throw new HttpError(422, 'MESSAGE_EVENT_UNSILENCEABLE', 'Cette alerte ne peut pas être désactivée : elle est le seul signal d’une panne. Vous pouvez la retarder ou la regrouper.');
+  }
   const data = {
     delayMinutes: input.delayMinutes,
     groupingWindowMinutes: input.groupingWindowMinutes,
     maxAttempts: input.maxAttempts,
-    fallbackChannel: input.fallbackChannel,
     isEnabled: input.isEnabled,
     updatedById: adminUserId ?? null,
   };
@@ -183,5 +209,6 @@ export const upsertMessageRule = async (input: {
   await prisma.auditLog.create({
     data: { adminUserId, action: 'message_rule.update', entityType: 'MessageRule', entityId: saved.event, metadata: { ...input } },
   });
+  await refreshMessageRules();
   return saved;
 };
