@@ -1,7 +1,7 @@
 # Golden Studio Plus — Phase 8 release manifest
 ## Conditional tariff form (report §6.2, `ADM-07b`)
 
-**Status:** built and verified locally; awaiting production deployment. No migration.
+**Status:** deployed and replayed in production. No migration.
 
 The report's §6.2 is a table of thirteen fields and what each should become. The form was
 a flat list of twenty-four fields, every one of them required, with no dependency between
@@ -107,4 +107,29 @@ again fails it, and dropping `conditions` from the publish gate fails it.
 | Publication requires a complete presentation | `assertPublishable`, guarded by the repointed P1-04 | Passed |
 | Order managed by moving | Whole-sequence reorder; ends disabled | Passed locally |
 | Conditional delivery | *Nous contacter* writes the studio wording | Passed locally |
-| `ADM-07b` in production: eight filters, FR and EN | Outstanding — needs deployment | Pending |
+| `ADM-07b` in production: eight filters, FR and EN | New production guard, both engines | **Passed in production** |
+| Reordering in production | First two formulas swapped, verified, restored; no version created | **Passed in production** |
+
+## Deployment
+
+Backend restarted 06:59; the frontend had already gone out with the build, which is worth
+recording plainly: `npm run build` writes into the directory nginx serves, so between the
+build and the restart the administration was calling a reorder endpoint the running
+backend did not have. The arrows would have reported an error for those few minutes. They
+did nothing at all before, so nothing was worse, but the order was wrong and the next
+phase should build the frontend after the restart, not before.
+
+Replayed against production:
+
+| Step | Result |
+| --- | --- |
+| The controlled section list | Eight sections, all active, in administered order |
+| The privileges | Both published — *Avantage étudiant* at −15 %, *Parrainage Golden* at 3 000 / 5 000 FCFA |
+| Move a formula | *Identité Standard* moved ahead of *Flash Social*, verified, and restored |
+| A partial order | Refused with `PACKAGE_ORDER_INCOMPLETE` |
+| Tariff versions created by moving | None — order is not a change a client reads |
+| `ADM-07b` | Nine filters — *Toutes* plus the eight sections — matching the served taxonomy exactly, in FR and EN, on Chromium and WebKit |
+
+The catalogue ends in the order it started. `e2e/adm-07b-taxonomy-production.spec.js` is
+kept: it asserts the filters *are* the administered taxonomy rather than a list living in
+the page's own code, which is the part of `ADM-07b` that had no guard at all.
