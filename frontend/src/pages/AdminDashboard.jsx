@@ -201,12 +201,15 @@ const AdminDashboard = () => {
           // spurious "les données n'ont pas pu être rechargées".
           return true;
         } else if (tab === 'tarifs') {
-          const [items, sections, privileges] = await Promise.all([
-            getAdminPackages(), getAdminCatalogueTaxonomy(), getAdminCatalogueBenefits(),
+          // The catalogue is what this tab is for, so it is the only call allowed to fail
+          // the refresh. Sections and privileges are additional panels: if either is
+          // unavailable the formulas still list, rather than the whole tab going blank.
+          setPacks(await getAdminPackages());
+          const [sections, privileges] = await Promise.allSettled([
+            getAdminCatalogueTaxonomy(), getAdminCatalogueBenefits(),
           ]);
-          setPacks(items);
-          setCatalogueTaxonomy(sections);
-          setCatalogueBenefits(privileges);
+          setCatalogueTaxonomy(sections.status === 'fulfilled' ? sections.value : []);
+          setCatalogueBenefits(privileges.status === 'fulfilled' ? privileges.value : []);
         } else if (tab === 'availability') {
           setBlocks(await getAdminAvailabilityBlocks());
         } else if (tab === 'portfolio') {

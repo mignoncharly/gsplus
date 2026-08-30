@@ -62,6 +62,11 @@ const installAdminApi = async (page) => {
       pack = { ...pack, publicationStatus: 'ARCHIVED', isActive: false, isArchived: true };
       return json(route, { data: pack });
     }
+    if (path === '/api/admin/catalogue-taxonomy') {
+      return json(route, { data: [{ key: 'portraits-identite', sortOrder: 10, isActive: true,
+        locales: [{ locale: 'en', label: 'Portraits & identity' }, { locale: 'fr', label: 'Portraits & identité' }] }] });
+    }
+    if (path === '/api/admin/catalogue-benefits') return json(route, { data: [] });
     if (['/api/admin/reservations', '/api/admin/leads', '/api/admin/media', '/api/admin/availability-blocks', '/api/admin/notifications'].includes(path)) {
       return json(route, { data: [] });
     }
@@ -106,27 +111,25 @@ test('P1-04 previews, validates, publishes and archives one immutable tariff ver
   expect(calls).toMatchObject({ validate: 1, publish: 1, archive: 1 });
 });
 
-test('P1-04 exposes every mandatory draft field without mobile overflow', async ({ page }) => {
+test('P1-04 offers every draft field, and blocks on the ones a draft cannot do without', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const calls = await installAdminApi(page);
   await openTariffs(page);
   await page.getByRole('button', { name: 'Créer un brouillon' }).click();
   const dialog = page.getByRole('dialog', { name: 'Créer un brouillon tarifaire' });
 
-  for (const label of [
-    'Nom *',
-    'Montant *',
-    'Devise *',
-    'Durée en minutes — vide si prise de contact',
-    'Contenu de la formule *',
-    'Inclusions — une par ligne *',
-    'Conditions applicables *',
-    'Mentions obligatoires *',
-    'Date d’effet à Douala *',
-  ]) {
+  // Phase 8 (report §6.2) made the public presentation optional at the draft stage, so
+  // the asterisks moved. What a draft still cannot do without is the identity of the
+  // formula and how it is booked and priced.
+  for (const label of ['Nom *', 'Section publique *', 'Mode de réservation *', 'Durée en minutes *', 'Forme du tarif *', 'Montant *', 'Devise *']) {
+    await expect(dialog.getByLabel(label, { exact: true })).toBeVisible();
+  }
+  // The presentation fields are all still there to fill in — they are simply not demanded yet.
+  for (const label of ['Résumé public', 'Contenu de la formule', 'Inclusions — une par ligne', 'Conditions applicables', 'Mentions obligatoires']) {
     await expect(dialog.getByLabel(label, { exact: true })).toBeVisible();
   }
   expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+
   await dialog.getByRole('button', { name: 'Créer le brouillon' }).click();
   await expect(dialog.getByText('Ce champ est obligatoire.').first()).toBeVisible();
   expect(calls.create).toBe(0);

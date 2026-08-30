@@ -36,6 +36,16 @@ and change nothing for the dialogs that do not use them.
 | Ordre | numeric field, always shown | behind advanced; the list arrows are the normal way |
 | Livraison | free text, required | *Délai annoncé* or *Nous contacter*, which writes the studio's own wording |
 
+## A regression caught by the suite
+
+Loading the sections and the privileges alongside the formulas put all three behind one
+`Promise.all`, so a taxonomy outage blanked the whole tariff tab — formulas included —
+where before it could not have affected it at all. `p1-04` caught it, through a mock that
+answers an unexpected route with a 500 rather than an empty list. The catalogue is now the
+only call allowed to fail the refresh; the two additional panels settle independently. If
+the sections are genuinely unavailable, *Créer un brouillon* is disabled and says why,
+rather than opening a form whose section list is empty.
+
 ## Three defects found while doing it
 
 **The reorder arrows did nothing.** They wrote `sortOrder ± 1`, and the catalogue is
@@ -71,13 +81,14 @@ states this rather than implying a scheduled publication that will not happen.
 ## Verification evidence
 
 - New browser suite `adm-phase-8-tariff-form.spec.js`: **9 passed**.
+- Full local Chromium regression: **131 passed, 0 failed** (122 before, plus 9 new).
 - Backend suite: **249 passed across 34 files** (244 before, plus 5 for the reorder).
 - Frontend unit suite: **128 passed**.
 - Frontend lint and backend TypeScript build: clean.
 
-**A guard that had to change, and was mutation-tested rather than trusted.** `P1-04`
-pinned `required: true` on the presentation fields — the exact behaviour §6.2 asks to
-remove. Rewriting a guard to match new code is how a regression gets waved through, so it
+**Guards that had to change, and were mutation-tested rather than trusted.** `P1-04`
+pinned `required: true` on the presentation fields, in both the unit suite and the browser
+suite — the exact behaviour §6.2 asks to remove. Rewriting a guard to match new code is how a regression gets waved through, so it
 was repointed at the invariant that actually protects a client: those fields are refused
 by `assertPublishable` at publication. It now reads the server's gate and asserts the form
 *states* the requirement. Two mutations confirm it bites: making `description` required

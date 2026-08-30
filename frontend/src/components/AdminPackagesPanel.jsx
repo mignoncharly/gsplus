@@ -326,7 +326,8 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
     <>
       <div className="admin-page-header">
         <h1>Édition des <span>Tarifs</span></h1>
-        <button className="btn btn-primary admin-sm-btn" onClick={createItem}>Créer un brouillon</button>
+        <button className="btn btn-primary admin-sm-btn" onClick={createItem} disabled={taxonomyOptions.length === 0}
+          title={taxonomyOptions.length === 0 ? 'Les rubriques publiques n’ont pas pu être chargées.' : undefined}>Créer un brouillon</button>
       </div>
       <div className="admin-card">
         {packs.map((pack) => (
