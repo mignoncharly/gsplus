@@ -1,0 +1,47 @@
+/* Studio settings and editable content (ADM-09). */
+.admin-settings-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  border-left: 3px solid var(--c-gold);
+}
+
+.admin-settings-notice p { margin: 0; color: var(--dark-secondary); font-size: 0.92rem; }
+
+.admin-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.75rem;
+  margin: 1.25rem 0 0;
+}
+
+.admin-settings-grid dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dark-muted);
+  margin-bottom: 0.25rem;
+}
+
+.admin-settings-grid dd { margin: 0; color: var(--dark-primary); font-size: 0.93rem; overflow-wrap: anywhere; }
+
+.admin-settings-subhead {
+  margin: 1.5rem 0 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--dark-muted);
+}
+
+/* A draft is not what the public sees, so it never looks like the published value. */
+.admin-settings-subhead--draft { color: var(--dark-accent); }
+.admin-settings-grid--draft dd { color: var(--dark-accent); }
+
+.admin-settings-origin {
+  margin: 1.25rem 0 0;
+  color: var(--dark-muted);
+  font-size: 0.83rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}

@@ -8,6 +8,8 @@ import { validationSummaryForApiError } from '../lib/form-errors';
 import { useLocale } from '../lib/i18n.js';
 import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
 import './Contact.css';
+import { useSiteSettings } from '../lib/use-site-settings';
+import { telLink } from '../lib/site-settings';
 
 const fadeIn = { initial: { y: 20 }, animate: { y: 0 }, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } };
 const staggerContainer = { animate: { transition: { staggerChildren: 0.15 } } };
@@ -20,6 +22,7 @@ const copyFor = (locale) => locale === 'en' ? {
 
 const Contact = () => {
   const { locale } = useLocale();
+  const { settings } = useSiteSettings();
   const copy = copyFor(locale);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +62,7 @@ const Contact = () => {
       <Motion.div className="contact-info-list" variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true, margin: '-50px' }}>
         <h2>{copy.infoHeading}</h2>
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><MapPin size={24} /></div><div className="content"><h3>{copy.studio}</h3><p>Douala (Cité des palmiers)<br />{copy.country}</p></div></Motion.div>
-        <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Phone size={24} /></div><div className="content"><h3>{copy.phone}</h3><p><a href="tel:+237673026654">+237 673 026 654</a></p></div></Motion.div>
+        <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Phone size={24} /></div><div className="content"><h3>{copy.phone}</h3><p><a href={telLink(settings.identity.phoneE164) ?? '#'}>{settings.identity.phoneDisplay}</a></p></div></Motion.div>
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Mail size={24} /></div><div className="content"><h3>{copy.emailSupport}</h3><p><a href="mailto:info@gsplus.vip">info@gsplus.vip</a></p></div></Motion.div>
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Clock size={24} /></div><div className="content"><h3>{copy.hours}</h3><p><strong>{copy.weekdays}</strong> 9 h - 18 h<br /><strong>{copy.sunday}</strong> {copy.sundayValue}</p></div></Motion.div>
       </Motion.div>

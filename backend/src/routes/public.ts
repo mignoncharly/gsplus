@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { PUBLIC_MEDIA_CATEGORIES } from '../constants/media.js';
 
 import { LeadType } from '../generated/prisma/enums.js';
+import { getEffectiveSettings } from '../services/studio-settings.js';
+import { getPublishedContent } from '../services/site-content.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { publicWriteProtection } from '../middleware/public-write-protection.js';
 import { publicWriteRateLimiter } from '../middleware/security.js';
@@ -206,6 +208,17 @@ router.post(
     });
 
     res.status(201).json({ data: lead });
+  }),
+);
+
+// The published projection the public site reads. Cached briefly so a settings change
+// reaches visitors within a minute without every page view hitting the database.
+router.get(
+  '/site-settings',
+  asyncHandler(async (_req, res) => {
+    const [settings, content] = await Promise.all([getEffectiveSettings(), getPublishedContent('fr')]);
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.json({ data: { settings, content } });
   }),
 );
 

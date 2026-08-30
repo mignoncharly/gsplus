@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { MotionConfig } from 'framer-motion';
 import Footer from './components/Footer';
 import LocaleProvider from './components/LocaleProvider.jsx';
+import SiteSettingsProvider from './components/SiteSettingsProvider';
 import ScrollManager from './components/ScrollManager';
 import RouteMetadata from './components/RouteMetadata';
 import WhatsAppFab from './components/WhatsAppFab';
@@ -74,9 +75,11 @@ function App() {
   return (
     <Router>
       <LocaleProvider>
-        <MotionConfig reducedMotion="user">
-          <AppLayout />
-        </MotionConfig>
+        <SiteSettingsProvider>
+          <MotionConfig reducedMotion="user">
+            <AppLayout />
+          </MotionConfig>
+        </SiteSettingsProvider>
       </LocaleProvider>
     </Router>
   );

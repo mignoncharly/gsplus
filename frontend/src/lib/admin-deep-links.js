@@ -20,6 +20,7 @@ export const ADMIN_VIEWS = Object.freeze([
   { tab: 'availability', slug: 'planning' },
   { tab: 'portfolio', slug: 'medias' },
   { tab: 'notifications', slug: 'messages' },
+  { tab: 'settings', slug: 'parametres' },
   { tab: 'governance', slug: 'conformite' },
   { tab: 'account', slug: 'securite' },
 ]);

@@ -17,6 +17,7 @@ import {
   Users, 
   Activity, 
   Layers, 
+  Settings,
   ShieldCheck, 
   FileText,
   AlertCircle,
@@ -94,6 +95,7 @@ const AdminReservationRecord = React.lazy(() => import('../components/AdminReser
 const AdminOverviewPanel = React.lazy(() => import('../components/AdminOverviewPanel'));
 const AdminReservationsPanel = React.lazy(() => import('../components/AdminReservationsPanel'));
 const AdminPlanningPanel = React.lazy(() => import('../components/AdminPlanningPanel'));
+const AdminSettingsPanel = React.lazy(() => import('../components/AdminSettingsPanel'));
 
 const dateTime = formatBusinessDateTime;
 
@@ -189,7 +191,7 @@ const AdminDashboard = () => {
     setLoadingTabs((current) => ({ ...current, [tab]: true }));
     const request = (async () => {
       try {
-        if (tab === 'overview' || tab === 'reservations') {
+        if (tab === 'overview' || tab === 'reservations' || tab === 'settings') {
           // Both views fetch what they need themselves, against the server-side
           // queries added in Phase 4. Nothing to refresh here is a success, not a
           // failure: returning undefined made callers report "données non rechargées".
@@ -911,6 +913,7 @@ const AdminDashboard = () => {
     ['availability', 'Disponibilités', Ban],
     ['portfolio', 'Portfolio', ImageIcon],
     ['notifications', 'Communications', Mail],
+    ...(adminUser?.role === 'OWNER' ? [['settings', 'Paramètres', Settings]] : []),
     ...(adminUser?.role === 'OWNER' ? [['governance', 'Données & droits', ShieldCheck]] : []),
     ['account', 'Sécurité', KeyRound],
   ];
@@ -1345,6 +1348,14 @@ const AdminDashboard = () => {
                   onToggle={toggleMediaFlag}
                   onRemove={removeMediaItem}
                 />
+              </React.Suspense>
+            </Motion.div>
+          )}
+
+          {activeTab === 'settings' && adminUser?.role === 'OWNER' && (
+            <Motion.div key="settings" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement des paramètres…</div>}>
+                <AdminSettingsPanel openActionDialog={openActionDialog} runAction={runAction} />
               </React.Suspense>
             </Motion.div>
           )}

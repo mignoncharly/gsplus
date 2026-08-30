@@ -78,6 +78,15 @@ const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format
 const clockTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Utilisez le format HH:MM.');
 const breakList = z.array(z.object({ start: clockTime, end: clockTime })).max(6).optional();
 
+export const settingGroupUpdateSchema = z.object({
+  values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+});
+
+export const contentDraftSchema = z.object({
+  locale: z.enum(['fr', 'en']).default('fr'),
+  body: z.record(z.string(), z.string()),
+});
+
 export const businessHourUpdateSchema = z.object({
   dayOfWeek: z.coerce.number().int().min(0).max(6),
   opensAt: clockTime,

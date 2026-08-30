@@ -53,6 +53,19 @@ const adminFile = jsFiles.find((name) => name.startsWith('AdminDashboard-'));
 if (!adminFile) throw new Error('The admin route was not emitted as a separate chunk.');
 if (indexHtml.includes(adminFile)) throw new Error('The public entry document eagerly references the admin chunk.');
 
+// The entry is downloaded by every visitor. Importing anything from the administration
+// API module inside an eagerly-loaded component pulls the whole admin surface in with
+// it; that happened once and cost the entry roughly 10 kB before it was caught.
+const entrySource = entryBuffer.toString('utf8');
+const leakedAdminPaths = ['/api/admin/settings', '/api/admin/financial-tasks', '/api/admin/schedule/', '/api/admin/payments']
+  .filter((path) => entrySource.includes(path));
+if (leakedAdminPaths.length > 0) {
+  throw new Error(
+    `The public entry chunk contains administration API paths: ${leakedAdminPaths.join(', ')}. `
+    + 'Import the transport from lib/api-transport.js rather than lib/api.js in anything the public entry loads.',
+  );
+}
+
 const sizes = Object.fromEntries(
   await Promise.all(assetFiles.map(async (name) => [name, await fileBytes(resolve(assetsDir, name))])),
 );

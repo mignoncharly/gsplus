@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { useSiteSettings } from '../lib/use-site-settings';
+import { whatsappLink } from '../lib/site-settings';
 
 const interactiveSelector = 'a[href], button, input, select, textarea, [role="button"], [role="option"], [tabindex]:not([tabindex="-1"])';
 const keyboardSelector = 'input:not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea, [contenteditable="true"]';
@@ -20,6 +22,7 @@ const isVisibleControl = (element) => {
 };
 
 const WhatsAppFab = () => {
+  const { settings } = useSiteSettings();
   const fabRef = useRef(null);
 
   useEffect(() => {
@@ -87,7 +90,7 @@ const WhatsAppFab = () => {
   return (
     <a
       ref={fabRef}
-      href="https://wa.me/237673026654"
+      href={whatsappLink(settings.identity.phoneE164) ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
       className="whatsapp-fab"

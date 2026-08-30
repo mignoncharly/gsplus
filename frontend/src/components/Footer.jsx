@@ -5,6 +5,8 @@ import { safeExternalHttpsUrl } from '../lib/external-links';
 import { shareSite } from '../lib/share-site';
 import { useLocale } from '../lib/i18n.js';
 import './Footer.css';
+import { useSiteSettings } from '../lib/use-site-settings';
+import { telLink, whatsappLink } from '../lib/site-settings';
 
 const configuredSocials = [
   { name: 'Instagram', href: safeExternalHttpsUrl(import.meta.env.VITE_INSTAGRAM_URL) },
@@ -21,6 +23,7 @@ const SocialBrandIcon = ({ name }) => {
 
 const Footer = () => {
   const { t } = useLocale();
+  const { settings } = useSiteSettings();
   const [shareStatus, setShareStatus] = useState('');
 
   const handleShare = async () => {
@@ -42,7 +45,7 @@ const Footer = () => {
 
           <div className="footer-actions">
             <div className="footer-shortcuts" aria-label={t('footerContact')}>
-              <a href="https://wa.me/237673026654" target="_blank" rel="noopener noreferrer" aria-label={t('footerWhatsapp')}>
+              <a href={whatsappLink(settings.identity.phoneE164) ?? '#'} target="_blank" rel="noopener noreferrer" aria-label={t('footerWhatsapp')}>
                 <img src="/images/whatsapp-mark-white.svg" className="footer-brand-icon" width="20" height="20" alt="" aria-hidden="true" />
               </a>
               <a href="mailto:info@gsplus.vip" aria-label={t('footerEmail')}><Mail size={20} aria-hidden="true" /></a>
@@ -78,7 +81,7 @@ const Footer = () => {
           <h2>{t('contact')}</h2>
           <ul className="contact-list">
             <li><MapPin size={18} className="text-gold" aria-hidden="true" /><span>Douala, Cité des palmiers</span></li>
-            <li><Phone size={18} className="text-gold" aria-hidden="true" /><a href="tel:+237673026654">+237 673 026 654</a></li>
+            <li><Phone size={18} className="text-gold" aria-hidden="true" /><a href={telLink(settings.identity.phoneE164) ?? '#'}>{settings.identity.phoneDisplay}</a></li>
             <li><Mail size={18} className="text-gold" aria-hidden="true" /><a href="mailto:info@gsplus.vip">info@gsplus.vip</a></li>
           </ul>
         </div>

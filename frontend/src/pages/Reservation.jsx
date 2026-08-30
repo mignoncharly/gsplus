@@ -42,6 +42,8 @@ import { FRENCH_VALIDATION_SUMMARY, validationSummaryForApiError } from '../lib/
 import { bookingMessages, useLocale } from '../lib/i18n.js';
 import ActionAvailabilityHint from '../components/ActionAvailabilityHint';
 import './Reservation.css';
+import { useSiteSettings } from '../lib/use-site-settings';
+import { whatsappLink } from '../lib/site-settings';
 
 const LocalizedDateFields = lazy(() => import('../components/LocalizedDateFields.jsx'));
 
@@ -58,6 +60,7 @@ const stepTransition = {
 
 const Reservation = () => {
   const { locale } = useLocale();
+  const { settings } = useSiteSettings();
   const copy = bookingMessages[locale];
   const [searchParams] = useSearchParams();
   const initialPackId = searchParams.get('pack');
@@ -553,7 +556,7 @@ const Reservation = () => {
                     <HelpCircle size={20} className="text-gold" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
                     <p style={{ margin: 0, lineHeight: 1.5 }}>
                       <strong>{t("Besoin d'aide pour choisir votre formule ?", 'Need help choosing your package?')}</strong><br />
-                      {t('Notre équipe est disponible pour vous conseiller sur les décors et les formules. ', 'Our team can advise you on settings and packages. ')}<a href="https://wa.me/237673026654" target="_blank" rel="noopener noreferrer">{t('Discutez sur WhatsApp', 'Chat on WhatsApp')}</a>.
+                      {t('Notre équipe est disponible pour vous conseiller sur les décors et les formules. ', 'Our team can advise you on settings and packages. ')}<a href={whatsappLink(settings.identity.phoneE164) ?? '#'} target="_blank" rel="noopener noreferrer">{t('Discutez sur WhatsApp', 'Chat on WhatsApp')}</a>.
                     </p>
                   </div>
                 </div>

@@ -1,34 +1,7 @@
 import { getStoredLocale } from './i18n.js';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-export const apiFetch = async (path, options = {}) => {
-  const isFormData = options.body instanceof FormData;
-  const headers = {
-    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    'Accept-Language': getStoredLocale(),
-    ...(options.headers || {}),
-  };
-
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
-
-  const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
-
-  if (!response.ok) {
-    const message = payload?.error?.message || `API request failed with ${response.status}`;
-    const error = new Error(message);
-    error.code = payload?.error?.code;
-    error.details = payload?.error?.details || [];
-    error.status = response.status;
-    throw error;
-  }
-
-  return payload;
-};
+export { apiFetch, apiUrl, API_URL } from './api-transport.js';
+import { apiFetch, apiUrl } from './api-transport.js';
 
 export const getApiHealth = async () => {
   return apiFetch('/api/health');
@@ -66,7 +39,7 @@ export const getPortfolioMedia = async () => {
 export const mediaUrl = (url) => {
   if (!url) return '';
   if (/^https?:\/\//.test(url)) return url;
-  if (url.startsWith('/uploads')) return `${API_URL}${url}`;
+  if (url.startsWith('/uploads')) return apiUrl(url);
   return url;
 };
 
@@ -195,7 +168,7 @@ export const linkAdminPaymentDuplicate = async (id, body) =>
 
 /** The export is a download, so it bypasses the JSON helper. */
 export const adminExportUrl = (kind, filters = {}) =>
-  `${API_URL}/api/admin/${kind}/export.csv?${adminQuery(filters)}`;
+  apiUrl(`/api/admin/${kind}/export.csv?${adminQuery(filters)}`);
 
 export const getAdminFinancialTasks = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -212,6 +185,16 @@ export const getAdminFinancialTask = async (id) => {
 };
 
 // === Phase 5 scheduling ===
+// === Phase 6 settings and content ===
+export const getAdminSettings = async () => (await apiFetch('/api/admin/settings')).data;
+export const saveAdminSettingGroup = async (group, values) =>
+  (await apiFetch(`/api/admin/settings/${encodeURIComponent(group)}`, { method: 'PUT', body: JSON.stringify({ values }) })).data;
+export const getAdminContent = async (locale = 'fr') => (await apiFetch(`/api/admin/content?locale=${locale}`)).data;
+export const saveAdminContentDraft = async (key, locale, body) =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}`, { method: 'POST', body: JSON.stringify({ locale, body }) })).data;
+export const publishAdminContent = async (key, locale = 'fr') =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/publish?locale=${locale}`, { method: 'POST' })).data;
+
 export const getAdminBusinessHours = async () => (await apiFetch('/api/admin/schedule/business-hours')).data;
 export const saveAdminBusinessHour = async (dayOfWeek, body) =>
   (await apiFetch(`/api/admin/schedule/business-hours/${dayOfWeek}`, { method: 'PUT', body: JSON.stringify(body) })).data;
@@ -474,7 +457,6 @@ export const deleteAdminAvailabilityBlock = async (id) => {
   });
 };
 
-export { API_URL };
 
 export const getAdminDataGovernance = async () => {
   const payload = await apiFetch('/api/admin/data-governance');

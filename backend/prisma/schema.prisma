@@ -98,6 +98,9 @@ model AdminUser {
   reservationTransitions            ReservationTransition[]
   verifiedPayments                  Payment[]                         @relation("PaymentVerifiedBy")
   scheduleExceptions                ScheduleException[]                @relation("ScheduleExceptionCreatedBy")
+  studioSettings                    StudioSetting[]                    @relation("StudioSettingUpdatedBy")
+  publishedSiteContent              SiteContent[]                      @relation("SiteContentPublishedBy")
+  updatedSiteContent                SiteContent[]                      @relation("SiteContentUpdatedBy")
   bookingRules                      BookingRule[]                      @relation("BookingRuleUpdatedBy")
   adminCommands                     AdminCommand[]
   financialTasks                    FinancialTask[]
@@ -878,6 +881,45 @@ model BusinessHour {
 
 /// A dated override of the weekly pattern: a public holiday, an exceptional closure,
 /// or a day worked outside the usual hours. Takes precedence over BusinessHour.
+/// One row per settings group, holding that group's JSON object. Groups are defined by
+/// a typed registry in code, so the application works with no rows at all: an absent
+/// group falls back to the compiled default, which is the value that was hard-coded
+/// before this phase.
+model StudioSetting {
+  id          String     @id @default(cuid())
+  group       String     @unique
+  value       Json
+  updatedById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  updatedBy   AdminUser? @relation("StudioSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+}
+
+/// Editable page copy, FAQ entries and SEO text, versioned with the same
+/// draft -> published lifecycle the catalogue already uses.
+model SiteContent {
+  id            String     @id @default(cuid())
+  key           String
+  locale        String     @default("fr")
+  version       Int        @default(1)
+  status        String     @default("DRAFT")
+  body          Json
+  publishedAt   DateTime?
+  publishedById String?
+  updatedById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  publishedBy   AdminUser? @relation("SiteContentPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  updatedBy     AdminUser? @relation("SiteContentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([key, locale, version])
+  @@index([key, locale, status])
+  @@index([publishedById])
+  @@index([updatedById])
+}
+
 model ScheduleException {
   id          String    @id @default(cuid())
   /// Douala business day, `YYYY-MM-DD`.

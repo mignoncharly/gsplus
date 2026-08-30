@@ -86,6 +86,8 @@ import {
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
+import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
+import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
 import {
   deleteScheduleException,
   getCalendarHealth,
@@ -118,6 +120,7 @@ import {
   catalogueBenefitCreateSchema,
   catalogueBenefitUpdateSchema,
   catalogueTaxonomyUpdateSchema,
+  contentDraftSchema,
   customerDecisionPreviewSchema,
   dataRightsRequestCreateSchema,
   dataRightsRequestUpdateSchema,
@@ -151,6 +154,7 @@ import {
   reservationListQuerySchema,
   reservationStatusUpdateSchema,
   scheduleExceptionSchema,
+  settingGroupUpdateSchema,
   verifyAndConfirmSchema,
   withdrawalRequestCreateSchema,
   withdrawalRequestDecisionSchema,
@@ -1467,6 +1471,55 @@ router.post(
       type: notification.type,
     });
     res.status(202).json({ data: notification });
+  }),
+);
+
+// === Phase 6 (ADM-09): ordinary information stops needing a deployment ===
+
+router.get(
+  '/settings',
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await getAdminSettings() });
+  }),
+);
+
+router.put(
+  '/settings/:group',
+  validate('body', settingGroupUpdateSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await updateSettingGroup(routeParam(req.params.group), req.body.values, admin?.id) });
+  }),
+);
+
+router.get(
+  '/content',
+  asyncHandler(async (req, res) => {
+    assertAdminPermission(res.locals.admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    res.json({ data: await listAdminContent(locale) });
+  }),
+);
+
+router.post(
+  '/content/:key',
+  validate('body', contentDraftSchema),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    res.json({ data: await saveContentDraft(routeParam(req.params.key), req.body.locale, req.body.body, admin?.id) });
+  }),
+);
+
+router.post(
+  '/content/:key/publish',
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    res.json({ data: await publishContent(routeParam(req.params.key), locale, admin?.id) });
   }),
 );
 
