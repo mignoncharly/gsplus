@@ -1,7 +1,7 @@
 # Golden Studio Plus — Phase 10 governance and security release manifest
 
 **Release date:** 30 August 2026
-**Status:** deployed to production; owner acceptance completed for the invitation, TOTP, session-revocation, audit-filter, audit-export, and deactivation workflows. Permission-grant and unusual-sign-in alert replays remain to be recorded.
+**Status:** deployed to production; the Phase 10 owner acceptance replay is complete. Wider Phase F security hardening remains open.
 
 ## Delivered scope
 
@@ -40,7 +40,11 @@ The report’s Phase 10 acceptance is considered complete only after the owner h
 - Backend release revision: `7cc32e2`; frontend invitation-form hotfix: `1db6032`.
 - Public postflight checks: `/`, `/admin`, and `/api/health` returned HTTP 200; the new unauthenticated security route returned HTTP 401.
 - The OWNER completed the controlled-account invitation, acceptance, sign-in, TOTP/recovery-code handling, device-session revocation, audit filtering/export, and test-account deactivation replay. No credential, token, recovery code, or personally identifying account address is recorded here.
+- The OWNER granted then removed `DATA_GOVERNANCE_MANAGE` for the controlled Équipe account: the protected endpoint allowed the account while granted and returned 403 after removal. This proves the API boundary; the role-driven navigation gap remains documented for Phase F.
+- The OWNER generated exactly five failed sign-ins against a fake address and observed the resulting repeated-failure alert. No real credential was intentionally mistyped.
 
-### Remaining governance evidence
+### Remaining Phase F security hardening
 
-- Record a controlled per-module permission-grant replay and an unusual-sign-in alert replay before claiming the wider governance/security acceptance in §12 is fully closed.
+- Require TOTP for OWNER/privileged accounts and establish an explicit bootstrap/recovery process.
+- Add alerts for first successful sign-in from a new IP/device, unusual session patterns, and recovery-code exhaustion.
+- Make navigation permission-driven rather than role-driven, and complete pagination/filtering in audit and session views.
