@@ -11,6 +11,7 @@ import {
   getAdminPlanning,
   getAdminScheduleExceptions,
   saveAdminBookingRule,
+  testAdminCalendarScheduleSync,
   saveAdminBusinessHour,
   saveAdminScheduleException,
 } from '../lib/api';
@@ -196,6 +197,11 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
     };
   };
 
+  const testCalendarSchedule = async () => {
+    const success = await runAction('Test de synchronisation Cal.com', testAdminCalendarScheduleSync, true);
+    if (success) reload();
+  };
+
   const entriesFor = (date) => {
     if (!planning) return { reservations: [], blocks: [], intents: [] };
     const onDate = (value) => businessDateKey(new Date(value)) === date;
@@ -208,11 +214,10 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
 
   return (
     <>
-      <div className="admin-page-header"><h1>Planning & <span>disponibilités</span></h1></div>
       {error && <div className="admin-feedback error" role="alert">{error}</div>}
 
       <section className="admin-card admin-health" aria-labelledby="calcom-health">
-        <h2 id="calcom-health"><Activity size={18} aria-hidden="true" /> Santé Cal.com</h2>
+        <div className="admin-agenda-head"><h2 id="calcom-health"><Activity size={18} aria-hidden="true" /> Santé Cal.com</h2><button type="button" className="btn btn-secondary admin-sm-btn" onClick={testCalendarSchedule}>Tester la synchronisation</button></div>
         {health ? (
           <dl className="admin-health-grid">
             <div><dt>État</dt><dd className={health.healthy ? 'admin-health-ok' : 'admin-health-warn'}>{health.healthy ? 'Opérationnel' : 'Anomalies à traiter'}</dd></div>

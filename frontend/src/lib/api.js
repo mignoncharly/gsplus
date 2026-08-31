@@ -279,6 +279,7 @@ export const saveAdminBookingRule = async (body) =>
 export const getAdminPlanning = async (from, to) =>
   (await apiFetch(`/api/admin/schedule/planning?${adminQuery({ from, to })}`)).data;
 export const getAdminCalendarHealth = async () => (await apiFetch('/api/admin/calendar/health')).data;
+export const testAdminCalendarScheduleSync = async () => (await apiFetch('/api/admin/calendar/schedule-sync/test', { method: 'POST' })).data;
 export const getAdminCalendarSyncLogs = async (filters = {}) => {
   const payload = await apiFetch(`/api/admin/calendar/sync-logs?${adminQuery(filters)}`);
   return { items: payload.data, meta: payload.meta };
