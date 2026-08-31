@@ -248,8 +248,9 @@ router.post(
 // reaches visitors within a minute without every page view hitting the database.
 router.get(
   '/site-settings',
-  asyncHandler(async (_req, res) => {
-    const [settings, content] = await Promise.all([getEffectiveSettings(), getPublishedContent('fr')]);
+  asyncHandler(async (req, res) => {
+    const locale = req.query.locale === 'en' ? 'en' : 'fr';
+    const [settings, content] = await Promise.all([getEffectiveSettings(), getPublishedContent(locale)]);
     res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json({ data: { settings, content } });
   }),

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { getSiteSettings } from '../lib/public-settings-api';
+import { useLocale } from '../lib/i18n';
 import { mergeContent, mergeSettings } from '../lib/site-settings';
 import { SiteSettingsContext } from '../lib/use-site-settings';
 
@@ -11,14 +12,15 @@ import { SiteSettingsContext } from '../lib/use-site-settings';
  */
 const SiteSettingsProvider = ({ children }) => {
   const [published, setPublished] = useState(null);
+  const { locale } = useLocale();
 
   useEffect(() => {
     let cancelled = false;
-    getSiteSettings()
+    getSiteSettings(locale)
       .then((data) => { if (!cancelled) setPublished(data); })
       .catch(() => { /* the fallbacks already render a correct site */ });
     return () => { cancelled = true; };
-  }, []);
+  }, [locale]);
 
   const value = useMemo(() => ({
     settings: mergeSettings(published?.settings),

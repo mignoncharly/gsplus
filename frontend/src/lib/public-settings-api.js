@@ -8,4 +8,4 @@ import { apiFetch } from './api-transport.js';
  * visitor downloads, which is how this call added roughly 10 kB to the entry when it
  * first landed.
  */
-export const getSiteSettings = async () => (await apiFetch('/api/site-settings')).data;
+export const getSiteSettings = async (locale = 'fr') => (await apiFetch(`/api/site-settings?locale=${encodeURIComponent(locale)}`)).data;
