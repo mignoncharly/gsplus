@@ -93,7 +93,7 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
         validate: (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(value)) ? '' : 'Utilisez uniquement minuscules, chiffres et tirets.' },
       { name: 'taxonomyKey', label: 'Section publique', type: 'select', required: true,
         defaultValue: pack.taxonomyKey || taxonomyOptions[0]?.value || '', options: taxonomyOptions,
-        help: 'Les sections se gèrent dans Paramètres ; elles ne se créent pas depuis une formule.' },
+        help: 'Les sections se gèrent dans « Rubriques publiques », plus bas dans cet écran ; elles ne se créent pas depuis une formule.' },
 
       { name: 'bookingMode', label: 'Mode de réservation', type: 'select', required: true, wide: false,
         defaultValue: pack.bookingMode || 'DIRECT',
