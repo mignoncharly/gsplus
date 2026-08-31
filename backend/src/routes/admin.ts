@@ -56,6 +56,7 @@ import {
   deleteMediaWithRights,
   listAdminMedia,
   reorderMedia,
+  replaceMediaFileWithHistory,
   updateMediaWithRights,
 } from '../services/media-rights.js';
 import {
@@ -1471,6 +1472,7 @@ router.patch(
       mediaId: id,
       data,
       requestedPublished,
+
       admin: res.locals.admin,
     });
     res.json({ data: media });
@@ -1493,6 +1495,25 @@ router.patch(
   validate('params', idParamsSchema),
   validate('body', paymentVerificationSchema),
   asyncHandler(async (req, res) => {
+router.post(
+  '/media/:id/replace',
+  validate('params', idParamsSchema),
+  mediaUpload.single('file'),
+  asyncHandler(async (req, res) => {
+    const admin = res.locals.admin;
+    assertAdminPermission(admin, 'MEDIA_RIGHTS_MANAGE');
+    if (!req.file) throw new HttpError(400, 'MEDIA_FILE_REQUIRED', 'Choisissez un fichier image à remplacer.');
+    const processed = await processUploadedMedia(req.file);
+    try {
+      const media = await replaceMediaFileWithHistory(routeParam(req.params.id), processed, admin);
+      res.json({ data: media });
+    } catch (error) {
+      await deleteMediaFiles(processed);
+      throw error;
+    }
+  }),
+);
+
     const id = routeParam(req.params.id);
     const admin = res.locals.admin;
     assertAdminPermission(admin, 'PAYMENT_DECIDE');

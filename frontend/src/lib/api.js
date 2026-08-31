@@ -470,6 +470,11 @@ export const getAdminNotifications = async (filters = {}) => {
   const payload = await apiFetch(`/api/admin/notifications?${adminQuery(filters)}`);
   return payload.data;
 };
+export const replaceAdminMedia = async (id, file) => {
+  const body = new FormData();
+  body.append('file', file);
+  return (await apiFetch(`/api/admin/media/${encodeURIComponent(id)}/replace`, { method: 'POST', body })).data;
+};
 
 export const searchAdminNotifications = async (filters = {}) => {
   const payload = await apiFetch(`/api/admin/notifications?${adminQuery(filters)}`);

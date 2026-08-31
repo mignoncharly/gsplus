@@ -40,6 +40,7 @@ export const adminMediaInclude = {
       publishedBy: { select: { id: true, name: true } },
     },
   },
+  versions: { orderBy: { version: 'desc' as const } },
 } satisfies Prisma.MediaItemInclude;
 
 export const publicMediaRightsWhere: Prisma.MediaItemWhereInput = {
@@ -368,5 +369,27 @@ export const deleteMediaWithRights = async (
       },
     });
     return media;
+  });
+};
+
+export const replaceMediaFileWithHistory = async (
+  mediaId: string,
+  file: { url: string; storagePath: string; thumbnailUrl: string; width: number; height: number; mimeType: string; fileSize: number; thumbnailWidth: number; thumbnailHeight: number; thumbnailFileSize: number },
+  admin: AdminUser | undefined,
+) => {
+  assertAdminPermission(admin, 'MEDIA_RIGHTS_MANAGE');
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.mediaItem.findUnique({ where: { id: mediaId } });
+    if (!current) throw new HttpError(404, 'MEDIA_NOT_FOUND', 'Média introuvable.');
+    const latest = await tx.mediaVersion.findFirst({ where: { mediaItemId: mediaId }, orderBy: { version: 'desc' }, select: { version: true } });
+    await tx.mediaVersion.create({ data: {
+      mediaItemId: mediaId, version: (latest?.version ?? 0) + 1, url: current.url,
+      storagePath: current.storagePath, thumbnailUrl: current.thumbnailUrl, width: current.width, height: current.height,
+      mimeType: current.mimeType, fileSize: current.fileSize, thumbnailWidth: current.thumbnailWidth,
+      thumbnailHeight: current.thumbnailHeight, thumbnailFileSize: current.thumbnailFileSize, replacedById: admin!.id,
+    } });
+    await tx.mediaItem.update({ where: { id: mediaId }, data: file });
+    await tx.auditLog.create({ data: { adminUserId: admin!.id, action: 'media.file.replace', entityType: 'MediaItem', entityId: mediaId, metadata: { previousUrl: current.url, nextUrl: file.url } } });
+    return tx.mediaItem.findUniqueOrThrow({ where: { id: mediaId }, include: adminMediaInclude });
   });
 };

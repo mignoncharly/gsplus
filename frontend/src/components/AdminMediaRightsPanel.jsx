@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, Trash2, Upload } from 'lucide-react';
 
 import { formatBytes } from '../lib/admin-workflow';
-import { mediaUrl, reorderAdminMedia } from '../lib/api';
+import { mediaUrl, reorderAdminMedia, replaceAdminMedia } from '../lib/api';
 import { PORTFOLIO_CATEGORIES } from '../lib/portfolio-media';
 import './AdminMediaRightsPanel.css';
 
@@ -19,6 +19,7 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
   const owner = adminUser?.role === 'OWNER';
   const [alertsOnly, setAlertsOnly] = useState(false);
   const [moving, setMoving] = useState('');
+  const [selected, setSelected] = useState([]);
 
   const shown = alertsOnly ? media.filter((item) => (item.integrity?.alerts?.length ?? 0) > 0) : media;
 
@@ -40,6 +41,23 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
     } finally {
       setMoving('');
     }
+
+  const replaceFile = async (item, file) => {
+    if (!file) return;
+    setMoving(item.id);
+    try {
+      await replaceAdminMedia(item.id, file);
+      await onReorder?.();
+    } finally {
+      setMoving('');
+
+  const bulkPublication = async (published) => {
+    const targets = media.filter((item) => selected.includes(item.id) && item.isPublished !== published);
+    for (const item of targets) await onToggle(item, 'isPublished');
+    setSelected([]);
+  };
+    }
+  };
   };
 
   return (
@@ -111,6 +129,8 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
             </select>
           </div>
           <div>
+      {selected.length > 0 && <section className="admin-card"><strong>{selected.length} média(s) sélectionné(s)</strong><div className="admin-action-row"><button type="button" className="btn btn-primary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(true)}>Publier la sélection</button><button type="button" className="btn btn-secondary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(false)}>Masquer la sélection</button><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setSelected([])}>Annuler</button></div></section>}
+
             <label htmlFor="portfolio-position" style={{ display: 'block', marginBottom: '0.5rem' }}>Position de l'image (CSS)</label>
             <input id="portfolio-position" autoComplete="off" name="objectPosition" placeholder="Ex: center top, center center" className="form-input" defaultValue="center top" disabled={!owner} />
           </div>
@@ -148,6 +168,7 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
             />
             <div style={{ padding: '1.5rem' }}>
               <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'block', marginBottom: '0.25rem' }}>{item.title}</strong>
+              <label className="admin-check"><input type="checkbox" checked={selected.includes(item.id)} disabled={!owner || Boolean(moving)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /> Sélectionner</label>
               <p style={{ color: 'var(--dark-muted)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{item.category || 'Sans catégorie'}</p>
               <p style={{ color: 'var(--dark-muted)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
                 {item.width && item.height ? item.width + ' × ' + item.height + ' px' : 'Dimensions inconnues'}
@@ -155,6 +176,7 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
               <p style={{ color: 'var(--dark-muted)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
                 Dérivé principal : {formatBytes(item.fileSize)} · aperçu : {formatBytes(item.thumbnailFileSize)}
               </p>
+              {item.versions?.length > 0 && <p style={{ color: 'var(--dark-muted)', fontSize: '0.78rem', marginBottom: '1rem' }}>Historique : {item.versions.length} fichier(s) remplacé(s), dernière version archivée le {new Date(item.versions[0].createdAt).toLocaleDateString('fr-CM')}.</p>}
               <p style={{ color: 'var(--dark-secondary)', fontSize: '0.84rem', marginBottom: '0.35rem' }}>
                 <strong>Base de droits :</strong> {mediaRightsStatus(item)}
               </p>
@@ -187,6 +209,10 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
                 <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onRemove(item)} disabled={!owner} style={{ width: '100%', marginTop: '0.5rem' }}>
                   <Trash2 size={12} /> Supprimer
                 </button>
+                <label className="btn btn-secondary admin-sm-btn" style={{ flex: 1, cursor: owner ? 'pointer' : 'not-allowed' }}>
+                  Remplacer
+                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={!owner || Boolean(moving)} onChange={(event) => { void replaceFile(item, event.target.files?.[0]); event.target.value = ''; }} />
+                </label>
               </div>
             </div>
           </div>

@@ -1078,12 +1078,35 @@ model MediaItem {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   reservation       Reservation?        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  versions          MediaVersion[]
   consentUsages     MediaConsentUsage[]
 
   @@index([isPublished, sortOrder])
   @@index([category])
   @@index([rightsBasis, isPublished])
   @@index([reservationId])
+}
+
+model MediaVersion {
+  id                String    @id @default(cuid())
+  mediaItemId       String
+  version           Int
+  url               String
+  storagePath       String?
+  thumbnailUrl      String?
+  width             Int?
+  height            Int?
+  mimeType          String?
+  fileSize          Int?
+  thumbnailWidth    Int?
+  thumbnailHeight   Int?
+  thumbnailFileSize Int?
+  replacedById      String?
+  createdAt         DateTime  @default(now())
+  mediaItem         MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaItemId, version])
+  @@index([mediaItemId, createdAt])
 }
 
 model MediaConsentUsage {
