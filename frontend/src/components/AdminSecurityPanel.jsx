@@ -98,11 +98,12 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
 
   const submitInvite = (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     return perform('Invitation du compte', async () => {
-      const result = await inviteAdminSecurityAccount({ email: form.get('email'), name: form.get('name'), role: form.get('role') });
+      const result = await inviteAdminSecurityAccount({ email: data.get('email'), name: data.get('name'), role: data.get('role') });
       setInvitationLink(`${window.location.origin}${result.invitationPath}`);
-      event.currentTarget.reset();
+      form.reset();
     });
   };
 

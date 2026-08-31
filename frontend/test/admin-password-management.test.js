@@ -15,3 +15,8 @@ test('the extracted security panel exposes a secure self-service password change
   assert.match(security, /passwords\.newPassword !== passwords\.confirmPassword/);
   assert.match(security, /La modification retire toutes les autres sessions/);
 });
+test("the invitation form is reset from its captured form before async work completes", () => {
+  assert.match(security, /const form = event\.currentTarget;/);
+  assert.match(security, /form\.reset\(\);/);
+  assert.doesNotMatch(security, /event\.currentTarget\.reset\(\);/);
+});
