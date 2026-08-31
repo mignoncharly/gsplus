@@ -16,6 +16,7 @@ const resetDatabase = async () => {
   await prisma.auditLog.deleteMany();
   await prisma.notificationEvent.deleteMany();
   await prisma.financialTask.deleteMany();
+  await prisma.calendarSyncLog.deleteMany();
   await prisma.paymentTransition.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.reservationIntent.deleteMany();
@@ -96,6 +97,16 @@ describe('ADM-05 the studio can change its own schedule', () => {
         reason: 'Tentative équipe',
       })
       .expect(403);
+
+  });
+  it('records exactly one Cal.com schedule-sync outcome for an accepted planning mutation', async () => {
+    await seed();
+    const agent = await signIn();
+    const response = await agent.put('/api/admin/schedule/business-hours/1')
+      .send({ dayOfWeek: 1, opensAt: '10:00', closesAt: '18:00', isClosed: false })
+      .expect(200);
+    expect(response.body.meta.calendarSync.action).toBe('SCHEDULE_UPDATE');
+    expect(await prisma.calendarSyncLog.count({ where: { action: 'SCHEDULE_UPDATE' } })).toBe(1);
   });
   it('changes an opening hour through the API and the public grid follows', async () => {
     const { pack } = await seed();

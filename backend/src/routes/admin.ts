@@ -46,6 +46,7 @@ import {
   executeVerifyAndConfirm,
 } from '../services/payment-reservation-commands.js';
 import { retryCalendarSync, syncReservationToCalendar } from '../services/calendar.js';
+import { syncStudioScheduleToCalendar } from '../services/calendar-schedule.js';
 import { recordMissingReservationSnapshot } from '../services/integrity-incidents.js';
 import { publishReservationDeliverables } from '../services/reservation-deliveries.js';
 import { executeQaNotificationOverride } from '../services/reservation-notification-overrides.js';
@@ -1954,134 +1955,102 @@ router.put(
   asyncHandler(async (req, res) => {
     const admin = requireOwner(res);
     const dayOfWeek = Number(routeParam(req.params.dayOfWeek));
-    if (dayOfWeek !== req.body.dayOfWeek) {
-      throw new HttpError(400, 'DAY_MISMATCH', 'Le jour de l’URL et celui du corps diffèrent.');
-    }
-    res.json({ data: await upsertBusinessHour(req.body, admin?.id) });
+    if (dayOfWeek !== req.body.dayOfWeek) throw new HttpError(400, 'DAY_MISMATCH', 'Le jour de l’URL et celui du corps diffèrent.');
+    const saved = await upsertBusinessHour(req.body, admin.id);
+    const calendarSync = await syncStudioScheduleToCalendar(`business-hour:${saved.id}:${saved.updatedAt.getTime()}`);
+    res.json({ data: saved, meta: { calendarSync } });
   }),
 );
 
-router.get(
-  '/schedule/exceptions',
-  asyncHandler(async (req, res) => {
-    requireOwner(res);
-    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
-    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
-    res.json({ data: await listScheduleExceptions(from, to) });
-  }),
-);
+router.get('/schedule/exceptions', asyncHandler(async (req, res) => {
+  requireOwner(res);
+  const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+  const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+  res.json({ data: await listScheduleExceptions(from, to) });
+}));
 
-router.put(
-  '/schedule/exceptions',
-  validate('body', scheduleExceptionSchema),
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    res.json({ data: await upsertScheduleException(req.body, admin?.id) });
-  }),
-);
+router.put('/schedule/exceptions', validate('body', scheduleExceptionSchema), asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const saved = await upsertScheduleException(req.body, admin.id);
+  const calendarSync = await syncStudioScheduleToCalendar(`exception:${saved.id}:${saved.updatedAt.getTime()}`);
+  res.json({ data: saved, meta: { calendarSync } });
+}));
 
-router.delete(
-  '/schedule/exceptions/:date',
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    await deleteScheduleException(routeParam(req.params.date), admin?.id);
-    res.status(204).send();
-  }),
-);
+router.delete('/schedule/exceptions/:date', asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const date = routeParam(req.params.date);
+  await deleteScheduleException(date, admin.id);
+  await syncStudioScheduleToCalendar(`exception-delete:${date}:${Date.now()}`);
+  res.status(204).send();
+}));
 
-router.get(
-  '/schedule/booking-rules',
-  asyncHandler(async (_req, res) => {
-    requireOwner(res);
-    res.json({ data: await listBookingRules() });
-  }),
-);
+router.get('/schedule/booking-rules', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  res.json({ data: await listBookingRules() });
+}));
 
-router.put(
-  '/schedule/booking-rules',
-  validate('body', bookingRuleSchema),
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    res.json({ data: await upsertBookingRule(req.body, admin?.id) });
-  }),
-);
+router.put('/schedule/booking-rules', validate('body', bookingRuleSchema), asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const saved = await upsertBookingRule(req.body, admin.id);
+  const calendarSync = await syncStudioScheduleToCalendar(`booking-rule:${saved.id}:${saved.updatedAt.getTime()}`);
+  res.json({ data: saved, meta: { calendarSync } });
+}));
 
-router.get(
-  '/schedule/planning',
-  validate('query', planningWindowQuerySchema),
-  asyncHandler(async (_req, res) => {
-    requireOwner(res);
-    const { from, to } = res.locals.validated.query;
-    res.json({ data: await getPlanningWindow(from, to) });
-  }),
-);
+router.get('/schedule/planning', validate('query', planningWindowQuerySchema), asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  const { from, to } = res.locals.validated.query;
+  res.json({ data: await getPlanningWindow(from, to) });
+}));
 
-router.get(
-  '/calendar/sync-logs',
-  validate('query', calendarSyncLogListQuerySchema),
-  asyncHandler(async (_req, res) => {
-    requireOwner(res);
-    const result = await listCalendarSyncLogs(res.locals.validated.query);
-    res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
-  }),
-);
+router.get('/calendar/sync-logs', validate('query', calendarSyncLogListQuerySchema), asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  const result = await listCalendarSyncLogs(res.locals.validated.query);
+  res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
+}));
 
-router.get(
-  '/calendar/health',
-  asyncHandler(async (_req, res) => {
-    requireOwner(res);
-    res.json({ data: await getCalendarHealth() });
-  }),
-);
+router.get('/calendar/health', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  res.json({ data: await getCalendarHealth() });
+}));
 
-router.get(
-  '/availability-blocks',
-  asyncHandler(async (_req, res) => {
-    requireOwner(res);
-    const blocks = await prisma.availabilityBlock.findMany({
-      orderBy: { startAt: 'desc' },
-      take: 100,
-    });
+router.post('/calendar/schedule-sync/test', asyncHandler(async (_req, res) => {
+  const admin = requireOwner(res);
+  const log = await syncStudioScheduleToCalendar(`test:${Date.now()}`);
+  await writeAuditLog(admin.id, 'calendar.schedule_sync.test', 'CalendarSyncLog', log.id);
+  res.status(200).json({ data: log });
+}));
 
-    res.json({ data: blocks });
-  }),
-);
+router.get('/availability-blocks', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  const blocks = await prisma.availabilityBlock.findMany({ orderBy: { startAt: 'desc' }, take: 100 });
+  res.json({ data: blocks });
+}));
 
-router.post(
-  '/availability-blocks',
-  validate('body', availabilityBlockCreateSchema),
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    const block = await createAvailabilityBlock(req.body);
-    await writeAuditLog(admin.id, 'availability_block.create', 'AvailabilityBlock', block.id, req.body);
-    res.status(201).json({ data: block });
-  }),
-);
+router.post('/availability-blocks', validate('body', availabilityBlockCreateSchema), asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const block = await createAvailabilityBlock(req.body);
+  await writeAuditLog(admin.id, 'availability_block.create', 'AvailabilityBlock', block.id, req.body);
+  const calendarSync = await syncStudioScheduleToCalendar(`availability-block:${block.id}:${block.updatedAt.getTime()}`);
+  res.status(201).json({ data: block, meta: { calendarSync } });
+}));
 
-router.patch(
-  '/availability-blocks/:id',
-  validate('params', idParamsSchema),
-  validate('body', availabilityBlockUpdateSchema),
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    const id = routeParam(req.params.id);
-    const block = await updateAvailabilityBlock(id, req.body);
-    await writeAuditLog(admin.id, 'availability_block.update', 'AvailabilityBlock', block.id, req.body);
-    res.json({ data: block });
-  }),
-);
+router.patch('/availability-blocks/:id', validate('params', idParamsSchema), validate('body', availabilityBlockUpdateSchema), asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const id = routeParam(req.params.id);
+  const block = await updateAvailabilityBlock(id, req.body);
+  await writeAuditLog(admin.id, 'availability_block.update', 'AvailabilityBlock', block.id, req.body);
+  const calendarSync = await syncStudioScheduleToCalendar(`availability-block:${block.id}:${block.updatedAt.getTime()}`);
+  res.json({ data: block, meta: { calendarSync } });
+}));
 
-router.delete(
-  '/availability-blocks/:id',
-  validate('params', idParamsSchema),
-  asyncHandler(async (req, res) => {
-    const admin = requireOwner(res);
-    const id = routeParam(req.params.id);
-    await deleteAvailabilityBlock(id);
-    await writeAuditLog(admin.id, 'availability_block.delete', 'AvailabilityBlock', id);
-    res.status(204).send();
-  }),
-);
+router.delete('/availability-blocks/:id', validate('params', idParamsSchema), asyncHandler(async (req, res) => {
+  const admin = requireOwner(res);
+  const id = routeParam(req.params.id);
+  await deleteAvailabilityBlock(id);
+  await writeAuditLog(admin.id, 'availability_block.delete', 'AvailabilityBlock', id);
+  await syncStudioScheduleToCalendar(`availability-block-delete:${id}:${Date.now()}`);
+  res.status(204).send();
+}));
 
 router.post(
   '/calendar/sync/:reservationId',
