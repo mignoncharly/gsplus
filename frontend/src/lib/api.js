@@ -263,6 +263,8 @@ export const saveAdminContentDraft = async (key, locale, body) =>
   (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}`, { method: 'POST', body: JSON.stringify({ locale, body }) })).data;
 export const publishAdminContent = async (key, locale = 'fr') =>
   (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/publish?locale=${locale}`, { method: 'POST' })).data;
+export const restoreAdminContentVersion = async (key, version, locale = 'fr') =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/restore/${encodeURIComponent(version)}?locale=${locale}`, { method: 'POST' })).data;
 
 export const getAdminBusinessHours = async () => (await apiFetch('/api/admin/schedule/business-hours')).data;
 export const saveAdminBusinessHour = async (dayOfWeek, body) =>

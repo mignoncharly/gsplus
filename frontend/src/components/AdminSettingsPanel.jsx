@@ -5,6 +5,7 @@ import {
   getAdminContent,
   getAdminSettings,
   publishAdminContent,
+  restoreAdminContentVersion,
   saveAdminContentDraft,
   saveAdminSettingGroup,
 } from '../lib/api';
@@ -93,6 +94,14 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
     },
   });
 
+
+  const restore = (entry, version) => openActionDialog({
+    title: `Restaurer la version ${version}`,
+    summary: entry.label,
+    consequence: 'Cette version devient un brouillon. Le site public ne change pas avant une publication explicite.',
+    confirmLabel: 'Créer le brouillon', fields: [],
+    onConfirm: async () => { const success = await runAction(`Restauration ${entry.label}`, () => restoreAdminContentVersion(entry.key, version), true); if (success) reload(); },
+  });
   return (
     <>
       <div className="admin-page-header"><h1>Paramètres & <span>contenus</span></h1></div>
@@ -175,10 +184,11 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
           )}
 
           {entry.history.length > 0 && (
-            <p className="admin-settings-origin">
+            <div className="admin-settings-origin">
               <CheckCircle2 size={13} aria-hidden="true" /> {entry.history.length} version(s) enregistrée(s).
               {entry.published ? ` Publiée le ${formatBusinessDateTime(entry.published.publishedAt)}.` : ' Aucune publication.'}
-            </p>
+              <div className="admin-action-row">{entry.history.filter((version) => version.status === 'ARCHIVED').map((version) => <button key={version.id} type="button" className="btn btn-secondary admin-sm-btn" onClick={() => restore(entry, version.version)}>Restaurer v{version.version}</button>)}</div>
+            </div>
           )}
         </section>
       ))}
