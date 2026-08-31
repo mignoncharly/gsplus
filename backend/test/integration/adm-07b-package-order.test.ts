@@ -10,14 +10,21 @@ const app = createApp();
 const password = 'adm-07b-order-password';
 
 const resetDatabase = async () => {
-  await prisma.auditLog.deleteMany();
-  await prisma.notificationEvent.deleteMany();
-  await prisma.reservation.deleteMany();
-  await prisma.reservationIntent.deleteMany();
-  await prisma.customer.deleteMany();
-  await prisma.packageVersion.deleteMany();
-  await prisma.package.deleteMany();
-  await prisma.adminUser.deleteMany();
+  // This suite shares its database with the rest of the integration tests. A payment
+  // left by an earlier suite references its reservation, so delete the dependent row
+  // first. Keeping the reset in one transaction also prevents a partial cleanup from
+  // becoming the starting state for the next test when a delete fails.
+  await prisma.$transaction([
+    prisma.auditLog.deleteMany(),
+    prisma.notificationEvent.deleteMany(),
+    prisma.payment.deleteMany(),
+    prisma.reservation.deleteMany(),
+    prisma.reservationIntent.deleteMany(),
+    prisma.customer.deleteMany(),
+    prisma.packageVersion.deleteMany(),
+    prisma.package.deleteMany(),
+    prisma.adminUser.deleteMany(),
+  ]);
 };
 
 const seed = async () => {
