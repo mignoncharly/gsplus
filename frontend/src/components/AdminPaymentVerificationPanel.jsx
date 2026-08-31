@@ -12,6 +12,7 @@ import {
 import { formatBusinessDateTime } from '../lib/business-time';
 import { formatFcfa } from '../lib/display-formatters';
 import { paymentMethodLabel, statusLabel } from '../lib/status-labels';
+import './AdminFinancePanel.css';
 
 // The report's payment vocabulary, in its order. Refund states belong to the refunds
 // sub-view and are deliberately absent here.
@@ -191,7 +192,7 @@ const AdminPaymentVerificationPanel = ({ busy, openActionDialog, runAction, setF
         </div>
 
         {items.length === 0 ? <p className="admin-table-empty">Aucun paiement ne correspond aux filtres.</p> : (
-          <div className="admin-table-wrap">
+          <div className="admin-table-wrap admin-payment-table">
             <table className="admin-table">
               <thead>
                 <tr>

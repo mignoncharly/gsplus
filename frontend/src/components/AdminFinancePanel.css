@@ -10,3 +10,18 @@
 .admin-finance-grid dd { margin: .4rem 0 0; overflow-wrap: anywhere; }
 .admin-finance-grid a { color: var(--c-gold-light); display: inline-flex; align-items: center; gap: .35rem; }
 @media (max-width:640px) { .admin-finance-summary,.admin-finance-detail-heading { align-items: flex-start; flex-direction: column; } }
+
+/* Tables remain semantic on desktop; below 768px every row becomes a labelled card. */
+@media (max-width: 768px) {
+  .admin-payment-table, .admin-finance-table, .admin-security-sessions { overflow: visible; }
+  .admin-payment-table table, .admin-finance-table table, .admin-security-sessions table,
+  .admin-payment-table tbody, .admin-finance-table tbody, .admin-security-sessions tbody { display: block; width: 100%; }
+  .admin-payment-table thead, .admin-finance-table thead, .admin-security-sessions thead { display: none; }
+  .admin-payment-table tr, .admin-finance-table tr, .admin-security-sessions tr { display: block; margin: 0 0 0.9rem; padding: 0.85rem; border: 1px solid rgba(255,255,255,.12); border-radius: var(--radius-sm); background: rgba(255,255,255,.025); }
+  .admin-payment-table td, .admin-finance-table td, .admin-security-sessions td { display: grid; grid-template-columns: minmax(7rem, 40%) 1fr; gap: .5rem; padding: .45rem 0; border: 0; align-items: start; }
+  .admin-payment-table td::before, .admin-finance-table td::before, .admin-security-sessions td::before { color: var(--dark-muted); content: attr(data-label); font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .admin-payment-table td:nth-child(1)::before { content: 'Réservation'; }.admin-payment-table td:nth-child(2)::before { content: 'Client'; }.admin-payment-table td:nth-child(3)::before { content: 'Opérateur'; }.admin-payment-table td:nth-child(4)::before { content: 'Code'; }.admin-payment-table td:nth-child(5)::before { content: 'Montants'; }.admin-payment-table td:nth-child(6)::before { content: 'Paiement'; }.admin-payment-table td:nth-child(7)::before { content: 'Réservation'; }.admin-payment-table td:nth-child(8)::before { content: 'Âge'; }.admin-payment-table td:nth-child(9)::before { content: 'Actions'; }
+  .admin-finance-table td:nth-child(1)::before { content: 'Échéance'; }.admin-finance-table td:nth-child(2)::before { content: 'Réservation'; }.admin-finance-table td:nth-child(3)::before { content: 'Client'; }.admin-finance-table td:nth-child(4)::before { content: 'Montant'; }.admin-finance-table td:nth-child(5)::before { content: 'Statut'; }.admin-finance-table td:nth-child(6)::before { content: 'Responsable'; }.admin-finance-table td:nth-child(7)::before { content: 'Action'; }
+  .admin-security-sessions td:nth-child(1)::before { content: 'Compte / appareil'; }.admin-security-sessions td:nth-child(2)::before { content: 'Adresse IP'; }.admin-security-sessions td:nth-child(3)::before { content: 'Dernière activité'; }.admin-security-sessions td:nth-child(4)::before { content: 'Expiration'; }.admin-security-sessions td:nth-child(5)::before { content: 'État'; }.admin-security-sessions td:nth-child(6)::before { content: 'Action'; }
+  .admin-payment-table .admin-action-row { align-items: stretch; flex-direction: column; }.admin-payment-table .admin-action-row .btn { justify-content: center; width: 100%; }
+}

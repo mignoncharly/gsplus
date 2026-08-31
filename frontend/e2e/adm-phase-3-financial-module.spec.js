@@ -136,3 +136,16 @@ test('ADM-04 staff can triage but the refunds file stays with the owner', async 
   await page.getByRole('link', { name: 'Remboursements' }).click();
   await expect(page.getByText(/réservés au rôle propriétaire/)).toBeVisible();
 });
+
+test('ADM-04 the payment queue becomes labelled cards at 390 pixels', async ({ page }) => {
+  await installAdminApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, '/admin/paiements/verification');
+
+  const row = page.locator('.admin-payment-table tbody tr').first();
+  await expect(row).toBeVisible();
+  await expect(row).toHaveCSS('display', 'block');
+  await expect(row.getByRole('link', { name: 'Décider' })).toBeVisible();
+  const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth <= document.scrollingElement.clientWidth);
+  expect(overflow).toBe(true);
+});

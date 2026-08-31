@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Download, KeyRound, ShieldCheck, UserPlus } from 'lucide-react';
 
 import './AdminSecurityPanel.css';
+import './AdminFinancePanel.css';
 
 import {
   adminAuditExportUrl,
@@ -165,7 +166,7 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
 
       <section className="admin-card">
         <h2>Sessions actives</h2>
-        <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Compte / appareil</th><th>Adresse IP</th><th>Dernière activité</th><th>Expiration</th><th>État</th><th>Action</th></tr></thead><tbody>
+        <div className="admin-table-wrap admin-security-sessions"><table className="admin-table"><thead><tr><th>Compte / appareil</th><th>Adresse IP</th><th>Dernière activité</th><th>Expiration</th><th>État</th><th>Action</th></tr></thead><tbody>
           {sessions.map((session) => <tr key={session.id}><td><strong>{session.admin?.name}</strong><small>{session.userAgent || 'Appareil non identifié'}</small></td><td>{session.ipAddress || '—'}</td><td>{when(session.lastSeenAt)}</td><td>{when(session.expiresAt)}</td><td><span className={`admin-pill ${session.isCurrentlyValid ? 'pill-active' : 'pill-archived'}`}>{session.isCurrentlyValid ? 'Active' : 'Retirée / expirée'}</span></td><td>{session.isCurrentlyValid && <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => perform('Révocation de la session', () => revokeAdminSecuritySession(session.id))}>Retirer</button>}</td></tr>)}
           {!sessions.length && <tr><td colSpan="6">Aucune session enregistrée.</td></tr>}
         </tbody></table></div>
