@@ -160,22 +160,44 @@ export const queueEnglishTranslation = async (key: string, adminUserId?: string)
   return queued;
 };
 
-/** Uses an owner-configured internal gateway; no third-party credential is exposed to the browser. */
+const translateWithDeepL = async (definition: ContentDefinition, source: Record<string, string>): Promise<Record<string, string>> => {
+  if (env.NODE_ENV === 'test' || !env.DEEPL_API_KEY) throw new Error('Aucun service de traduction n’est configuré sur le serveur.');
+  const fields = definition.fields.filter((field) => source[field.key].trim());
+  if (!fields.length) return contentDefaults(definition, 'en');
+  const baseUrl = env.DEEPL_API_URL || (env.DEEPL_API_KEY.endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), env.CONTENT_TRANSLATION_TIMEOUT_MS);
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/v2/translate`, {
+    method: 'POST', signal: controller.signal,
+    headers: { 'content-type': 'application/json', authorization: `DeepL-Auth-Key ${env.DEEPL_API_KEY}`, 'x-deepl-reporting-tag': 'golden-studio-plus-content' },
+    body: JSON.stringify({ text: fields.map((field) => source[field.key]), source_lang: 'FR', target_lang: 'EN', formality: 'prefer_more', context: 'Public photography studio website copy. Keep Golden Studio Plus unchanged.' }),
+  }).finally(() => clearTimeout(timeout));
+  const payload = await response.json() as { message?: string; translations?: Array<{ text?: string }> };
+  if (!response.ok) throw new Error(payload.message || `DeepL a répondu ${response.status}.`);
+  if (!payload.translations || payload.translations.length !== fields.length || payload.translations.some((item) => typeof item.text !== 'string')) throw new Error('Réponse DeepL de traduction invalide.');
+  return { ...contentDefaults(definition, 'en'), ...Object.fromEntries(fields.map((field, index) => [field.key, payload.translations![index].text as string])) };
+};
+
+/** Uses a custom gateway when configured, otherwise DeepL directly; credentials remain server-only. */
 export const generateEnglishTranslation = async (key: string, adminUserId?: string) => {
   if (!definitionByKey.has(key)) throw new HttpError(404, 'CONTENT_NOT_FOUND', 'Contenu inconnu.');
   const { source, draft, definition } = await translationDraft(key, adminUserId);
   try {
-    if (!env.CONTENT_TRANSLATION_URL) throw new Error('Aucun service de traduction n’est configuré sur le serveur.');
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), env.CONTENT_TRANSLATION_TIMEOUT_MS);
-    const response = await fetch(env.CONTENT_TRANSLATION_URL, {
-      method: 'POST', signal: controller.signal,
-      headers: { 'content-type': 'application/json', ...(env.CONTENT_TRANSLATION_TOKEN ? { authorization: `Bearer ${env.CONTENT_TRANSLATION_TOKEN}` } : {}) },
-      body: JSON.stringify({ key, source: merge(definition, source.body, 'fr'), sourceLocale: 'fr', targetLocale: 'en' }),
-    }).finally(() => clearTimeout(timeout));
-    if (!response.ok) throw new Error(`Le service de traduction a répondu ${response.status}.`);
-    const payload = await response.json() as { body?: Record<string, unknown> };
-    const body = merge(definition, payload.body, 'en');
+    const sourceBody = merge(definition, source.body, 'fr');
+    const body = env.CONTENT_TRANSLATION_URL
+      ? await (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), env.CONTENT_TRANSLATION_TIMEOUT_MS);
+        const response = await fetch(env.CONTENT_TRANSLATION_URL, {
+          method: 'POST', signal: controller.signal,
+          headers: { 'content-type': 'application/json', ...(env.CONTENT_TRANSLATION_TOKEN ? { authorization: `Bearer ${env.CONTENT_TRANSLATION_TOKEN}` } : {}) },
+          body: JSON.stringify({ key, source: sourceBody, sourceLocale: 'fr', targetLocale: 'en' }),
+        }).finally(() => clearTimeout(timeout));
+        if (!response.ok) throw new Error(`Le service de traduction a répondu ${response.status}.`);
+        const payload = await response.json() as { body?: Record<string, unknown> };
+        return merge(definition, payload.body, 'en');
+      })()
+      : await translateWithDeepL(definition, sourceBody);
     validateBody(definition, body);
     const generated = await prisma.siteContent.update({ where: { id: draft.id }, data: { body, translationStatus: 'GENERATED', translationSourceVersion: source.version, translationError: null, updatedById: adminUserId ?? null } });
     await prisma.auditLog.create({ data: { adminUserId, action: 'content.translation.generated', entityType: 'SiteContent', entityId: generated.id, metadata: { key, sourceVersion: source.version } } });
