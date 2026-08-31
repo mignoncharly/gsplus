@@ -939,6 +939,11 @@ model SiteContent {
   locale        String     @default("fr")
   version       Int        @default(1)
   status        String     @default("DRAFT")
+  // Translation workflow applies to English drafts. The publication status above
+  // remains the source of truth for what is visible to visitors.
+  translationStatus        String?
+  translationSourceVersion Int?
+  translationError         String?
   body          Json
   publishedAt   DateTime?
   publishedById String?

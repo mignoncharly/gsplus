@@ -3,6 +3,9 @@ import { CheckCircle2, Lock, Send } from 'lucide-react';
 
 import {
   getAdminContent,
+  generateAdminContentTranslation,
+  queueAdminContentTranslation,
+  reviewAdminContentTranslation,
   getAdminSettings,
   publishAdminContent,
   restoreAdminContentVersion,
@@ -22,13 +25,14 @@ import './AdminSettingsPanel.css';
 const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
   const [groups, setGroups] = useState([]);
   const [content, setContent] = useState([]);
+  const [contentLocale, setContentLocale] = useState('fr');
   const [error, setError] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
   const reload = () => setReloadToken((token) => token + 1);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getAdminSettings(), getAdminContent('fr')])
+    Promise.all([getAdminSettings(), getAdminContent(contentLocale)])
       .then(([settingGroups, contentEntries]) => {
         if (cancelled) return;
         setGroups(settingGroups);
@@ -37,7 +41,7 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
       })
       .catch((loadError) => { if (!cancelled) setError(loadError.message || 'Impossible de charger les paramètres.'); });
     return () => { cancelled = true; };
-  }, [reloadToken]);
+  }, [contentLocale, reloadToken]);
 
   const editGroup = (group) => openActionDialog({
     title: `Paramètres — ${group.label}`,
@@ -78,7 +82,7 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
     })),
     onConfirm: async (values) => {
       const body = Object.fromEntries(entry.fields.map((field) => [field.key, String(values[field.key] ?? '')]));
-      const success = await runAction(`Brouillon ${entry.label}`, () => saveAdminContentDraft(entry.key, 'fr', body), true);
+      const success = await runAction(`Brouillon ${entry.label}`, () => saveAdminContentDraft(entry.key, contentLocale, body), true);
       if (success) reload();
     },
   });
@@ -89,18 +93,39 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
     consequence: 'La version publiée actuelle est conservée dans l’historique, pas remplacée.',
     confirmLabel: 'Publier', fields: [],
     onConfirm: async () => {
-      const success = await runAction(`Publication ${entry.label}`, () => publishAdminContent(entry.key, 'fr'), true);
+      const success = await runAction(`Publication ${entry.label}`, () => publishAdminContent(entry.key, contentLocale), true);
       if (success) reload();
     },
   });
 
 
+  const queueTranslation = (entry) => openActionDialog({
+    title: `Traduction anglaise — ${entry.label}`,
+    summary: 'Crée un brouillon anglais lié à la dernière version française publiée.',
+    consequence: 'Le public ne voit rien. Générez ensuite la proposition ou saisissez la traduction manuellement.',
+    confirmLabel: 'Mettre en file', fields: [],
+    onConfirm: async () => { const success = await runAction(`Mise en file ${entry.label}`, () => queueAdminContentTranslation(entry.key), true); if (success) reload(); },
+  });
+  const generateTranslation = (entry) => openActionDialog({
+    title: `Générer l’anglais — ${entry.label}`,
+    summary: 'Le serveur demande une proposition à la passerelle de traduction configurée.',
+    consequence: 'La proposition reste un brouillon et doit être relue avant toute publication.',
+    confirmLabel: 'Générer', fields: [],
+    onConfirm: async () => { const success = await runAction(`Génération ${entry.label}`, () => generateAdminContentTranslation(entry.key), true); if (success) reload(); },
+  });
+  const reviewTranslation = (entry) => openActionDialog({
+    title: `Valider la relecture — ${entry.label}`,
+    summary: 'Confirmez que la version anglaise a été corrigée et relue.',
+    consequence: 'Elle pourra ensuite être publiée. La publication reste une action séparée.',
+    confirmLabel: 'Marquer relue', fields: [],
+    onConfirm: async () => { const success = await runAction(`Relecture ${entry.label}`, () => reviewAdminContentTranslation(entry.key), true); if (success) reload(); },
+  });
   const restore = (entry, version) => openActionDialog({
     title: `Restaurer la version ${version}`,
     summary: entry.label,
     consequence: 'Cette version devient un brouillon. Le site public ne change pas avant une publication explicite.',
     confirmLabel: 'Créer le brouillon', fields: [],
-    onConfirm: async () => { const success = await runAction(`Restauration ${entry.label}`, () => restoreAdminContentVersion(entry.key, version), true); if (success) reload(); },
+    onConfirm: async () => { const success = await runAction(`Restauration ${entry.label}`, () => restoreAdminContentVersion(entry.key, version, contentLocale), true); if (success) reload(); },
   });
   return (
     <>
@@ -141,7 +166,7 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
         </section>
       ))}
 
-      <div className="admin-page-header"><h1>Contenus <span>éditoriaux</span></h1></div>
+      <div className="admin-page-header"><h1>Contenus <span>éditoriaux</span></h1><div className="admin-action-row"><button type="button" className={`btn admin-sm-btn ${contentLocale === 'fr' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setContentLocale('fr')}>Français</button><button type="button" className={`btn admin-sm-btn ${contentLocale === 'en' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setContentLocale('en')}>English</button></div></div>
       {content.map((entry) => (
         <section className="admin-card" key={entry.key} aria-labelledby={`content-${entry.key}`}>
           <div className="admin-agenda-head">
@@ -149,6 +174,9 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
             <div className="admin-action-row">
               <button type="button" className="btn btn-secondary admin-sm-btn"
                 aria-label={`Modifier le contenu ${entry.label}`} onClick={() => editContent(entry)}>Modifier</button>
+              {contentLocale === 'en' && <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => queueTranslation(entry)}>Mettre en file</button>}
+              {contentLocale === 'en' && <button type="button" className="btn btn-secondary admin-sm-btn" disabled={!entry.draft} onClick={() => generateTranslation(entry)}>Générer</button>}
+              {contentLocale === 'en' && <button type="button" className="btn btn-secondary admin-sm-btn" disabled={!entry.draft} onClick={() => reviewTranslation(entry)}>Marquer relue</button>}
               <button type="button" className="btn btn-primary admin-sm-btn" disabled={!entry.draft}
                 aria-label={`Publier le contenu ${entry.label}`}
                 title={entry.draft ? undefined : 'Aucun brouillon à publier.'}
@@ -156,6 +184,7 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
             </div>
           </div>
           <p className="admin-record-hint">{entry.description}</p>
+          {contentLocale === 'en' && <p className="admin-settings-origin">Traduction : {entry.translation?.status ?? 'Aucun brouillon'}{entry.translation?.sourceVersion ? ` · source FR v${entry.translation.sourceVersion}` : ''}{entry.translation?.error ? ` · ${entry.translation.error}` : ''}</p>}
 
           <h3 className="admin-settings-subhead">Version visible du public</h3>
           <dl className="admin-settings-grid">
@@ -167,6 +196,7 @@ const AdminSettingsPanel = ({ openActionDialog, runAction }) => {
             ))}
           </dl>
 
+          {entry.draft && <div className="admin-settings-preview"><strong>Aperçu avant publication</strong>{entry.fields.map((field) => <p key={field.key}><span>{field.label}</span> {String(entry.draft.body[field.key] ?? '').trim() || 'Non renseigné'}</p>)}</div>}
           {entry.draft && (
             <>
               <h3 className="admin-settings-subhead admin-settings-subhead--draft">

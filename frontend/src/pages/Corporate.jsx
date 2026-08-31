@@ -8,6 +8,7 @@ import { Briefcase, Users, Camera, Building2, CheckCircle2, Send } from 'lucide-
 import './Corporate.css';
 import { useLocale } from '../lib/i18n.js';
 import TransactionalWhatsAppConsent from '../components/TransactionalWhatsAppConsent';
+import { useSiteSettings } from '../lib/use-site-settings';
 
 const fadeIn = {
   initial: { opacity: 1, y: 0 },
@@ -25,6 +26,7 @@ const staggerContainer = {
 
 const Corporate = () => {
   const { locale } = useLocale();
+  const { settings } = useSiteSettings();
   const t = (fr, en) => locale === 'en' ? en : fr;
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -171,7 +173,7 @@ const Corporate = () => {
             >
               <div className="devis-section__bg" />
               <div className="devis-section__content">
-                {submitted ? (
+                {!settings.features.b2bFormEnabled ? <p className="lead">{t('Le formulaire entreprise est temporairement indisponible. Utilisez les coordonnées publiées du Studio.', 'The business form is temporarily unavailable. Please use the Studio’s published contact details.')}</p> : submitted ? (
                   <Motion.div 
                     className="success-message glass-dark"
                     role="status"

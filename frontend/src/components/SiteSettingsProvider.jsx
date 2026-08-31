@@ -24,7 +24,7 @@ const SiteSettingsProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     settings: mergeSettings(published?.settings),
-    content: mergeContent(published?.content),
+    content: mergeContent(published?.content, locale),
   }), [published]);
 
   return <SiteSettingsContext.Provider value={value}>{children}</SiteSettingsContext.Provider>;

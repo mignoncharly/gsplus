@@ -62,6 +62,8 @@ const Reservation = () => {
   const { locale } = useLocale();
   const { settings } = useSiteSettings();
   const copy = bookingMessages[locale];
+  const quoteEnabled = settings.features.quoteFormEnabled !== false;
+  const paymentInstructions = locale === 'en' ? settings.payment.instructionsEn : settings.payment.instructionsFr;
   const [searchParams] = useSearchParams();
   const initialPackId = searchParams.get('pack');
   const [packs, setPacks] = useState([]);
@@ -933,34 +935,14 @@ const Reservation = () => {
                     <h3 style={{ fontSize: '1.05rem', color: '#fff', marginBottom: '1.25rem', fontFamily: 'var(--font-body)', fontWeight: 700 }}>
                       {copy.completeBooking}
                     </h3>
-                    
                     <label className={`pricing-option-label ${formData.paymentChoice === 'base' ? 'active' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="paymentChoice" 
-                        value="base" 
-                        checked={formData.paymentChoice === 'base'} 
-                        onChange={() => setFormData({...formData, paymentChoice: 'base'})} 
-                      />
-                      <div>
-                        <strong>{bookingMode === 'free' ? t('Option A : payer le forfait — horaire toujours soumis à validation', 'Option A: pay the package — time still subject to approval') : copy.baseOption}</strong>
-                        <p>{bookingMode === 'free' ? t("Le paiement n'accepte ni ne bloque l'horaire proposé. Le Studio rendra une décision séparée après contrôle.", 'Payment neither accepts nor holds the proposed time. The Studio will make a separate decision after checking it.') : copy.baseOptionDetail}</p>
-                      </div>
+                      <input type="radio" name="paymentChoice" value="base" checked={formData.paymentChoice === 'base'} onChange={() => setFormData({...formData, paymentChoice: 'base'})} />
+                      <div><strong>{bookingMode === 'free' ? t('Option A : payer le forfait — horaire toujours soumis à validation', 'Option A: pay the package — time still subject to approval') : copy.baseOption}</strong><p>{bookingMode === 'free' ? t("Le paiement n'accepte ni ne bloque l'horaire proposé. Le Studio rendra une décision séparée après contrôle.", 'Payment neither accepts nor holds the proposed time. The Studio will make a separate decision after checking it.') : copy.baseOptionDetail}</p></div>
                     </label>
-
-                    <label className={`pricing-option-label ${formData.paymentChoice === 'quote' ? 'active' : ''}`}>
-                      <input 
-                        type="radio" 
-                        name="paymentChoice" 
-                        value="quote" 
-                        checked={formData.paymentChoice === 'quote'} 
-                        onChange={() => setFormData({...formData, paymentChoice: 'quote', transactionId: '', paymentPhone: ''})} 
-                      />
-                      <div>
-                        <strong>{bookingMode === 'free' ? t('Option B : transmettre la proposition sans paiement', 'Option B: submit the proposal without payment') : copy.quoteOption}</strong>
-                        <p>{bookingMode === 'free' ? t("L'horaire reste une demande non bloquante jusqu'à son acceptation explicite par le Studio.", 'The time remains a non-blocking request until explicitly accepted by the Studio.') : copy.quoteOptionDetail}</p>
-                      </div>
-                    </label>
+                    {quoteEnabled && <label className={`pricing-option-label ${formData.paymentChoice === 'quote' ? 'active' : ''}`}>
+                      <input type="radio" name="paymentChoice" value="quote" checked={formData.paymentChoice === 'quote'} onChange={() => setFormData({...formData, paymentChoice: 'quote', transactionId: '', paymentPhone: ''})} />
+                      <div><strong>{bookingMode === 'free' ? t('Option B : transmettre la proposition sans paiement', 'Option B: submit the proposal without payment') : copy.quoteOption}</strong><p>{bookingMode === 'free' ? t("L'horaire reste une demande non bloquante jusqu'à son acceptation explicite par le Studio.", 'The time remains a non-blocking request until explicitly accepted by the Studio.') : copy.quoteOptionDetail}</p></div>
+                    </label>}
                   </div>
                 )}
 
@@ -978,7 +960,7 @@ const Reservation = () => {
                     <div style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.01)', padding: '1.5rem', borderRadius: '8px', borderLeft: '3px solid var(--c-gold)' }}>
                       <h4 style={{ color: '#fff', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{copy.paymentInstructions}</h4>
                       <p style={{ fontSize: '0.88rem', color: 'var(--dark-secondary)', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
-                        {copy.transferBefore}<strong>{formatFcfa(formData.packPrice)}</strong>{copy.transferAfter}
+                        {copy.transferBefore}<strong>{formatFcfa(formData.packPrice)}</strong> {paymentInstructions}
                       </p>
                       <p style={{ fontSize: '0.88rem', color: 'var(--c-gold-light)', margin: 0, fontWeight: 600 }}>
                         ⚠️ {copy.includeReferenceBefore}<span style={{ textDecoration: 'underline' }}>{reservationIntent?.reference}</span>{copy.includeReferenceAfter}

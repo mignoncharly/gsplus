@@ -26,7 +26,7 @@ const Contact = () => {
   const copy = copyFor(locale);
   const [submitted, setSubmitted] = useState(false);
   const contactHours = content['contact.hours'];
-  const contactIntro = locale === 'fr' ? (content['contact.intro']?.lead || copy.lead) : copy.lead;
+  const contactIntro = content['contact.intro']?.lead || copy.lead;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -66,10 +66,10 @@ const Contact = () => {
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><MapPin size={24} /></div><div className="content"><h3>{copy.studio}</h3><p>{settings.identity.addressLine}<br />{copy.country}</p></div></Motion.div>
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Phone size={24} /></div><div className="content"><h3>{copy.phone}</h3><p><a href={telLink(settings.identity.phoneE164) ?? '#'}>{settings.identity.phoneDisplay}</a></p></div></Motion.div>
         <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Mail size={24} /></div><div className="content"><h3>{copy.emailSupport}</h3><p><a href={`mailto:${settings.identity.email}`}>{settings.identity.email}</a></p></div></Motion.div>
-        <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Clock size={24} /></div><div className="content"><h3>{copy.hours}</h3><p><strong>{locale === 'fr' ? contactHours.weekdaysLabel : copy.weekdays}</strong> {locale === 'fr' ? contactHours.weekdaysValue : '09:00 - 18:00'}<br /><strong>{locale === 'fr' ? contactHours.sundayLabel : copy.sunday}</strong> {locale === 'fr' ? contactHours.sundayValue : copy.sundayValue}</p></div></Motion.div>
+        <Motion.div className="contact-info-card" variants={fadeIn}><div className="icon-wrap"><Clock size={24} /></div><div className="content"><h3>{copy.hours}</h3><p><strong>{contactHours.weekdaysLabel}</strong> {contactHours.weekdaysValue}<br /><strong>{contactHours.sundayLabel}</strong> {contactHours.sundayValue}</p></div></Motion.div>
       </Motion.div>
       <Motion.div className="contact-form-wrap" initial={{ opacity: 1, x: 0 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.2 }}><div className="contact-form-wrap__bg" /><div className="contact-form-wrap__content">
-        {submitted ? <Motion.div className="success-message glass-dark" role="status" aria-live="polite" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}><CheckCircle2 size={56} className="text-gold" style={{ margin: '0 auto' }} /><h2>{copy.sent}</h2><p>{copy.sentBody}</p><button type="button" className="btn btn-secondary" onClick={startAnotherMessage}>{copy.another}</button></Motion.div> : <>
+        {submitted ? <Motion.div className="success-message glass-dark" role="status" aria-live="polite" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}><CheckCircle2 size={56} className="text-gold" style={{ margin: '0 auto' }} /><h2>{copy.sent}</h2><p>{copy.sentBody}</p><button type="button" className="btn btn-secondary" onClick={startAnotherMessage}>{copy.another}</button></Motion.div> : !settings.features.contactFormEnabled ? <p className="lead">{locale === 'en' ? 'The contact form is temporarily unavailable. Please use the published telephone number or email address.' : 'Le formulaire de contact est temporairement indisponible. Utilisez le téléphone ou l’e-mail publiés.'}</p> : <>
           <h2>{copy.heading}</h2><p className="lead">{copy.formLead}</p>
           <form onSubmit={handleSubmit} aria-describedby={error ? 'contact-form-error' : undefined}>
             <input name="website" type="text" tabIndex="-1" autoComplete="off" aria-hidden="true" style={{ display: 'none' }} />

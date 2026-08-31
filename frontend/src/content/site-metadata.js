@@ -245,7 +245,17 @@ export const LOCAL_BUSINESS_SCHEMA = {
   }],
 };
 
-export const getLocalBusinessSchema = (metadata) => ({
-  ...LOCAL_BUSINESS_SCHEMA,
-  inLanguage: metadata.locale,
-});
+export const getLocalBusinessSchema = (metadata, settings = {}) => {
+  const identity = settings.identity ?? {};
+  const seo = settings.seo ?? {};
+  const publicName = identity.publicName || LOCAL_BUSINESS_SCHEMA.name;
+  return {
+    ...LOCAL_BUSINESS_SCHEMA,
+    name: publicName,
+    telephone: identity.phoneE164 || LOCAL_BUSINESS_SCHEMA.telephone,
+    email: identity.email || LOCAL_BUSINESS_SCHEMA.email,
+    image: seo.socialImagePath ? SITE_ORIGIN + seo.socialImagePath : LOCAL_BUSINESS_SCHEMA.image,
+    address: { ...LOCAL_BUSINESS_SCHEMA.address, streetAddress: identity.addressLine || LOCAL_BUSINESS_SCHEMA.address.streetAddress },
+    inLanguage: metadata.locale,
+  };
+};

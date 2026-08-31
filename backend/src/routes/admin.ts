@@ -96,7 +96,7 @@ import { getFinancialTask, listFinancialTasks } from '../services/financial-task
 import { deleteAdminSavedView, listAdminSavedViews, saveAdminSavedView } from '../services/admin-saved-views.js';
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
-import { listAdminContent, publishContent, restoreContentVersion, saveContentDraft } from '../services/site-content.js';
+import { generateEnglishTranslation, listAdminContent, markEnglishTranslationReviewed, publishContent, queueEnglishTranslation, restoreContentVersion, saveContentDraft } from '../services/site-content.js';
 import { messageRuleStatus } from '../services/message-rules.js';
 import {
   acceptAdminInvitation,
@@ -1925,6 +1925,24 @@ router.post(
     res.json({ data: await saveContentDraft(routeParam(req.params.key), req.body.locale, req.body.body, admin?.id) });
   }),
 );
+
+router.post('/content/:key/translation/queue', asyncHandler(async (req, res) => {
+  const admin = res.locals.admin;
+  assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+  res.json({ data: await queueEnglishTranslation(routeParam(req.params.key), admin?.id) });
+}));
+
+router.post('/content/:key/translation/generate', asyncHandler(async (req, res) => {
+  const admin = res.locals.admin;
+  assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+  res.json({ data: await generateEnglishTranslation(routeParam(req.params.key), admin?.id) });
+}));
+
+router.post('/content/:key/translation/review', asyncHandler(async (req, res) => {
+  const admin = res.locals.admin;
+  assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+  res.json({ data: await markEnglishTranslationReviewed(routeParam(req.params.key), admin?.id) });
+}));
 
 router.post(
   '/content/:key/publish',

@@ -8,10 +8,10 @@ import './Footer.css';
 import { useSiteSettings } from '../lib/use-site-settings';
 import { telLink, whatsappLink } from '../lib/site-settings';
 
-const configuredSocials = [
-  { name: 'Instagram', href: safeExternalHttpsUrl(import.meta.env.VITE_INSTAGRAM_URL) },
-  { name: 'Facebook', href: safeExternalHttpsUrl(import.meta.env.VITE_FACEBOOK_URL) },
-  { name: 'LinkedIn', href: safeExternalHttpsUrl(import.meta.env.VITE_LINKEDIN_URL) },
+const configuredSocials = (identity) => [
+  { name: 'Instagram', href: safeExternalHttpsUrl(identity.instagramUrl) },
+  { name: 'Facebook', href: safeExternalHttpsUrl(identity.facebookUrl) },
+  { name: 'LinkedIn', href: safeExternalHttpsUrl(identity.linkedinUrl) },
 ].filter((item) => item.href);
 
 const SocialBrandIcon = ({ name }) => {
@@ -25,6 +25,7 @@ const Footer = () => {
   const { t } = useLocale();
   const { settings } = useSiteSettings();
   const [shareStatus, setShareStatus] = useState('');
+  const socials = configuredSocials(settings.identity);
 
   const handleShare = async () => {
     const result = await shareSite({ navigatorRef: window.navigator, documentRef: window.document, locationRef: window.location });
@@ -45,10 +46,10 @@ const Footer = () => {
 
           <div className="footer-actions">
             <div className="footer-shortcuts" aria-label={t('footerContact')}>
-              <a href={whatsappLink(settings.identity.phoneE164) ?? '#'} target="_blank" rel="noopener noreferrer" aria-label={t('footerWhatsapp')}>
+              {settings.identity.whatsappEnabled && <a href={whatsappLink(settings.identity.phoneE164) ?? '#'} target="_blank" rel="noopener noreferrer" aria-label={t('footerWhatsapp')}>
                 <img src="/images/whatsapp-mark-white.svg" className="footer-brand-icon" width="20" height="20" alt="" aria-hidden="true" />
-              </a>
-              <a href="mailto:info@gsplus.vip" aria-label={t('footerEmail')}><Mail size={20} aria-hidden="true" /></a>
+              </a>}
+              <a href={`mailto:${settings.identity.email}`} aria-label={t('footerEmail')}><Mail size={20} aria-hidden="true" /></a>
             </div>
 
             <div className="footer-shortcuts" aria-label={t('footerActions')}>
@@ -57,9 +58,9 @@ const Footer = () => {
               <button type="button" onClick={handleShare} aria-label={t('footerShare')}><Share2 size={20} aria-hidden="true" /></button>
             </div>
 
-            {configuredSocials.length > 0 && (
+            {socials.length > 0 && (
               <div className="footer-shortcuts" aria-label={t('footerSocial')}>
-                {configuredSocials.map(({ name, href }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${t('footerFollow')} ${name}`}><SocialBrandIcon name={name} /></a>)}
+                {socials.map(({ name, href }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${t('footerFollow')} ${name}`}><SocialBrandIcon name={name} /></a>)}
               </div>
             )}
           </div>
@@ -80,9 +81,9 @@ const Footer = () => {
         <div className="footer-col">
           <h2>{t('contact')}</h2>
           <ul className="contact-list">
-            <li><MapPin size={18} className="text-gold" aria-hidden="true" /><span>Douala, Cité des palmiers</span></li>
+            <li><MapPin size={18} className="text-gold" aria-hidden="true" /><span>{settings.identity.addressLine}</span></li>
             <li><Phone size={18} className="text-gold" aria-hidden="true" /><a href={telLink(settings.identity.phoneE164) ?? '#'}>{settings.identity.phoneDisplay}</a></li>
-            <li><Mail size={18} className="text-gold" aria-hidden="true" /><a href="mailto:info@gsplus.vip">info@gsplus.vip</a></li>
+            <li><Mail size={18} className="text-gold" aria-hidden="true" /><a href={`mailto:${settings.identity.email}`}>{settings.identity.email}</a></li>
           </ul>
         </div>
 
@@ -99,7 +100,7 @@ const Footer = () => {
 
       <div className="container">
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Golden Studio Plus. {t('allRightsReserved')}</p>
+          <p>&copy; {new Date().getFullYear()} {settings.identity.publicName}. {t('allRightsReserved')}</p>
           <div className="footer-bottom-links"><span>{t('designBy')} <span className="text-gold">Afro-Luxe Moderne</span></span></div>
         </div>
       </div>

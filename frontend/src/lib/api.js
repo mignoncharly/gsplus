@@ -265,6 +265,12 @@ export const publishAdminContent = async (key, locale = 'fr') =>
   (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/publish?locale=${locale}`, { method: 'POST' })).data;
 export const restoreAdminContentVersion = async (key, version, locale = 'fr') =>
   (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/restore/${encodeURIComponent(version)}?locale=${locale}`, { method: 'POST' })).data;
+export const queueAdminContentTranslation = async (key) =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/translation/queue`, { method: 'POST' })).data;
+export const generateAdminContentTranslation = async (key) =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/translation/generate`, { method: 'POST' })).data;
+export const reviewAdminContentTranslation = async (key) =>
+  (await apiFetch(`/api/admin/content/${encodeURIComponent(key)}/translation/review`, { method: 'POST' })).data;
 
 export const getAdminBusinessHours = async () => (await apiFetch('/api/admin/schedule/business-hours')).data;
 export const saveAdminBusinessHour = async (dayOfWeek, body) =>

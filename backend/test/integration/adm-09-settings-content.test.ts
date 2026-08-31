@@ -132,4 +132,34 @@ describe('ADM-09 the owner can change ordinary information', () => {
     expect(entry.published).toBeNull();
     expect(entry.draft).toBeNull();
   });
+  it('tracks queued, failed and reviewed English translation without exposing a draft', async () => {
+    await seed();
+    const agent = await signIn();
+    const key = 'contact.intro';
+    await agent.post(`/api/admin/content/${key}`).send({ locale: 'fr', body: { lead: 'Texte français publié.' } }).expect(200);
+    await agent.post(`/api/admin/content/${key}/publish`).expect(200);
+
+    await agent.post(`/api/admin/content/${key}/translation/queue`).expect(200);
+    let english = await agent.get('/api/admin/content?locale=en').expect(200);
+    expect(english.body.data.find((item: { key: string }) => item.key === key).translation.status).toBe('QUEUED');
+
+    // No gateway is configured in the test environment. The failure is visible and
+    // auditable; it never becomes public copy.
+    await agent.post(`/api/admin/content/${key}/translation/generate`).expect(200);
+    english = await agent.get('/api/admin/content?locale=en').expect(200);
+    expect(english.body.data.find((item: { key: string }) => item.key === key).translation.status).toBe('FAILED');
+    expect((await getPublishedContent('en'))[key].lead).not.toBe('Texte français publié.');
+
+    await agent.post(`/api/admin/content/${key}`).send({ locale: 'en', body: { lead: 'Published English copy.' } }).expect(200);
+    await agent.post(`/api/admin/content/${key}/translation/review`).expect(200);
+    await agent.post(`/api/admin/content/${key}/publish?locale=en`).expect(200);
+    expect((await getPublishedContent('en'))[key].lead).toBe('Published English copy.');
+  });
+
+  it('rejects unsafe public settings and overlong editable content', async () => {
+    await seed();
+    const agent = await signIn();
+    await agent.put('/api/admin/settings/identity').send({ values: { instagramUrl: 'javascript:alert(1)' } }).expect(400);
+    await agent.post('/api/admin/content/contact.intro').send({ locale: 'fr', body: { lead: 'x'.repeat(2001) } }).expect(400);
+  });
 });

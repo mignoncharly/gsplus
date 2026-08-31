@@ -87,6 +87,7 @@ const WhatsAppFab = () => {
     };
   }, []);
 
+  if (!settings.identity.whatsappEnabled) return null;
   return (
     <a
       ref={fabRef}

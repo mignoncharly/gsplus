@@ -108,6 +108,12 @@ export const env = {
   CALCOM_EVENT_TYPE_ID: process.env.CALCOM_EVENT_TYPE_ID,
   CALCOM_TIME_ZONE: process.env.CALCOM_TIME_ZONE ?? 'Africa/Douala',
   CALCOM_SCHEDULE_ID: process.env.CALCOM_SCHEDULE_ID,
+  // Optional internal translation gateway. It receives { key, source, sourceLocale,
+  // targetLocale } and returns { body }. A missing provider becomes an explicit
+  // failed editorial job, never silently published machine copy.
+  CONTENT_TRANSLATION_URL: process.env.CONTENT_TRANSLATION_URL ?? '',
+  CONTENT_TRANSLATION_TOKEN: process.env.CONTENT_TRANSLATION_TOKEN ?? '',
+  CONTENT_TRANSLATION_TIMEOUT_MS: parsePort(process.env.CONTENT_TRANSLATION_TIMEOUT_MS, 15_000),
   CLIENT_ORIGINS: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:5174')
     .split(',')
     .map((origin) => origin.trim())

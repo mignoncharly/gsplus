@@ -25,12 +25,13 @@ export const SETTINGS_FALLBACK = Object.freeze({
 });
 
 export const CONTENT_FALLBACK = Object.freeze({
-  'contact.hours': {
-    weekdaysLabel: 'Du lundi au samedi :',
-    weekdaysValue: '9 h - 18 h',
-    sundayLabel: 'Dimanche :',
-    sundayValue: 'Fermé, sauf rendez-vous VIP préalable',
-  },
+  'contact.hours': { weekdaysLabel: 'Du lundi au samedi :', weekdaysValue: '9 h - 18 h', sundayLabel: 'Dimanche :', sundayValue: 'Fermé, sauf rendez-vous VIP préalable' },
+  'contact.intro': { lead: 'Vous avez une question, un projet spécial ou besoin d’assistance ? Notre équipe est à votre écoute pour donner vie à vos envies.' },
+});
+
+export const CONTENT_FALLBACK_EN = Object.freeze({
+  'contact.hours': { weekdaysLabel: 'Monday to Saturday:', weekdaysValue: '09:00 - 18:00', sundayLabel: 'Sunday:', sundayValue: 'Closed, except by prior VIP appointment' },
+  'contact.intro': { lead: 'Have a question, a special project or need support? Our team is here to bring your ideas to life.' },
 });
 
 /** A phone number is a link target, so non-digits are stripped for wa.me and tel:. */
@@ -55,6 +56,5 @@ const deepMerge = (fallback, incoming) => {
   }
   return merged;
 };
-
 export const mergeSettings = (incoming) => deepMerge(SETTINGS_FALLBACK, incoming);
-export const mergeContent = (incoming) => deepMerge(CONTENT_FALLBACK, incoming);
+export const mergeContent = (incoming, locale = 'fr') => deepMerge(locale === 'en' ? CONTENT_FALLBACK_EN : CONTENT_FALLBACK, incoming);

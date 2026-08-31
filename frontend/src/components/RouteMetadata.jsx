@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getLocalBusinessSchema, getRouteMetadata } from '../content/site-metadata';
 import { useLocale } from '../lib/i18n.js';
+import { useSiteSettings } from '../lib/use-site-settings';
 
 const upsertMeta = (selector, attributes) => {
   let element = document.head.querySelector(selector);
@@ -41,7 +42,7 @@ const updateAlternates = (alternates) => {
   }
 };
 
-const updateStructuredData = (metadata) => {
+const updateStructuredData = (metadata, settings) => {
   let script = document.getElementById('local-business-schema');
   if (!metadata.indexable) {
     script?.remove();
@@ -53,15 +54,21 @@ const updateStructuredData = (metadata) => {
     script.type = 'application/ld+json';
     document.head.appendChild(script);
   }
-  script.textContent = JSON.stringify(getLocalBusinessSchema(metadata));
+  script.textContent = JSON.stringify(getLocalBusinessSchema(metadata, settings));
 };
 
 const RouteMetadata = () => {
   const { pathname } = useLocation();
   const { locale } = useLocale();
+  const { settings } = useSiteSettings();
 
   useEffect(() => {
-    const metadata = getRouteMetadata(pathname, locale);
+    const routeMetadata = getRouteMetadata(pathname, locale);
+    const metadata = { ...routeMetadata,
+      title: routeMetadata.basePath === '/' ? settings.seo.defaultTitle : routeMetadata.title.replace('Golden Studio Plus', settings.identity.publicName),
+      description: routeMetadata.basePath === '/' ? settings.seo.defaultDescription : routeMetadata.description,
+      image: settings.seo.socialImagePath ? ['https://gsplus.vip', settings.seo.socialImagePath].join('') : routeMetadata.image,
+    };
     document.documentElement.lang = metadata.locale;
     document.title = metadata.title;
 
@@ -99,8 +106,8 @@ const RouteMetadata = () => {
 
     upsertCanonical(metadata.canonical);
     updateAlternates(metadata.alternates);
-    updateStructuredData(metadata);
-  }, [locale, pathname]);
+    updateStructuredData(metadata, settings);
+  }, [locale, pathname, settings]);
 
   return null;
 };
