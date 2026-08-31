@@ -21,6 +21,11 @@ export const SETTINGS_FALLBACK = Object.freeze({
     instructionsFr: 'via MTN MoMo ou Orange Money à notre numéro de réception.',
     instructionsEn: 'via MTN MoMo or Orange Money to our receiving number.',
   },
+  seo: {
+    defaultTitle: 'Golden Studio Plus | Studio photo premium à Douala',
+    defaultDescription: 'Studio photo premium à Douala : portraits, familles, maternité, événements et images corporate, avec une expérience guidée.',
+    socialImagePath: '/images/og-golden-studio-plus-2026.jpg',
+  },
   features: { contactFormEnabled: true, quoteFormEnabled: true, b2bFormEnabled: true },
 });
 
