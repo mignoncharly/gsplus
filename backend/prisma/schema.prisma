@@ -1261,7 +1261,6 @@ model AdminPermissionGrant {
 /**
  * A private, named filter preset. It stores no reservation data.
  */
- */
 model AdminSavedView {
   id          String    @id @default(cuid())
   adminUserId String
