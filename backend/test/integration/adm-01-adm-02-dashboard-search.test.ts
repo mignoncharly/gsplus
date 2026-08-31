@@ -161,6 +161,19 @@ describe('ADM-02 reservation search', () => {
     expect(withoutPayment.body.data[0].reference).toBe('GSP-D-0004');
   });
 
+  it('persists private reservation views for the signed-in administrator', async () => {
+    await seed();
+    const agent = await signIn();
+    const created = await agent.post('/api/admin/saved-views').send({
+      scope: 'reservations', name: 'À confirmer', filters: { status: ['PENDING_CONFIRMATION'] },
+    }).expect(201);
+    expect(created.body.data).toMatchObject({ scope: 'reservations', name: 'À confirmer', filters: { status: ['PENDING_CONFIRMATION'] } });
+    const listed = await agent.get('/api/admin/saved-views').query({ scope: 'reservations' }).expect(200);
+    expect(listed.body.data).toHaveLength(1);
+    await agent.delete('/api/admin/saved-views/' + created.body.data.id).expect(204);
+  });
+
+
   it('filters reservations by pending reschedule request', async () => {
     await seed();
     const agent = await signIn();

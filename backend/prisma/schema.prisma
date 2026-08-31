@@ -109,6 +109,7 @@ model AdminUser {
   permissionGrants                  AdminPermissionGrant[]            @relation("AdminPermissionGrantAdmin")
   grantedPermissions                AdminPermissionGrant[]            @relation("AdminPermissionGrantGrantedBy")
   sessions                          AdminSession[]
+  savedViews                        AdminSavedView[]
   revokedSessions                   AdminSession[]                    @relation("AdminSessionRevokedBy")
   recoveryCodes                     AdminRecoveryCode[]
   auditLogs                         AuditLog[]
@@ -1258,12 +1259,24 @@ model AdminPermissionGrant {
 }
 
 /**
- * One signed-in device.
- *
- * The session cookie is a JWT, which cannot be withdrawn on its own; `sessionVersion`
- * only ever revoked *all* of an account's sessions at once. This row is what makes a
- * single device revocable, and what lets someone see where they are signed in.
+ * A private, named filter preset. It stores no reservation data.
  */
+ */
+model AdminSavedView {
+  id          String    @id @default(cuid())
+  adminUserId String
+  scope       String
+  name        String
+  filters     Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([adminUserId, scope, name])
+  @@index([adminUserId, scope, updatedAt])
+}
+
+
 model AdminSession {
   id           String    @id @default(cuid())
   adminUserId  String

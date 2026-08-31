@@ -92,6 +92,7 @@ import {
 } from '../services/packages.js';
 import { createCatalogueBenefitDraft, listAdminCatalogueBenefits, publishCatalogueBenefitVersion, updateCatalogueBenefitDraft, updateCatalogueTaxonomy, validateCatalogueBenefitVersion } from '../services/catalogue.js';
 import { getFinancialTask, listFinancialTasks } from '../services/financial-tasks.js';
+import { deleteAdminSavedView, listAdminSavedViews, saveAdminSavedView } from '../services/admin-saved-views.js';
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
 import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
@@ -152,6 +153,8 @@ import { transitionReservationStatus } from '../services/status-transitions.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
 import {
+  adminSavedViewListQuerySchema,
+  adminSavedViewSchema,
   adminAccountActiveSchema,
   adminAccountInviteSchema,
   adminAccountRoleSchema,
@@ -654,6 +657,32 @@ router.get(
     res.json({ data: await buildAdminDashboard() });
   }),
 );
+router.get(
+  '/saved-views',
+  validate('query', adminSavedViewListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    res.json({ data: await listAdminSavedViews(res.locals.admin!.id, res.locals.validated.query.scope) });
+  }),
+);
+
+router.post(
+  '/saved-views',
+  validate('body', adminSavedViewSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({ data: await saveAdminSavedView(res.locals.admin!.id, req.body) });
+  }),
+);
+
+router.delete(
+  '/saved-views/:id',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    await deleteAdminSavedView(res.locals.admin!.id, routeParam(req.params.id));
+    res.status(204).send();
+  }),
+);
+
+
 
 router.get(
   '/reservations',

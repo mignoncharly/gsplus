@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Info, RotateCcw, Search } from 'lucide-react';
 
-import { getAdminPackages, searchAdminReservations } from '../lib/api';
+import { getAdminPackages, getAdminSavedViews, saveAdminSavedView, searchAdminReservations } from '../lib/api';
 import { formatBusinessDateTime } from '../lib/business-time';
 import { statusLabel } from '../lib/status-labels';
 import './AdminReservationsPanel.css';
@@ -44,6 +44,8 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
 
   const [items, setItems] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [savedViews, setSavedViews] = useState([]);
+  const [savedViewName, setSavedViewName] = useState('');
   const [meta, setMeta] = useState({ total: 0, limit: PAGE_SIZE, offset: 0 });
   const [error, setError] = useState('');
   const [loadedKey, setLoadedKey] = useState(null);
@@ -57,6 +59,10 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
     let cancelled = false;
     void getAdminPackages().then((items) => { if (!cancelled) setPackages(items); }).catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    void getAdminSavedViews('reservations').then(setSavedViews).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -115,6 +121,26 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
   const pages = Math.max(1, Math.ceil((meta.total || 0) / PAGE_SIZE));
   const page = Math.floor((meta.offset || 0) / PAGE_SIZE) + 1;
   const goToPage = (offset) => applyFilters({ ...filters, offset: Math.max(0, offset) });
+
+      <section className="admin-card admin-action-row" aria-label="Vues enregistrées">
+        <label htmlFor="reservation-saved-view">Vue enregistrée</label>
+        <select id="reservation-saved-view" className="form-input" defaultValue="" onChange={(event) => {
+          const saved = savedViews.find((view) => view.id === event.target.value);
+          if (saved && saved.filters && typeof saved.filters === "object") applyFilters({ ...filters, ...saved.filters, offset: 0 });
+        }}>
+          <option value="">Choisir une vue…</option>
+          {savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}
+        </select>
+        <label htmlFor="reservation-saved-view-name">Nom de la vue</label>
+        <input id="reservation-saved-view-name" className="form-input" value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} maxLength="80" />
+        <button type="button" className="btn btn-secondary" disabled={!savedViewName.trim()} onClick={() => {
+          void saveAdminSavedView({ scope: "reservations", name: savedViewName.trim(), filters: { ...filters, offset: 0 } }).then((saved) => {
+            setSavedViews((current) => [saved, ...current.filter((view) => view.id !== saved.id)]);
+            setSavedViewName("");
+          }).catch((saveError) => setError(saveError.message || "Impossible d’enregistrer cette vue."));
+        }}>Enregistrer la vue</button>
+      </section>
+
 
   return (
     <>

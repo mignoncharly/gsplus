@@ -284,6 +284,10 @@ export const getAdminCalendarSyncLogs = async (filters = {}) => {
   return { items: payload.data, meta: payload.meta };
 };
 
+export const getAdminSavedViews = async (scope) => (await apiFetch(`/api/admin/saved-views?${adminQuery({ scope })}`)).data;
+export const saveAdminSavedView = async (body) => (await apiFetch('/api/admin/saved-views', { method: 'POST', body: JSON.stringify(body) })).data;
+export const deleteAdminSavedView = async (id) => apiFetch(`/api/admin/saved-views/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
 export const getAdminDashboard = async () => (await apiFetch('/api/admin/dashboard')).data;
 
 /** Returns rows only, for the callers that just want the list. */

@@ -78,6 +78,16 @@ const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format
 const clockTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Utilisez le format HH:MM.');
 const breakList = z.array(z.object({ start: clockTime, end: clockTime })).max(6).optional();
 
+export const adminSavedViewListQuerySchema = z.object({
+  scope: z.enum(['reservations']),
+});
+
+export const adminSavedViewSchema = z.object({
+  scope: z.enum(['reservations']),
+  name: z.string().trim().min(1).max(80),
+  filters: z.record(z.string(), z.unknown()),
+});
+
 export const calendarSyncLogListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
