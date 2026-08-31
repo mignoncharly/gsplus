@@ -1,7 +1,7 @@
 # Golden Studio Plus — Phase 10 governance and security release manifest
 
 **Release date:** 30 August 2026
-**Status:** implementation complete; production migration, deployment, and credentialled acceptance remain operator actions
+**Status:** deployed to production; owner acceptance completed for the invitation, TOTP, session-revocation, audit-filter, audit-export, and deactivation workflows. Permission-grant and unusual-sign-in alert replays remain to be recorded.
 
 ## Delivered scope
 
@@ -30,3 +30,17 @@
 ## Required production acceptance
 
 The report’s Phase 10 acceptance is considered complete only after the owner has confirmed on `https://gsplus.vip/admin` that named accounts, deactivation, per-module rights, TOTP/recovery codes, device revocation, audit filtering/export, and unusual sign-in alerts operate as described. No production credential, recovery code, provisioning URI, or invitation token belongs in this manifest.
+
+## Production deployment and owner replay — 31 August 2026
+
+- A verified, restore-listable production database backup was created before the release.
+- `ADMIN_TOTP_ENCRYPTION_KEY` was generated separately from the session-signing key and stored only in the production environment file.
+- The backend was restarted before migration because the previously pending Phase 9 backfill writes the `CREATIVE` lead enum value.
+- Prisma applied `20260830160200_admin_phase_9_creative_backfill_after_deploy` and `20260830180000_admin_phase_10_governance`; a subsequent status check reported the production schema up to date.
+- Backend release revision: `7cc32e2`; frontend invitation-form hotfix: `1db6032`.
+- Public postflight checks: `/`, `/admin`, and `/api/health` returned HTTP 200; the new unauthenticated security route returned HTTP 401.
+- The OWNER completed the controlled-account invitation, acceptance, sign-in, TOTP/recovery-code handling, device-session revocation, audit filtering/export, and test-account deactivation replay. No credential, token, recovery code, or personally identifying account address is recorded here.
+
+### Remaining governance evidence
+
+- Record a controlled per-module permission-grant replay and an unusual-sign-in alert replay before claiming the wider governance/security acceptance in §12 is fully closed.
