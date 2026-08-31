@@ -37,6 +37,7 @@ export type RenderedEmailTemplate = {
   text: string;
   html: string;
   variables: Record<string, string>;
+  delivery: { senderName: string | null; fromAddress: string | null; replyTo: string | null; channel: 'email'; fallbackChannel: 'whatsapp' | null };
 };
 
 type TemplateInput = Omit<EmailTemplateDefinition, 'code' | 'version' | 'requiredVariables'>;
@@ -476,6 +477,10 @@ export const renderEmailTemplate = (
     `<div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div>`,
     ...body.map((line) => `<p>${escapeHtml(line)}</p>`),
   ].join('');
-
-  return { code, version, audience: template.audience, locale, subject, preheader, text, html, variables };
+  return {
+    code, version, audience: template.audience, locale, subject, preheader, text, html, variables,
+    delivery: override
+      ? { senderName: override.senderName, fromAddress: override.fromAddress, replyTo: override.replyTo, channel: override.channel, fallbackChannel: override.fallbackChannel }
+      : { senderName: null, fromAddress: null, replyTo: null, channel: 'email', fallbackChannel: null },
+  };
 };

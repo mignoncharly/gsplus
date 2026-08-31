@@ -16,11 +16,31 @@ const isKnownCode = (code: string): code is EmailTemplateCode =>
 const compiledFor = (code: EmailTemplateCode, locale: string) =>
   (locale === 'en' ? englishTemplateRegistry[code] ?? emailTemplateRegistry[code] : emailTemplateRegistry[code]);
 
-/**
- * Every template with its compiled copy, its published override if any, and its draft.
- * The compiled copy is always shown, so an operator can see what they are changing
- * from rather than editing a blank field.
- */
+type DeliveryInput = {
+  senderName?: string | null;
+  fromAddress?: string | null;
+  replyTo?: string | null;
+  channel?: string | null;
+  fallbackChannel?: string | null;
+};
+
+const deliveryFor = (value?: DeliveryInput | null) => ({
+  senderName: value?.senderName?.trim() || null,
+  fromAddress: value?.fromAddress?.trim() || null,
+  replyTo: value?.replyTo?.trim() || null,
+  channel: 'email' as const,
+  fallbackChannel: value?.fallbackChannel === 'whatsapp' ? 'whatsapp' as const : null,
+});
+
+const templateVersion = (row: { version: number; subject: string; preheader: string; body: unknown; publishedAt?: Date | null; publishedBy?: unknown; updatedAt?: Date; updatedBy?: unknown } & DeliveryInput) => ({
+  version: row.version,
+  subject: row.subject,
+  preheader: row.preheader,
+  body: row.body,
+  delivery: deliveryFor(row),
+});
+
+/** Every template with its compiled copy, published override and current draft. */
 export const listMessageTemplates = async (locale = 'fr') => {
   const rows = await prisma.messageTemplate.findMany({
     where: { locale },
@@ -39,9 +59,9 @@ export const listMessageTemplates = async (locale = 'fr') => {
       channel: 'email',
       locale,
       variables: compiled.requiredVariables,
-      compiled: { subject: compiled.subject, preheader: compiled.preheader, body: [...compiled.body] },
-      published: published ? { version: published.version, subject: published.subject, preheader: published.preheader, body: published.body, publishedAt: published.publishedAt, publishedBy: published.publishedBy } : null,
-      draft: draft ? { version: draft.version, subject: draft.subject, preheader: draft.preheader, body: draft.body, updatedAt: draft.updatedAt, updatedBy: draft.updatedBy } : null,
+      compiled: { subject: compiled.subject, preheader: compiled.preheader, body: [...compiled.body], delivery: deliveryFor() },
+      published: published ? { ...templateVersion(published), publishedAt: published.publishedAt, publishedBy: published.publishedBy } : null,
+      draft: draft ? { ...templateVersion(draft), updatedAt: draft.updatedAt, updatedBy: draft.updatedBy } : null,
       isOverridden: Boolean(published),
       history: versions.map((row) => ({ id: row.id, version: row.version, status: row.status, publishedAt: row.publishedAt, updatedAt: row.updatedAt })),
     };
@@ -51,7 +71,7 @@ export const listMessageTemplates = async (locale = 'fr') => {
 export const saveTemplateDraft = async (
   code: string,
   locale: string,
-  input: { subject: string; preheader: string; body: string[] },
+  input: { subject: string; preheader: string; body: string[] } & DeliveryInput,
   adminUserId?: string,
 ) => {
   if (!isKnownCode(code)) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', 'Modèle inconnu.');
@@ -59,25 +79,25 @@ export const saveTemplateDraft = async (
   if (!input.subject.trim() || body.length === 0) {
     throw new HttpError(400, 'TEMPLATE_EMPTY', 'Un modèle doit avoir un objet et au moins une ligne de contenu.');
   }
-
+  const delivery = deliveryFor(input);
   const existing = await prisma.messageTemplate.findFirst({ where: { code, locale, status: 'DRAFT' } });
   const saved = existing
     ? await prisma.messageTemplate.update({
       where: { id: existing.id },
-      data: { subject: input.subject, preheader: input.preheader, body, updatedById: adminUserId ?? null },
+      data: { subject: input.subject, preheader: input.preheader, body, ...delivery, updatedById: adminUserId ?? null },
     })
     : await (async () => {
       const highest = await prisma.messageTemplate.findFirst({ where: { code, locale }, orderBy: { version: 'desc' } });
       return prisma.messageTemplate.create({
         data: {
           code, locale, version: (highest?.version ?? 0) + 1, status: 'DRAFT',
-          subject: input.subject, preheader: input.preheader, body, updatedById: adminUserId ?? null,
+          subject: input.subject, preheader: input.preheader, body, ...delivery, updatedById: adminUserId ?? null,
         },
       });
     })();
 
   await prisma.auditLog.create({
-    data: { adminUserId, action: 'message_template.draft.save', entityType: 'MessageTemplate', entityId: saved.id, metadata: { code, locale, version: saved.version } },
+    data: { adminUserId, action: 'message_template.draft.save', entityType: 'MessageTemplate', entityId: saved.id, metadata: { code, locale, version: saved.version, delivery } },
   });
   return saved;
 };
@@ -94,10 +114,9 @@ export const publishTemplate = async (code: string, locale: string, adminUserId?
       data: { status: 'PUBLISHED', publishedAt: new Date(), publishedById: adminUserId ?? null },
     });
   });
-
   await refreshTemplateOverrides();
   await prisma.auditLog.create({
-    data: { adminUserId, action: 'message_template.publish', entityType: 'MessageTemplate', entityId: published.id, metadata: { code, locale, version: published.version } },
+    data: { adminUserId, action: 'message_template.publish', entityType: 'MessageTemplate', entityId: published.id, metadata: { code, locale, version: published.version, delivery: deliveryFor(published) } },
   });
   return published;
 };
@@ -127,24 +146,20 @@ export const sampleVariables = (variables: readonly string[]) => Object.fromEntr
   return [name, `[${name}]`];
 }));
 
-export const previewTemplate = (code: string, locale: string, overrides?: { subject: string; preheader: string; body: string[] }) => {
+export const previewTemplate = (code: string, locale: string, overrides?: ({ subject: string; preheader: string; body: string[] } & DeliveryInput)) => {
   if (!isKnownCode(code)) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', 'Modèle inconnu.');
   const compiled = compiledFor(code, locale);
   const source = overrides ?? { subject: compiled.subject, preheader: compiled.preheader, body: [...compiled.body] };
   const placeholders = new Set<string>();
   for (const part of [source.subject, source.preheader, ...source.body]) {
-    for (const match of part.matchAll(/\[([a-z0-9_]+)]/g)) placeholders.add(match[1]);
+    for (const match of part.matchAll(/\[([a-z0-9_]+)\]/g)) placeholders.add(match[1]);
   }
   const variables = sampleVariables([...placeholders]);
-  const replace = (text: string) => text.replace(/\[([a-z0-9_]+)]/g, (_match, name) => String(variables[name] ?? `[${name}]`));
+  const replace = (text: string) => text.replace(/\[([a-z0-9_]+)\]/g, (_match, name) => String(variables[name] ?? `[${name}]`));
   return {
-    code,
-    locale,
-    audience: compiled.audience,
-    subject: replace(source.subject),
-    preheader: replace(source.preheader),
-    text: source.body.map(replace).join('\n'),
-    variables,
+    code, locale, audience: compiled.audience,
+    subject: replace(source.subject), preheader: replace(source.preheader), text: source.body.map(replace).join('\n'), variables,
+    delivery: deliveryFor(source),
   };
 };
 
@@ -155,11 +170,7 @@ export const renderWithSampleData = (code: string, locale: 'fr' | 'en') => {
   return renderEmailTemplate(code, sampleVariables(compiled.requiredVariables), locale);
 };
 
-/**
- * Every governed event, whether or not a rule has been stored for it. An event with no
- * row is not missing — it is running on the behaviour compiled into the application, and
- * the panel says so rather than showing an empty list.
- */
+/** Every governed event, whether or not a rule has been stored for it. */
 export const listMessageRules = async () => {
   const rows = await prisma.messageRule.findMany({ include: { updatedBy: { select: { id: true, name: true } } } });
   const stored = new Map(rows.map((row) => [row.event, row]));
@@ -167,13 +178,12 @@ export const listMessageRules = async () => {
     const row = stored.get(event);
     return {
       event,
-      // No label here on purpose: the French names live in the panel's single label
-      // registry, which has a completeness guard. A second copy would drift from it.
       canBeDisabled: !UNSILENCEABLE_EVENTS.has(event),
       isConfigured: Boolean(row),
       delayMinutes: row?.delayMinutes ?? null,
       groupingWindowMinutes: row?.groupingWindowMinutes ?? null,
       maxAttempts: row?.maxAttempts ?? null,
+      fallbackChannel: row?.fallbackChannel === 'whatsapp' ? 'whatsapp' : null,
       isEnabled: row ? row.isEnabled || UNSILENCEABLE_EVENTS.has(event) : true,
       updatedAt: row?.updatedAt ?? null,
       updatedBy: row?.updatedBy ?? null,
@@ -186,11 +196,10 @@ export const upsertMessageRule = async (input: {
   delayMinutes: number | null;
   groupingWindowMinutes: number | null;
   maxAttempts: number | null;
+  fallbackChannel: 'whatsapp' | null;
   isEnabled: boolean;
 }, adminUserId?: string) => {
   if (!isGovernedEvent(input.event)) throw new HttpError(404, 'MESSAGE_EVENT_NOT_FOUND', 'Événement inconnu.');
-  // Refusing is the point: silently storing isEnabled=false and ignoring it would leave
-  // the owner believing an alarm is off when it is not.
   if (!input.isEnabled && UNSILENCEABLE_EVENTS.has(input.event)) {
     throw new HttpError(422, 'MESSAGE_EVENT_UNSILENCEABLE', 'Cette alerte ne peut pas être désactivée : elle est le seul signal d’une panne. Vous pouvez la retarder ou la regrouper.');
   }
@@ -198,14 +207,11 @@ export const upsertMessageRule = async (input: {
     delayMinutes: input.delayMinutes,
     groupingWindowMinutes: input.groupingWindowMinutes,
     maxAttempts: input.maxAttempts,
+    fallbackChannel: input.fallbackChannel,
     isEnabled: input.isEnabled,
     updatedById: adminUserId ?? null,
   };
-  const saved = await prisma.messageRule.upsert({
-    where: { event: input.event },
-    update: data,
-    create: { event: input.event, ...data },
-  });
+  const saved = await prisma.messageRule.upsert({ where: { event: input.event }, update: data, create: { event: input.event, ...data } });
   await prisma.auditLog.create({
     data: { adminUserId, action: 'message_rule.update', entityType: 'MessageRule', entityId: saved.event, metadata: { ...input } },
   });

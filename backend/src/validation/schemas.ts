@@ -111,6 +111,11 @@ export const messageTemplateDraftSchema = z.object({
   subject: requiredString.max(300),
   preheader: z.string().trim().max(300).default(''),
   body: z.array(z.string()).min(1).max(60),
+  senderName: z.string().trim().max(120).default(''),
+  fromAddress: z.string().trim().email().max(254).or(z.literal('')).default(''),
+  replyTo: z.string().trim().email().max(254).or(z.literal('')).default(''),
+  channel: z.literal('email').default('email'),
+  fallbackChannel: z.enum(['whatsapp']).nullable().default(null),
 });
 
 export const messagePreviewSchema = z.object({
@@ -118,6 +123,11 @@ export const messagePreviewSchema = z.object({
   subject: z.string().trim().max(300).optional(),
   preheader: z.string().trim().max(300).optional(),
   body: z.array(z.string()).max(60).optional(),
+  senderName: z.string().trim().max(120).optional(),
+  fromAddress: z.string().trim().email().max(254).or(z.literal('')).optional(),
+  replyTo: z.string().trim().email().max(254).or(z.literal('')).optional(),
+  channel: z.literal('email').optional(),
+  fallbackChannel: z.enum(['whatsapp']).nullable().optional(),
 });
 
 export const messageRuleSchema = z.object({
@@ -125,6 +135,7 @@ export const messageRuleSchema = z.object({
   delayMinutes: z.coerce.number().int().min(0).max(10080).nullable(),
   groupingWindowMinutes: z.coerce.number().int().min(0).max(1440).nullable(),
   maxAttempts: z.coerce.number().int().min(1).max(20).nullable(),
+  fallbackChannel: z.enum(['whatsapp']).nullable().default(null),
   isEnabled: z.boolean().default(true),
 });
 

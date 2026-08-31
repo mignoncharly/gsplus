@@ -17,6 +17,11 @@ export type TemplateOverride = {
   preheader: string;
   body: string[];
   version: number;
+  senderName: string | null;
+  fromAddress: string | null;
+  replyTo: string | null;
+  channel: 'email';
+  fallbackChannel: 'whatsapp' | null;
 };
 
 const overrides = new Map<string, TemplateOverride>();
@@ -43,7 +48,11 @@ export const refreshTemplateOverrides = async () => {
       // An override with no body would silently blank a customer e-mail; skip it and
       // let the compiled template stand.
       if (!row.subject.trim() || body.length === 0) continue;
-      next.set(key, { subject: row.subject, preheader: row.preheader, body, version: row.version });
+      next.set(key, {
+        subject: row.subject, preheader: row.preheader, body, version: row.version,
+        senderName: row.senderName, fromAddress: row.fromAddress, replyTo: row.replyTo,
+        channel: 'email', fallbackChannel: row.fallbackChannel === 'whatsapp' ? 'whatsapp' : null,
+      });
     }
     overrides.clear();
     for (const [key, value] of next) overrides.set(key, value);

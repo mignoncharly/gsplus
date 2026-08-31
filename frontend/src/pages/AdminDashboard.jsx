@@ -1347,7 +1347,12 @@ const AdminDashboard = () => {
                   templates={messageTemplates}
                   templatesMeta={messageTemplatesMeta}
                   rules={messageRules}
-                  onReloadTemplates={() => refreshAdminTab('notifications')}
+                  onReloadTemplates={async (locale = 'fr') => {
+                    const [library, rules] = await Promise.all([getAdminMessages(locale), getAdminMessageRules()]);
+                    setMessageTemplates(library.items);
+                    setMessageTemplatesMeta(library.meta);
+                    setMessageRules(rules.items);
+                  }}
                   openActionDialog={openActionDialog}
                   runAction={runAction}
                   onResolve={classifyNotification}

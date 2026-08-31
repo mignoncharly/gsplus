@@ -350,6 +350,25 @@ const whatsappConfigured = () =>
       env.WHATSAPP_APP_SECRET,
   );
 
+const emailAddress = (value: unknown) =>
+  typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? value.trim() : null;
+
+const emailDeliveryHeaders = (event: NotificationEvent) => {
+  const rendered = event.renderedContent;
+  const delivery = rendered && typeof rendered === 'object' && !Array.isArray(rendered)
+    ? (rendered as Record<string, unknown>).delivery : null;
+  const config = delivery && typeof delivery === 'object' && !Array.isArray(delivery)
+    ? delivery as Record<string, unknown> : {};
+  const address = emailAddress(config.fromAddress);
+  const replyTo = emailAddress(config.replyTo);
+  const senderName = typeof config.senderName === 'string'
+    ? config.senderName.replace(/[\r\n<>]/g, '').trim().slice(0, 120) : '';
+  return {
+    from: address ? (senderName ? `${senderName} <${address}>` : address) : env.SMTP_FROM,
+    ...(replyTo ? { replyTo } : {}),
+  };
+};
+
 const sendEmail = async (event: NotificationEvent, message: EmailMessage): Promise<DeliveryResult> => {
   if (!env.EMAIL_DELIVERY_ENABLED || !smtpConfigured()) throw new Error('EMAIL_CHANNEL_NOT_CONFIGURED');
   const transport = nodemailer.createTransport({
@@ -358,8 +377,10 @@ const sendEmail = async (event: NotificationEvent, message: EmailMessage): Promi
     secure: env.SMTP_SECURE,
     auth: env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
   });
+  const headers = emailDeliveryHeaders(event);
   const delivery = await transport.sendMail({
-    from: env.SMTP_FROM,
+    from: headers.from,
+    ...(headers.replyTo ? { replyTo: headers.replyTo } : {}),
     to: event.recipient,
     subject: message.subject,
     text: message.text,
@@ -554,6 +575,7 @@ const applyMessageRule = async (
     }
   }
 
+
   if (rule.maxAttempts !== null && rule.maxAttempts !== event.maxAttempts) {
     await prisma.notificationEvent.updateMany({
       where: { id: event.id, status: NotificationStatus.PENDING },
@@ -714,8 +736,8 @@ export const processNotificationEvent = async (id: string, adapters: Notificatio
       });
     }
     return terminal ? ('failed' as const) : ('retry_scheduled' as const);
-  }
 };
+  }
 
 export const processNotificationOutbox = async (adapters: NotificationDeliveryAdapters = {}) => {
   const now = adapters.now?.() ?? new Date();

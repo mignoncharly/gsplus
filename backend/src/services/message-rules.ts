@@ -13,6 +13,7 @@ export type MessageRuleSettings = {
   groupingWindowMinutes: number | null;
   maxAttempts: number | null;
   isEnabled: boolean;
+  fallbackChannel: 'whatsapp' | null;
 };
 
 /**
@@ -62,6 +63,7 @@ export const refreshMessageRules = async () => {
       next.set(row.event, {
         delayMinutes: row.delayMinutes,
         groupingWindowMinutes: row.groupingWindowMinutes,
+        fallbackChannel: row.fallbackChannel === 'whatsapp' ? 'whatsapp' : null,
         maxAttempts: row.maxAttempts,
         // A rule can never silence an alarm, whatever the stored row says.
         isEnabled: row.isEnabled || UNSILENCEABLE_EVENTS.has(row.event),

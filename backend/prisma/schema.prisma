@@ -122,15 +122,15 @@ model AdminUser {
   paymentTransitions                PaymentTransition[]
   reservationTransitions            ReservationTransition[]
   verifiedPayments                  Payment[]                         @relation("PaymentVerifiedBy")
-  scheduleExceptions                ScheduleException[]                @relation("ScheduleExceptionCreatedBy")
-  studioSettings                    StudioSetting[]                    @relation("StudioSettingUpdatedBy")
-  publishedSiteContent              SiteContent[]                      @relation("SiteContentPublishedBy")
-  updatedSiteContent                SiteContent[]                      @relation("SiteContentUpdatedBy")
-  publishedMessageTemplates         MessageTemplate[]                  @relation("MessageTemplatePublishedBy")
-  updatedMessageTemplates           MessageTemplate[]                  @relation("MessageTemplateUpdatedBy")
-  handledLeads              Lead[]                          @relation("LeadHandledBy")
-  updatedMessageRules               MessageRule[]                      @relation("MessageRuleUpdatedBy")
-  bookingRules                      BookingRule[]                      @relation("BookingRuleUpdatedBy")
+  scheduleExceptions                ScheduleException[]               @relation("ScheduleExceptionCreatedBy")
+  studioSettings                    StudioSetting[]                   @relation("StudioSettingUpdatedBy")
+  publishedSiteContent              SiteContent[]                     @relation("SiteContentPublishedBy")
+  updatedSiteContent                SiteContent[]                     @relation("SiteContentUpdatedBy")
+  publishedMessageTemplates         MessageTemplate[]                 @relation("MessageTemplatePublishedBy")
+  updatedMessageTemplates           MessageTemplate[]                 @relation("MessageTemplateUpdatedBy")
+  handledLeads                      Lead[]                            @relation("LeadHandledBy")
+  updatedMessageRules               MessageRule[]                     @relation("MessageRuleUpdatedBy")
+  bookingRules                      BookingRule[]                     @relation("BookingRuleUpdatedBy")
   adminCommands                     AdminCommand[]
   financialTasks                    FinancialTask[]
   rescheduleRequestsRecorded        ReservationRescheduleRequest[]    @relation("RescheduleRequestedBy")
@@ -191,7 +191,7 @@ model Package {
   reservations       Reservation[]
   versions           PackageVersion[]
 
-  bookingRule       BookingRule?
+  bookingRule BookingRule?
 
   @@index([isActive, isArchived, sortOrder])
 }
@@ -934,24 +934,24 @@ model StudioSetting {
 /// Editable page copy, FAQ entries and SEO text, versioned with the same
 /// draft -> published lifecycle the catalogue already uses.
 model SiteContent {
-  id            String     @id @default(cuid())
-  key           String
-  locale        String     @default("fr")
-  version       Int        @default(1)
-  status        String     @default("DRAFT")
+  id                       String     @id @default(cuid())
+  key                      String
+  locale                   String     @default("fr")
+  version                  Int        @default(1)
+  status                   String     @default("DRAFT")
   // Translation workflow applies to English drafts. The publication status above
   // remains the source of truth for what is visible to visitors.
   translationStatus        String?
   translationSourceVersion Int?
   translationError         String?
-  body          Json
-  publishedAt   DateTime?
-  publishedById String?
-  updatedById   String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  publishedBy   AdminUser? @relation("SiteContentPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
-  updatedBy     AdminUser? @relation("SiteContentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  body                     Json
+  publishedAt              DateTime?
+  publishedById            String?
+  updatedById              String?
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
+  publishedBy              AdminUser? @relation("SiteContentPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  updatedBy                AdminUser? @relation("SiteContentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@unique([key, locale, version])
   @@index([key, locale, status])
@@ -966,22 +966,30 @@ model SiteContent {
 /// whenever there is none, or whenever the database is unreachable. The outbox can
 /// therefore never lose a template.
 model MessageTemplate {
-  id            String     @id @default(cuid())
-  code          String
-  locale        String     @default("fr")
-  version       Int        @default(1)
-  status        String     @default("DRAFT")
-  subject       String
-  preheader     String
+  id              String     @id @default(cuid())
+  code            String
+  locale          String     @default("fr")
+  version         Int        @default(1)
+  status          String     @default("DRAFT")
+  subject         String
+  preheader       String
   /// Body lines as a JSON array of strings, matching the code registry's shape.
-  body          Json
-  publishedAt   DateTime?
-  publishedById String?
-  updatedById   String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  publishedBy   AdminUser? @relation("MessageTemplatePublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
-  updatedBy     AdminUser? @relation("MessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  body            Json
+  publishedAt     DateTime?
+  publishedById   String?
+  updatedById     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  publishedBy     AdminUser? @relation("MessageTemplatePublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  /// Delivery metadata is frozen with the published version and copied into the outbox
+  /// render. SMTP credentials remain server-only; these are the operator-facing mail
+  /// headers and channel policy.
+  senderName      String?
+  fromAddress     String?
+  replyTo         String?
+  channel         String     @default("email")
+  fallbackChannel String?
+  updatedBy       AdminUser? @relation("MessageTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@unique([code, locale, version])
   @@index([code, locale, status])
@@ -998,6 +1006,9 @@ model MessageRule {
   isEnabled             Boolean    @default(true)
   updatedById           String?
   createdAt             DateTime   @default(now())
+  /// Optional rescue channel after a terminal failure. It is only used when the
+  /// receiving channel is configured and the event contains an eligible recipient.
+  fallbackChannel       String?
   updatedAt             DateTime   @updatedAt
   updatedBy             AdminUser? @relation("MessageRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
@@ -1005,17 +1016,17 @@ model MessageRule {
 }
 
 model ScheduleException {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   /// Douala business day, `YYYY-MM-DD`.
-  date        String    @unique
-  isClosed    Boolean   @default(true)
+  date        String     @unique
+  isClosed    Boolean    @default(true)
   opensAt     String?
   closesAt    String?
   breaks      Json?
   reason      String
   createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   createdBy   AdminUser? @relation("ScheduleExceptionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([date])
@@ -1025,16 +1036,16 @@ model ScheduleException {
 /// Booking policy. One global row (packageId null) plus optional per-package
 /// overrides. A null field on a package row falls back to the global value.
 model BookingRule {
-  id               String    @id @default(cuid())
-  packageId        String?   @unique
+  id               String     @id @default(cuid())
+  packageId        String?    @unique
   minNoticeMinutes Int?
   horizonDays      Int?
   dailyCapacity    Int?
   bufferMinutes    Int?
   updatedById      String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  package          Package?  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  package          Package?   @relation(fields: [packageId], references: [id], onDelete: Cascade)
   updatedBy        AdminUser? @relation("BookingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([updatedById])
@@ -1244,20 +1255,19 @@ model CalendarSyncLog {
 
 /**
  * A permission granted to one account on top of what its role carries.
- *
  * Roles stay as the coarse default; a grant is how the owner opens one module to one
  * person without promoting them. There is no "deny" row on purpose: a permission a role
  * carries is removed by changing the role, so nobody has to reason about two directions
  * of override at once.
  */
 model AdminPermissionGrant {
-  id           String    @id @default(cuid())
-  adminUserId  String
-  permission   String
-  grantedById  String?
-  grantedAt    DateTime  @default(now())
-  admin        AdminUser @relation("AdminPermissionGrantAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
-  grantedBy    AdminUser? @relation("AdminPermissionGrantGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  id          String     @id @default(cuid())
+  adminUserId String
+  permission  String
+  grantedById String?
+  grantedAt   DateTime   @default(now())
+  admin       AdminUser  @relation("AdminPermissionGrantAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+  grantedBy   AdminUser? @relation("AdminPermissionGrantGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
 
   @@unique([adminUserId, permission])
   @@index([grantedById])
@@ -1280,27 +1290,28 @@ model AdminSavedView {
   @@index([adminUserId, scope, updatedAt])
 }
 
-
 model AdminSession {
-  id           String    @id @default(cuid())
-  adminUserId  String
-  userAgent    String?
-  ipAddress    String?
-  createdAt    DateTime  @default(now())
-  lastSeenAt   DateTime  @default(now())
-  expiresAt    DateTime
-  revokedAt    DateTime?
-  revokedById  String?
+  id            String     @id @default(cuid())
+  adminUserId   String
+  userAgent     String?
+  ipAddress     String?
+  createdAt     DateTime   @default(now())
+  lastSeenAt    DateTime   @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedById   String?
   revokedReason String?
-  admin        AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
-  revokedBy    AdminUser? @relation("AdminSessionRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  admin         AdminUser  @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  revokedBy     AdminUser? @relation("AdminSessionRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
 
   @@index([adminUserId, revokedAt])
   @@index([expiresAt])
   @@index([revokedById])
 }
 
-/** Single-use codes for the day the authenticator app is gone. Hashed, never stored in clear. */
+/**
+ * Single-use codes for the day the authenticator app is gone. Hashed, never stored in clear.
+ */
 model AdminRecoveryCode {
   id          String    @id @default(cuid())
   adminUserId String
@@ -1314,7 +1325,6 @@ model AdminRecoveryCode {
 
 /**
  * Every sign-in attempt, successful or not.
- *
  * Kept by e-mail rather than by account so an attempt against an address that does not
  * exist is recorded too — that is exactly the pattern worth seeing.
  */
