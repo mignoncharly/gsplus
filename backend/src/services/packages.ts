@@ -548,9 +548,6 @@ export const assertPublishable = (version: PublishableVersion, requireLocaleAppr
   if (missing.length > 0) {
     throw new HttpError(409, 'PACKAGE_PUBLICATION_FIELDS_REQUIRED', 'Complétez tous les champs obligatoires avant validation.', { fields: missing });
   }
-  if (version.effectiveAt && version.effectiveAt.getTime() > Date.now()) {
-    throw new HttpError(409, 'PACKAGE_EFFECTIVE_DATE_IN_FUTURE', 'La date d’effet doit être atteinte avant publication.');
-  }
 };
 
 export const validatePackageVersion = async (
@@ -614,6 +611,28 @@ export const reorderPackages = async (orderedIds: string[]) => {
   return listAdminPackages();
 };
 
+const activateValidatedPackageVersion = async (
+  tx: Prisma.TransactionClient,
+  current: PackageVersion,
+  publishedById: string | undefined,
+) => {
+  const now = new Date();
+  await tx.packageVersion.updateMany({
+    where: { packageId: current.packageId, status: PackageVersionStatus.PUBLISHED },
+    data: { status: PackageVersionStatus.ARCHIVED, archivedAt: now },
+  });
+  await tx.packageVersion.update({
+    where: { id: current.id },
+    data: { status: PackageVersionStatus.PUBLISHED, publishedAt: now, publishedById: publishedById ?? current.validatedById, archivedAt: null },
+  });
+  await tx.package.update({ where: { id: current.packageId }, data: {
+    name: current.name, category: current.category, description: current.description, price: current.price, currency: current.currency,
+    durationMin: current.durationMin, bookingMode: current.bookingMode, deliveryLabel: current.deliveryLabel, options: jsonValue(current.options),
+    legalText: current.legalText, legalApprovedAt: current.legalApprovedAt, publishedVersion: current.version, version: current.version,
+    isActive: true, isArchived: false, archivedAt: null,
+  } });
+};
+
 export const publishPackageVersion = async (
   packageId: string,
   expectedVersion: number,
@@ -625,45 +644,39 @@ export const publishPackageVersion = async (
       throw new HttpError(409, 'PACKAGE_NOT_VALIDATED', 'Validez les mentions obligatoires avant publication.');
     }
     assertPublishable(current, true);
-    const now = new Date();
-    await tx.packageVersion.updateMany({
-      where: { packageId, status: PackageVersionStatus.PUBLISHED },
-      data: { status: PackageVersionStatus.ARCHIVED, archivedAt: now },
-    });
-    await tx.packageVersion.update({
-      where: { id: current.id },
-      data: {
-        status: PackageVersionStatus.PUBLISHED,
-        publishedAt: now,
-        publishedById: adminUserId,
-        archivedAt: null,
-      },
-    });
-    await tx.package.update({
-      where: { id: packageId },
-      data: {
-        name: current.name,
-        category: current.category,
-        description: current.description,
-        price: current.price,
-        currency: current.currency,
-        durationMin: current.durationMin,
-        bookingMode: current.bookingMode,
-        deliveryLabel: current.deliveryLabel,
-        options: jsonValue(current.options),
-        legalText: current.legalText,
-        legalApprovedAt: current.legalApprovedAt,
-        publishedVersion: current.version,
-        version: current.version,
-        isActive: true,
-        isArchived: false,
-        archivedAt: null,
-      },
-    });
+    // A future effective date is a scheduling request. The worker promotes it only when
+    // the date arrives, keeping the current public version visible until then.
+    if (current.effectiveAt && current.effectiveAt.getTime() > Date.now()) return;
+    await activateValidatedPackageVersion(tx, current, adminUserId);
   });
   return loadAdminPackage(packageId);
 };
 
+/** Promote due validated versions. Safe to invoke from every API process. */
+export const activateDuePackageVersions = async () => {
+  const due = await prisma.packageVersion.findMany({
+    where: { status: PackageVersionStatus.VALIDATED, effectiveAt: { lte: new Date() } },
+    select: { id: true }, orderBy: { effectiveAt: 'asc' }, take: 100,
+  });
+  let activated = 0;
+  for (const candidate of due) {
+    const promoted = await prisma.$transaction(async (tx) => {
+      const current = await tx.packageVersion.findUnique({ where: { id: candidate.id } });
+      if (!current || current.status !== PackageVersionStatus.VALIDATED || !current.effectiveAt || current.effectiveAt > new Date()) return false;
+      const newest = await tx.packageVersion.findFirst({ where: { packageId: current.packageId }, orderBy: { version: 'desc' }, select: { id: true } });
+      // A newer edit supersedes a scheduled version; stale copy must not reappear.
+      if (newest?.id !== current.id) return false;
+      await activateValidatedPackageVersion(tx, current, undefined);
+      await tx.auditLog.create({ data: {
+        adminUserId: current.validatedById, action: 'package.publish.scheduled', entityType: 'Package', entityId: current.packageId,
+        metadata: { version: current.version, effectiveAt: current.effectiveAt },
+      } });
+      return true;
+    });
+    if (promoted) activated += 1;
+  }
+  return activated;
+};
 export const archivePublishedPackage = async (
   packageId: string,
   expectedVersion: number,

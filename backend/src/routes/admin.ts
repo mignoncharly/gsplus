@@ -53,6 +53,7 @@ import { executeQaNotificationOverride } from '../services/reservation-notificat
 import { deleteMediaFiles, processUploadedMedia } from '../services/media.js';
 import {
   createMediaWithRights,
+  archiveMediaWithRights,
   deleteMediaWithRights,
   listAdminMedia,
   reorderMedia,
@@ -1305,10 +1306,11 @@ router.post(
     assertAdminPermission(admin, 'PACKAGE_PUBLISH');
     const id = routeParam(req.params.id);
     const packageItem = await publishPackageVersion(id, req.body.expectedVersion, admin!.id);
-    await writeAuditLog(admin!.id, 'package.publish', 'Package', id, {
-      version: packageItem.publishedVersion,
+    const scheduled = packageItem.publicationStatus === 'VALIDATED' && packageItem.effectiveAt && new Date(packageItem.effectiveAt) > new Date();
+    await writeAuditLog(admin!.id, scheduled ? 'package.publish.schedule' : 'package.publish', 'Package', id, {
+      version: packageItem.version,
       fromStatus: 'VALIDATED',
-      toStatus: 'PUBLISHED',
+      toStatus: scheduled ? 'VALIDATED' : 'PUBLISHED',
       effectiveAt: packageItem.effectiveAt,
     });
     res.json({ data: packageItem });
@@ -1478,6 +1480,15 @@ router.patch(
     res.json({ data: media });
   }),
 );
+router.post(
+  '/media/:id/archive',
+  validate('params', idParamsSchema),
+  asyncHandler(async (req, res) => {
+    const media = await archiveMediaWithRights(routeParam(req.params.id), res.locals.admin);
+    res.json({ data: media });
+  }),
+);
+
 
 router.delete(
   '/media/:id',

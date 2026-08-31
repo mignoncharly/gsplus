@@ -1069,6 +1069,8 @@ model MediaItem {
   objectPosition    String?
   isFeatured        Boolean             @default(false)
   isPublished       Boolean             @default(false)
+  isArchived        Boolean             @default(false)
+  archivedAt        DateTime?
   rightsBasis       String?
   rightsEvidence    Json?
   reservationId     String?
@@ -1081,7 +1083,7 @@ model MediaItem {
   versions          MediaVersion[]
   consentUsages     MediaConsentUsage[]
 
-  @@index([isPublished, sortOrder])
+  @@index([isPublished, isArchived, sortOrder])
   @@index([category])
   @@index([rightsBasis, isPublished])
   @@index([reservationId])

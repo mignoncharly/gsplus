@@ -32,6 +32,7 @@ import {
   createAdminAvailabilityBlock,
   createAdminMedia,
   createAdminWithdrawalRequest,
+  archiveAdminMedia,
   createAdminImageConsentEvent,
   createAdminDataRightsRequest,
   deleteAdminAvailabilityBlock,
@@ -797,6 +798,11 @@ const AdminDashboard = () => {
     title: 'Supprimer le média', summary: item.title,
     consequence: 'Le fichier et ses dérivés disparaîtront de la galerie.', destructive: true,
   }, 'Supprimer le média', () => deleteAdminMedia(item.id));
+  const archiveMediaItem = (item) => simpleAction({
+    title: 'Archiver le média', summary: item.title,
+    consequence: 'Le média est dépublié et retiré du portfolio, mais son historique et ses preuves sont conservés.', destructive: true,
+  }, 'Archiver le média', () => archiveAdminMedia(item.id));
+
 
   const createMedia = async (event) => {
     event.preventDefault();
@@ -1300,6 +1306,7 @@ const AdminDashboard = () => {
               <React.Suspense fallback={<div className="admin-status-banner">Chargement du registre des droits médias…</div>}>
                 <AdminMediaRightsPanel
                   media={media}
+                  onArchive={archiveMediaItem}
                   integrity={mediaIntegrity}
                   onReorder={() => refreshAdminTab('portfolio')}
                   adminUser={adminUser}

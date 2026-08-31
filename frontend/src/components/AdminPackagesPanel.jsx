@@ -150,7 +150,7 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
       { name: 'effectiveAt', label: 'Date d’effet à Douala', type: 'datetime-local', required: true, wide: false,
         visibleWhen: advanced,
         defaultValue: pack.effectiveAt ? businessDateTimeLocalValue(pack.effectiveAt) : businessDateTimeLocalValue(new Date()),
-        help: 'Par défaut maintenant. Une date future est acceptée, mais la publication est refusée tant qu’elle n’est pas atteinte.' },
+        help: 'Par défaut maintenant. Une date future programme l’activation automatique à cette heure.' },
       { name: 'sortOrder', label: 'Ordre d’affichage', type: 'number', min: '0', wide: false,
         visibleWhen: advanced, defaultValue: String(pack.sortOrder ?? 0),
         help: 'L’ordre se règle normalement avec les flèches de la liste.' },

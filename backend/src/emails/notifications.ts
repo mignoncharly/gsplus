@@ -404,6 +404,37 @@ const whatsappTemplate = (type: string) => {
   return '';
 };
 
+const configuredEmailFallback = (event: NotificationEvent) => {
+  const rendered = event.renderedContent;
+  const delivery = rendered && typeof rendered === 'object' && !Array.isArray(rendered)
+    ? (rendered as Record<string, unknown>).delivery : null;
+  return delivery && typeof delivery === 'object' && !Array.isArray(delivery)
+    && (delivery as Record<string, unknown>).fallbackChannel === 'whatsapp';
+};
+
+const enqueueEmailWhatsAppFallback = async (event: NotificationEvent, failureCode: string) => {
+  if (!configuredEmailFallback(event) || !env.WHATSAPP_DELIVERY_ENABLED || !whatsappConfigured() || !event.reservation) return null;
+  const templateName = whatsappTemplate(event.type);
+  if (!templateName) return null;
+  const audience: WhatsAppAudience = event.type.endsWith('_admin') ? 'business' : 'customer';
+  const contact = reservationContact(event.reservation);
+  if (!contact.phone || (audience === 'customer' && !contact.whatsappConsent)) return null;
+  const fallback = await enqueue({
+    reservationId: event.reservation.id,
+    channel: 'whatsapp',
+    type: event.type,
+    recipient: contact.phone,
+    idempotencyKey: `notification:${event.id}:fallback:whatsapp`,
+    maxAttempts: WHATSAPP_MAX_ATTEMPTS,
+    templateCode: whatsAppTemplateCode(event.type, audience),
+    templateVersion: WHATSAPP_TEMPLATE_VERSION,
+    renderedContent: buildWhatsAppRenderedContent(event.reservation, audience) as unknown as Prisma.InputJsonValue,
+    metadata: { fallbackForNotificationId: event.id, emailFailureCode: failureCode },
+  });
+  await prisma.notificationEvent.update({ where: { id: event.id }, data: { replacementEventId: fallback.id } });
+  return fallback;
+};
+
 const whatsappRenderedContent = (event: NotificationEvent) => {
   const value = event.renderedContent;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -734,6 +765,9 @@ export const processNotificationEvent = async (id: string, adapters: Notificatio
         reservationId: event.reservationId,
         error: failureCode,
       });
+    }
+    if (terminal && event.channel === 'email') {
+      await enqueueEmailWhatsAppFallback(event, failureCode);
     }
     return terminal ? ('failed' as const) : ('retry_scheduled' as const);
 };

@@ -542,6 +542,11 @@ export const updateAdminMedia = async (id, data) => {
   return payload.data;
 };
 
+export const archiveAdminMedia = async (id) => {
+  const payload = await apiFetch(`/api/admin/media/${id}/archive`, { method: 'POST' });
+  return payload.data;
+};
+
 export const deleteAdminMedia = async (id) => {
   await apiFetch(`/api/admin/media/${id}`, {
     method: 'DELETE',

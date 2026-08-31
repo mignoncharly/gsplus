@@ -6,6 +6,7 @@ import { startZohoMailSmtpLogsWorker } from './services/zoho-mail-smtp-logs-sync
 import { refreshTemplateOverrides } from './services/message-template-overrides.js';
 import { refreshMessageRules } from './services/message-rules.js';
 import { refreshAdminPermissionGrants } from './services/admin-permissions.js';
+import { activateDuePackageVersions } from './services/packages.js';
 
 const app = createApp();
 // Load published template overrides before the workers start rendering. A failure here
@@ -25,6 +26,9 @@ templateOverrideTimer.unref?.();
 
 const stopNotificationWorker = startNotificationWorker();
 const stopCalendarWorker = startCalendarWorker();
+const packagePublicationTimer = setInterval(() => void activateDuePackageVersions().catch((error) => console.error('Scheduled package publication failed', error)), 60_000);
+packagePublicationTimer.unref?.();
+void activateDuePackageVersions().catch((error) => console.error('Scheduled package publication failed', error));
 const stopZohoMailSmtpLogsWorker = startZohoMailSmtpLogsWorker();
 
 const server = app.listen(env.PORT, env.HOST, () => {
@@ -37,6 +41,7 @@ server.on('error', (error) => {
 });
 
 process.on('SIGTERM', () => {
+  clearInterval(packagePublicationTimer);
   clearInterval(templateOverrideTimer);
   stopNotificationWorker();
   stopCalendarWorker();

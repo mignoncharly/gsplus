@@ -44,6 +44,7 @@ export const adminMediaInclude = {
 } satisfies Prisma.MediaItemInclude;
 
 export const publicMediaRightsWhere: Prisma.MediaItemWhereInput = {
+  isArchived: false,
   OR: [
     { rightsBasis: MEDIA_RIGHTS_BASES.catalog },
     {
@@ -228,31 +229,21 @@ const unpublishMediaInTransaction = async (
   });
   return unpublished;
 };
-
 export const listAdminMedia = () => prisma.mediaItem.findMany({
-  orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+  orderBy: [{ isArchived: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
   include: adminMediaInclude,
 });
 
-/**
- * Rewrite the portfolio order from an explicit sequence, spaced in tens.
- *
- * Same reasoning as the catalogue: order is a property of the list, so the whole list is
- * what gets written. A partial list would leave the items it omits at stale positions.
- */
+/** Rewrite the visible portfolio order from an explicit sequence. */
 export const reorderMedia = async (orderedIds: string[]) => {
-  const existing = await prisma.mediaItem.findMany({ select: { id: true } });
+  const existing = await prisma.mediaItem.findMany({ where: { isArchived: false }, select: { id: true } });
   const known = new Set(existing.map((item) => item.id));
   const unknown = orderedIds.filter((id) => !known.has(id));
-  if (unknown.length > 0) {
-    throw new HttpError(404, 'MEDIA_NOT_FOUND', 'Un média de cet ordre est introuvable.', { ids: unknown });
-  }
+  if (unknown.length > 0) throw new HttpError(404, 'MEDIA_NOT_FOUND', 'Un média de cet ordre est introuvable ou archivé.', { ids: unknown });
   if (orderedIds.length !== known.size || new Set(orderedIds).size !== orderedIds.length) {
-    throw new HttpError(422, 'MEDIA_ORDER_INCOMPLETE', 'L’ordre doit lister chaque média une seule fois.');
+    throw new HttpError(422, 'MEDIA_ORDER_INCOMPLETE', 'L’ordre doit lister chaque média actif une seule fois.');
   }
-  await prisma.$transaction(
-    orderedIds.map((id, index) => prisma.mediaItem.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } })),
-  );
+  await prisma.$transaction(orderedIds.map((id, index) => prisma.mediaItem.update({ where: { id }, data: { sortOrder: (index + 1) * 10 } })));
   return listAdminMedia();
 };
 
@@ -355,20 +346,36 @@ export const deleteMediaWithRights = async (
   assertAdminPermission(admin, 'MEDIA_RIGHTS_MANAGE');
   return prisma.$transaction(async (tx) => {
     const media = await tx.mediaItem.delete({ where: { id: mediaId } });
-    await tx.auditLog.create({
-      data: {
-        adminUserId: admin!.id,
-        action: 'media.rights_delete',
-        entityType: 'MediaItem',
-        entityId: media.id,
-        metadata: {
-          rightsBasis: media.rightsBasis,
-          reservationId: media.reservationId,
-          mediaUrl: media.url,
-        },
-      },
-    });
+    await tx.auditLog.create({ data: {
+      adminUserId: admin!.id,
+      action: 'media.rights_delete',
+      entityType: 'MediaItem',
+      entityId: media.id,
+      metadata: { rightsBasis: media.rightsBasis, reservationId: media.reservationId, mediaUrl: media.url },
+    } });
     return media;
+  });
+};
+
+export const archiveMediaWithRights = async (mediaId: string, admin: AdminUser | undefined) => {
+  assertAdminPermission(admin, 'MEDIA_RIGHTS_MANAGE');
+  return prisma.$transaction(async (tx) => {
+    const media = await tx.mediaItem.findUnique({ where: { id: mediaId } });
+    if (!media) throw new HttpError(404, 'MEDIA_NOT_FOUND', 'Média introuvable.');
+    const now = new Date();
+    if (media.isPublished) await unpublishMediaInTransaction(tx, media, admin!, now);
+    const archived = await tx.mediaItem.update({
+      where: { id: mediaId },
+      data: { isArchived: true, isPublished: false, isFeatured: false, archivedAt: now },
+    });
+    await tx.auditLog.create({ data: {
+      adminUserId: admin!.id,
+      action: 'media.archive',
+      entityType: 'MediaItem',
+      entityId: mediaId,
+      metadata: { mediaUrl: media.url, archivedAt: now },
+    } });
+    return archived;
   });
 };
 

@@ -15,49 +15,40 @@ const mediaRightsStatus = (item) => {
   return 'Autorisation non vérifiée';
 };
 
-const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle, onRemove, onReorder }) => {
+const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle, onRemove, onArchive, onReorder }) => {
   const owner = adminUser?.role === 'OWNER';
   const [alertsOnly, setAlertsOnly] = useState(false);
   const [moving, setMoving] = useState('');
   const [selected, setSelected] = useState([]);
+  const [previewItem, setPreviewItem] = useState(null);
+  const activeMedia = media.filter((item) => !item.isArchived);
+  const shown = alertsOnly ? activeMedia.filter((item) => (item.integrity?.alerts?.length ?? 0) > 0) : activeMedia;
 
-  const shown = alertsOnly ? media.filter((item) => (item.integrity?.alerts?.length ?? 0) > 0) : media;
-
-  /**
-   * Order is a property of the list, so the whole sequence is sent — the same reasoning
-   * as the catalogue, and the same reason: writing one item's position leaves every other
-   * item where it was.
-   */
   const move = async (item, direction) => {
-    const index = media.findIndex((entry) => entry.id === item.id);
+    const index = activeMedia.findIndex((entry) => entry.id === item.id);
     const target = index + direction;
-    if (index < 0 || target < 0 || target >= media.length) return;
-    const ids = media.map((entry) => entry.id);
+    if (index < 0 || target < 0 || target >= activeMedia.length) return;
+    const ids = activeMedia.map((entry) => entry.id);
     [ids[index], ids[target]] = [ids[target], ids[index]];
     setMoving(item.id);
-    try {
-      await reorderAdminMedia(ids);
-      await onReorder?.();
-    } finally {
-      setMoving('');
-    }
+    try { await reorderAdminMedia(ids); await onReorder?.(); }
+    finally { setMoving(''); }
+  };
 
   const replaceFile = async (item, file) => {
     if (!file) return;
     setMoving(item.id);
-    try {
-      await replaceAdminMedia(item.id, file);
-      await onReorder?.();
-    } finally {
-      setMoving('');
+    try { await replaceAdminMedia(item.id, file); await onReorder?.(); }
+    finally { setMoving(''); }
+  };
 
   const bulkPublication = async (published) => {
-    const targets = media.filter((item) => selected.includes(item.id) && item.isPublished !== published);
-    for (const item of targets) await onToggle(item, 'isPublished');
+    for (const item of activeMedia.filter((item) => selected.includes(item.id) && item.isPublished !== published)) await onToggle(item, 'isPublished');
     setSelected([]);
   };
-    }
-  };
+  const bulkArchive = async () => {
+    for (const item of activeMedia.filter((item) => selected.includes(item.id))) await onArchive(item);
+    setSelected([]);
   };
 
   return (
@@ -129,7 +120,6 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
             </select>
           </div>
           <div>
-      {selected.length > 0 && <section className="admin-card"><strong>{selected.length} média(s) sélectionné(s)</strong><div className="admin-action-row"><button type="button" className="btn btn-primary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(true)}>Publier la sélection</button><button type="button" className="btn btn-secondary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(false)}>Masquer la sélection</button><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setSelected([])}>Annuler</button></div></section>}
 
             <label htmlFor="portfolio-position" style={{ display: 'block', marginBottom: '0.5rem' }}>Position de l'image (CSS)</label>
             <input id="portfolio-position" autoComplete="off" name="objectPosition" placeholder="Ex: center top, center center" className="form-input" defaultValue="center top" disabled={!owner} />
@@ -154,6 +144,8 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
         </form>
       </div>
 
+      {previewItem && <section className="admin-card" role="dialog" aria-label="Aperçu public"><div className="admin-action-row"><h2>Aperçu avant publication</h2><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewItem(null)}>Fermer</button></div><img src={mediaUrl(previewItem.url)} alt={previewItem.altText || previewItem.title} style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', objectPosition: previewItem.objectPosition || 'center center' }} /><p><strong>{previewItem.title}</strong><br /><small>Rendu et cadrage visibles publiquement après publication.</small></p></section>}
+      {selected.length > 0 && <section className="admin-card"><strong>{selected.length} média(s) sélectionné(s)</strong><div className="admin-action-row"><button type="button" className="btn btn-primary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(true)}>Publier</button><button type="button" className="btn btn-secondary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(false)}>Masquer</button><button type="button" className="btn btn-secondary admin-sm-btn text-danger" disabled={!owner || Boolean(moving)} onClick={() => void bulkArchive()}>Archiver</button><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setSelected([])}>Annuler</button></div></section>}
       <div className="grid md:grid-cols-3 gap-6">
         {shown.map((item) => (
           <div key={item.id} className="admin-stat-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -194,6 +186,8 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
                 </ul>
               )}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewItem(item)} style={{ flex: 1 }}>Aperçu public</button>
+                <button type="button" className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onArchive(item)} disabled={!owner} style={{ flex: 1 }}>Archiver</button>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isPublished')} disabled={!owner} style={{ flex: 1 }}>
                   {item.isPublished ? 'Masquer' : 'Publier'}
                 </button>
@@ -201,10 +195,10 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
                   {item.isFeatured ? 'Standard' : 'Vedette'}
                 </button>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, -1)}
-                  disabled={!owner || alertsOnly || Boolean(moving) || media[0]?.id === item.id}
+                  disabled={!owner || alertsOnly || Boolean(moving) || activeMedia[0]?.id === item.id}
                   aria-label={`Monter ${item.title}`} style={{ flex: 1 }}>↑</button>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, 1)}
-                  disabled={!owner || alertsOnly || Boolean(moving) || media[media.length - 1]?.id === item.id}
+                  disabled={!owner || alertsOnly || Boolean(moving) || activeMedia[activeMedia.length - 1]?.id === item.id}
                   aria-label={`Descendre ${item.title}`} style={{ flex: 1 }}>↓</button>
                 <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onRemove(item)} disabled={!owner} style={{ width: '100%', marginTop: '0.5rem' }}>
                   <Trash2 size={12} /> Supprimer
