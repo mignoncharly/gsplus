@@ -149,3 +149,16 @@ export const publishContent = async (key: string, locale: string, adminUserId?: 
   });
   return published;
 };
+
+/** Restoring history opens a new draft; it never changes the public page by surprise. */
+export const restoreContentVersion = async (key: string, locale: string, version: number, adminUserId?: string) => {
+  const definition = definitionByKey.get(key);
+  if (!definition) throw new HttpError(404, 'CONTENT_NOT_FOUND', 'Contenu inconnu.');
+  const source = await prisma.siteContent.findFirst({ where: { key, locale, version } });
+  if (!source) throw new HttpError(404, 'CONTENT_VERSION_NOT_FOUND', 'Version introuvable.');
+  const draft = await saveContentDraft(key, locale, merge(definition, source.body), adminUserId);
+  await prisma.auditLog.create({
+    data: { adminUserId, action: 'content.restore_to_draft', entityType: 'SiteContent', entityId: draft.id, metadata: { key, locale, sourceVersion: version, draftVersion: draft.version } },
+  });
+  return draft;
+};

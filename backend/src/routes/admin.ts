@@ -96,7 +96,7 @@ import { getFinancialTask, listFinancialTasks } from '../services/financial-task
 import { deleteAdminSavedView, listAdminSavedViews, saveAdminSavedView } from '../services/admin-saved-views.js';
 import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
-import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
+import { listAdminContent, publishContent, restoreContentVersion, saveContentDraft } from '../services/site-content.js';
 import { messageRuleStatus } from '../services/message-rules.js';
 import {
   acceptAdminInvitation,
@@ -1935,6 +1935,15 @@ router.post(
     res.json({ data: await publishContent(routeParam(req.params.key), locale, admin?.id) });
   }),
 );
+
+router.post('/content/:key/restore/:version', asyncHandler(async (req, res) => {
+  const admin = res.locals.admin;
+  assertAdminPermission(admin, 'PACKAGE_PUBLISH');
+  const locale = req.query.locale === 'en' ? 'en' : 'fr';
+  const version = Number(routeParam(req.params.version));
+  if (!Number.isInteger(version) || version < 1) throw new HttpError(400, 'INVALID_CONTENT_VERSION', 'Version de contenu invalide.');
+  res.json({ data: await restoreContentVersion(routeParam(req.params.key), locale, version, admin?.id) });
+}));
 
 // === Phase 5 (ADM-05): the studio owns its own schedule ===
 // Opening hours already existed in the database but nothing wrote them, so changing an

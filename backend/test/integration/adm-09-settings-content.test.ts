@@ -110,6 +110,11 @@ describe('ADM-09 the owner can change ordinary information', () => {
     expect(versions[0].status).toBe('ARCHIVED');
     expect(versions[1].status).toBe('PUBLISHED');
     expect((await getPublishedContent('fr'))[key].weekdaysValue).toBe('11 h - 16 h');
+
+    await agent.post(`/api/admin/content/${encodeURIComponent(key)}/restore/1`).expect(200);
+    const restoredDraft = await prisma.siteContent.findFirstOrThrow({ where: { key, locale: 'fr', status: 'DRAFT' } });
+    expect((restoredDraft.body as { weekdaysValue: string }).weekdaysValue).toBe('10 h - 17 h');
+    expect((await getPublishedContent('fr'))[key].weekdaysValue).toBe('11 h - 16 h');
   });
 
   it('refuses to publish when there is no draft', async () => {
