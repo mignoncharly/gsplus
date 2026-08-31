@@ -47,6 +47,8 @@
 }
 
 .admin-agenda-day.is-today { border-left-color: var(--c-gold); }
+
+.admin-agenda-day-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
 /* A closed day should read as closed at a glance, not as an empty day. */
 .admin-agenda-day.is-closed { opacity: 0.65; border-left-color: #e74c3c; }
 

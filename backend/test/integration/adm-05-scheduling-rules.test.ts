@@ -44,6 +44,16 @@ const seed = async () => {
   return { owner, pack };
 };
 
+const signInAsStaff = async () => {
+  const email = 'adm-05-staff@example.test';
+  await prisma.adminUser.create({
+    data: { email, name: 'Staff', passwordHash: await bcrypt.hash(password, 4), role: AdminRole.STAFF },
+  });
+  const agent = request.agent(app);
+  await agent.post('/api/admin/login').send({ email, password }).expect(200);
+  return agent;
+};
+
 const signIn = async () => {
   const agent = request.agent(app);
   await agent.post('/api/admin/login').send({ email: 'adm-05-owner@example.test', password }).expect(200);
@@ -57,6 +67,36 @@ beforeEach(resetDatabase);
 afterAll(() => prisma.$disconnect());
 
 describe('ADM-05 the studio can change its own schedule', () => {
+  it('reserves every planning setting and availability mutation for the owner', async () => {
+    await seed();
+    const date = targetDate();
+    const agent = await signInAsStaff();
+
+    await agent.get('/api/admin/schedule/business-hours').expect(403);
+    await agent.get('/api/admin/schedule/exceptions').expect(403);
+    await agent.get('/api/admin/schedule/booking-rules').expect(403);
+    await agent.get('/api/admin/schedule/planning').query({ from: date, to: date }).expect(403);
+    await agent.get('/api/admin/calendar/sync-logs').expect(403);
+    await agent.get('/api/admin/calendar/health').expect(403);
+    await agent.get('/api/admin/availability-blocks').expect(403);
+
+    await agent.put('/api/admin/schedule/business-hours/1')
+      .send({ dayOfWeek: 1, opensAt: '09:00', closesAt: '18:00', isClosed: false })
+      .expect(403);
+    await agent.put('/api/admin/schedule/exceptions')
+      .send({ date, isClosed: true, reason: 'Tentative équipe' })
+      .expect(403);
+    await agent.put('/api/admin/schedule/booking-rules')
+      .send({ packageId: null, minNoticeMinutes: 60, horizonDays: null, dailyCapacity: null, bufferMinutes: null })
+      .expect(403);
+    await agent.post('/api/admin/availability-blocks')
+      .send({
+        startAt: businessLocalToInstant(date, '10:00').toISOString(),
+        endAt: businessLocalToInstant(date, '11:00').toISOString(),
+        reason: 'Tentative équipe',
+      })
+      .expect(403);
+  });
   it('changes an opening hour through the API and the public grid follows', async () => {
     const { pack } = await seed();
     const date = targetDate();
@@ -138,6 +178,24 @@ describe('ADM-05 the studio can change its own schedule', () => {
       .rejects.toThrow(/trop proche/);
     await expect(prisma.$transaction((tx) => assertBookableSlot(tx, pack, farSlot, new Date(farSlot.getTime() + 3_600_000))))
       .rejects.toThrow(/horizon/);
+  });
+
+  it('lets a package override extend the public booking horizon without changing other formulas', async () => {
+    const { pack } = await seed();
+    const agent = await signIn();
+    await agent.put('/api/admin/schedule/booking-rules')
+      .send({ packageId: null, minNoticeMinutes: null, horizonDays: 5, dailyCapacity: null, bufferMinutes: null })
+      .expect(200);
+    await agent.put('/api/admin/schedule/booking-rules')
+      .send({ packageId: pack.id, minNoticeMinutes: null, horizonDays: 20, dailyCapacity: null, bufferMinutes: null })
+      .expect(200);
+
+    const date = addBusinessDays(businessDateKey(new Date()), 10);
+    const slot = businessLocalToInstant(date, '10:00');
+    const availability = await getAvailability({ from: date, to: date, packageId: pack.id });
+    expect(availability.days[0].slots.some((item) => item.startAt === slot.toISOString() && item.available)).toBe(true);
+    await expect(prisma.$transaction((tx) => assertBookableSlot(tx, pack, slot, new Date(slot.getTime() + 3_600_000))))
+      .resolves.toBeUndefined();
   });
 
   it('leaves booking unchanged when no rule is configured', async () => {

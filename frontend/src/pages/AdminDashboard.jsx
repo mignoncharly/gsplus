@@ -750,14 +750,14 @@ const AdminDashboard = () => {
 
   // The planning panel creates a block through the shared action dialog, like every
   // other scheduling change, instead of a bare inline form.
-  const createBlockDialog = () => openActionDialog({
+  const createBlockDialog = (preset = {}) => openActionDialog({
     title: 'Bloquer un créneau',
-    summary: 'Indisponibilité ponctuelle du studio',
+    summary: preset.date ? `Indisponibilité du ${preset.date}` : 'Indisponibilité ponctuelle du studio',
     consequence: 'Les créneaux couverts disparaîtront immédiatement de la disponibilité publique.',
     confirmLabel: 'Bloquer ces créneaux',
     fields: [
-      { name: 'startAt', label: 'Début à Douala', type: 'datetime-local', required: true },
-      { name: 'endAt', label: 'Fin à Douala', type: 'datetime-local', required: true },
+      { name: 'startAt', label: 'Début à Douala', type: 'datetime-local', required: true, defaultValue: preset.date && preset.startAt ? `${preset.date}T${preset.startAt}` : '' },
+      { name: 'endAt', label: 'Fin à Douala', type: 'datetime-local', required: true, defaultValue: preset.date && preset.endAt ? `${preset.date}T${preset.endAt}` : '' },
       { name: 'reason', label: 'Raison / motif', defaultValue: '' },
     ],
     onConfirm: async (values) => {
@@ -922,7 +922,7 @@ const AdminDashboard = () => {
     ['leads', 'Demandes reçues', Briefcase],
     ['finance', 'Paiements', DollarSign],
     ['tarifs', 'Tarifs', DollarSign],
-    ['availability', 'Disponibilités', Ban],
+    ...(adminUser?.role === 'OWNER' ? [['availability', 'Disponibilités', Ban]] : []),
     ['portfolio', 'Portfolio', ImageIcon],
     ['notifications', 'Communications', Mail],
     ...(adminUser?.role === 'OWNER' ? [['settings', 'Paramètres', Settings]] : []),
@@ -1266,7 +1266,7 @@ const AdminDashboard = () => {
             </Motion.div>
           )}
 
-          {activeTab === 'availability' && (
+          {activeTab === 'availability' && adminUser?.role === 'OWNER' && (
             <Motion.div key="availability" variants={pageTransition} initial="initial" animate="animate" exit="exit">
               <React.Suspense fallback={<div className="admin-card">Chargement du planning…</div>}>
                 <AdminPlanningPanel
@@ -1278,6 +1278,14 @@ const AdminDashboard = () => {
                   onDeleteBlock={removeAvailabilityBlock}
                 />
               </React.Suspense>
+            </Motion.div>
+          )}
+
+          {activeTab === 'availability' && adminUser?.role !== 'OWNER' && (
+            <Motion.div key="availability-forbidden" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <div className="admin-feedback error" role="alert">
+                Les disponibilités et les règles de réservation sont réservées au compte propriétaire.
+              </div>
             </Motion.div>
           )}
 

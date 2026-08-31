@@ -1943,7 +1943,7 @@ router.post(
 router.get(
   '/schedule/business-hours',
   asyncHandler(async (_req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     res.json({ data: await listBusinessHours() });
   }),
 );
@@ -1952,8 +1952,7 @@ router.put(
   '/schedule/business-hours/:dayOfWeek',
   validate('body', businessHourUpdateSchema),
   asyncHandler(async (req, res) => {
-    const admin = res.locals.admin;
-    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const admin = requireOwner(res);
     const dayOfWeek = Number(routeParam(req.params.dayOfWeek));
     if (dayOfWeek !== req.body.dayOfWeek) {
       throw new HttpError(400, 'DAY_MISMATCH', 'Le jour de l’URL et celui du corps diffèrent.');
@@ -1965,7 +1964,7 @@ router.put(
 router.get(
   '/schedule/exceptions',
   asyncHandler(async (req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     const from = typeof req.query.from === 'string' ? req.query.from : undefined;
     const to = typeof req.query.to === 'string' ? req.query.to : undefined;
     res.json({ data: await listScheduleExceptions(from, to) });
@@ -1976,8 +1975,7 @@ router.put(
   '/schedule/exceptions',
   validate('body', scheduleExceptionSchema),
   asyncHandler(async (req, res) => {
-    const admin = res.locals.admin;
-    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const admin = requireOwner(res);
     res.json({ data: await upsertScheduleException(req.body, admin?.id) });
   }),
 );
@@ -1985,8 +1983,7 @@ router.put(
 router.delete(
   '/schedule/exceptions/:date',
   asyncHandler(async (req, res) => {
-    const admin = res.locals.admin;
-    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const admin = requireOwner(res);
     await deleteScheduleException(routeParam(req.params.date), admin?.id);
     res.status(204).send();
   }),
@@ -1995,7 +1992,7 @@ router.delete(
 router.get(
   '/schedule/booking-rules',
   asyncHandler(async (_req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     res.json({ data: await listBookingRules() });
   }),
 );
@@ -2004,8 +2001,7 @@ router.put(
   '/schedule/booking-rules',
   validate('body', bookingRuleSchema),
   asyncHandler(async (req, res) => {
-    const admin = res.locals.admin;
-    assertAdminPermission(admin, 'RESERVATION_RESCHEDULE');
+    const admin = requireOwner(res);
     res.json({ data: await upsertBookingRule(req.body, admin?.id) });
   }),
 );
@@ -2014,7 +2010,7 @@ router.get(
   '/schedule/planning',
   validate('query', planningWindowQuerySchema),
   asyncHandler(async (_req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     const { from, to } = res.locals.validated.query;
     res.json({ data: await getPlanningWindow(from, to) });
   }),
@@ -2024,7 +2020,7 @@ router.get(
   '/calendar/sync-logs',
   validate('query', calendarSyncLogListQuerySchema),
   asyncHandler(async (_req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     const result = await listCalendarSyncLogs(res.locals.validated.query);
     res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
   }),
@@ -2033,7 +2029,7 @@ router.get(
 router.get(
   '/calendar/health',
   asyncHandler(async (_req, res) => {
-    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    requireOwner(res);
     res.json({ data: await getCalendarHealth() });
   }),
 );
@@ -2041,6 +2037,7 @@ router.get(
 router.get(
   '/availability-blocks',
   asyncHandler(async (_req, res) => {
+    requireOwner(res);
     const blocks = await prisma.availabilityBlock.findMany({
       orderBy: { startAt: 'desc' },
       take: 100,
@@ -2054,9 +2051,9 @@ router.post(
   '/availability-blocks',
   validate('body', availabilityBlockCreateSchema),
   asyncHandler(async (req, res) => {
+    const admin = requireOwner(res);
     const block = await createAvailabilityBlock(req.body);
-    await writeAuditLog(res.locals.admin?.id, 'availability_block.create', 'AvailabilityBlock', block.id, req.body);
-
+    await writeAuditLog(admin.id, 'availability_block.create', 'AvailabilityBlock', block.id, req.body);
     res.status(201).json({ data: block });
   }),
 );
@@ -2066,10 +2063,10 @@ router.patch(
   validate('params', idParamsSchema),
   validate('body', availabilityBlockUpdateSchema),
   asyncHandler(async (req, res) => {
+    const admin = requireOwner(res);
     const id = routeParam(req.params.id);
     const block = await updateAvailabilityBlock(id, req.body);
-    await writeAuditLog(res.locals.admin?.id, 'availability_block.update', 'AvailabilityBlock', block.id, req.body);
-
+    await writeAuditLog(admin.id, 'availability_block.update', 'AvailabilityBlock', block.id, req.body);
     res.json({ data: block });
   }),
 );
@@ -2078,10 +2075,10 @@ router.delete(
   '/availability-blocks/:id',
   validate('params', idParamsSchema),
   asyncHandler(async (req, res) => {
+    const admin = requireOwner(res);
     const id = routeParam(req.params.id);
     await deleteAvailabilityBlock(id);
-    await writeAuditLog(res.locals.admin?.id, 'availability_block.delete', 'AvailabilityBlock', id);
-
+    await writeAuditLog(admin.id, 'availability_block.delete', 'AvailabilityBlock', id);
     res.status(204).send();
   }),
 );
@@ -2090,13 +2087,11 @@ router.post(
   '/calendar/sync/:reservationId',
   validate('params', reservationIdParamsSchema),
   asyncHandler(async (req, res) => {
+    const admin = requireOwner(res);
     const reservationId = routeParam(req.params.reservationId);
     const log = await retryCalendarSync(reservationId);
-    await writeAuditLog(res.locals.admin?.id, 'calendar.sync', 'Reservation', reservationId, { logId: log.id });
-
-    res.status(200).json({
-      data: log,
-    });
+    await writeAuditLog(admin.id, 'calendar.sync', 'Reservation', reservationId, { logId: log.id });
+    res.status(200).json({ data: log });
   }),
 );
 

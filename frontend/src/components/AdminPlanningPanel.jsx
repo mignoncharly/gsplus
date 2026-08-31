@@ -91,7 +91,7 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
   const editHours = (day) => openActionDialog({
     title: `Horaires — ${DAY_NAMES[day.dayOfWeek]}`,
     summary: day.isClosed ? 'Actuellement fermé' : `Actuellement ${day.opensAt} – ${day.closesAt}`,
-    consequence: 'La disponibilité publique et Cal.com refléteront la nouvelle règle immédiatement.',
+    consequence: 'La disponibilité publique reflétera la nouvelle règle immédiatement.',
     confirmLabel: 'Enregistrer les horaires',
     fields: [
       { name: 'isClosed', label: 'Jour d’ouverture', type: 'select', required: true, defaultValue: day.isClosed ? 'true' : 'false',
@@ -118,13 +118,13 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
     },
   });
 
-  const addException = () => openActionDialog({
+  const addException = (date = anchor) => openActionDialog({
     title: 'Ajouter une exception datée',
     summary: 'Jour férié, fermeture exceptionnelle ou horaires particuliers',
-    consequence: 'Cette date remplacera le rythme hebdomadaire pour le public et pour Cal.com.',
+    consequence: 'Cette date remplacera immédiatement le rythme hebdomadaire de disponibilité publique.',
     confirmLabel: 'Enregistrer l’exception',
     fields: [
-      { name: 'date', label: 'Date (AAAA-MM-JJ)', type: 'date', required: true, defaultValue: anchor },
+      { name: 'date', label: 'Date (AAAA-MM-JJ)', type: 'date', required: true, defaultValue: date },
       { name: 'isClosed', label: 'Type', type: 'select', required: true, defaultValue: 'true',
         options: [{ value: 'true', label: 'Fermé toute la journée' }, { value: 'false', label: 'Horaires particuliers' }] },
       { name: 'opensAt', label: 'Ouverture si horaires particuliers', defaultValue: '' },
@@ -155,12 +155,16 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
     },
   });
 
-  const editRules = () => {
-    const current = rules?.global ?? {};
+  const editRules = (packageRule = null, package_ = null) => {
+    const current = packageRule ?? rules?.global ?? {};
+    const packageName = package_?.name ?? packageRule?.package?.name;
+    const isOverride = Boolean(package_ || packageRule);
     openActionDialog({
-      title: 'Règles de réservation',
-      summary: 'Valeurs par défaut appliquées à toutes les formules',
-      consequence: 'Un champ laissé vide signifie « aucune limite », comme avant la mise en place de ces règles.',
+      title: isOverride ? `Règles — ${packageName}` : 'Règles de réservation',
+      summary: isOverride ? 'Dérogation pour cette formule uniquement' : 'Valeurs par défaut appliquées à toutes les formules',
+      consequence: isOverride
+        ? 'Un champ laissé vide reprend la valeur générale. La disponibilité publique est recalculée immédiatement.'
+        : 'Un champ laissé vide signifie « aucune limite », comme avant la mise en place de ces règles.',
       confirmLabel: 'Enregistrer les règles',
       fields: [
         { name: 'minNoticeMinutes', label: 'Délai minimum avant une séance, en minutes', type: 'number', min: '0', defaultValue: current.minNoticeMinutes ?? '' },
@@ -171,7 +175,7 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
       onConfirm: async (values) => {
         const number = (value) => (String(value).trim() === '' ? null : Number(value));
         const success = await runAction('Règles de réservation', () => saveAdminBookingRule({
-          packageId: null,
+          packageId: package_?.id ?? packageRule?.packageId ?? null,
           minNoticeMinutes: number(values.minNoticeMinutes),
           horizonDays: number(values.horizonDays),
           dailyCapacity: number(values.dailyCapacity),
@@ -180,6 +184,16 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
         if (success) reload();
       },
     });
+  };
+
+  const effectivePackageRule = (package_) => {
+    const override = rules?.perPackage?.find((item) => item.packageId === package_.id);
+    return {
+      ...rules?.effectiveGlobal,
+      ...Object.fromEntries(Object.entries(override ?? {}).filter(([key, value]) => (
+        ['minNoticeMinutes', 'horizonDays', 'dailyCapacity', 'bufferMinutes'].includes(key) && value !== null
+      ))),
+    };
   };
 
   const entriesFor = (date) => {
@@ -247,6 +261,15 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
                     <strong>{DAY_NAMES[day.dayOfWeek]} {day.date}</strong>
                     <span>{day.isClosed ? `Fermé${day.reason ? ` — ${day.reason}` : ''}` : `${day.opensAt} – ${day.closesAt}`}</span>
                   </div>
+                  <div className="admin-agenda-day-actions">
+                    <button type="button" className="btn btn-secondary admin-sm-btn"
+                      onClick={() => onCreateBlock({ date: day.date, startAt: day.opensAt || '09:00', endAt: day.closesAt || '18:00' })}>
+                      Bloquer ce jour
+                    </button>
+                    <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => addException(day.date)}>
+                      Exception
+                    </button>
+                  </div>
                   {empty ? <p className="admin-agenda-empty">Aucune séance.</p> : (
                     <ul className="admin-agenda-entries">
                       {entries.reservations.map((item) => (
@@ -282,17 +305,12 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
 
       <section className="admin-card" aria-labelledby="weekly-hours">
         <h2 id="weekly-hours"><Clock size={18} aria-hidden="true" /> Horaires hebdomadaires</h2>
-        <p className="admin-record-hint">Modifiables sans développement. Le public et Cal.com suivent la règle enregistrée.</p>
+        <p className="admin-record-hint">Modifiables sans développement. Le public suit la règle enregistrée immédiatement.</p>
         <ul className="admin-hours-list">
           {Array.from({ length: 7 }, (_item, dayOfWeek) => hours.find((hour) => hour.dayOfWeek === dayOfWeek) ?? { dayOfWeek, isClosed: true, opensAt: null, closesAt: null, breaks: null }).map((day) => (
             <li key={day.dayOfWeek}>
-              <div>
-                <strong>{DAY_NAMES[day.dayOfWeek]}</strong>
-                <small>{day.isClosed ? 'Fermé' : `${day.opensAt} – ${day.closesAt} · pauses : ${breaksLabel(day.breaks)}`}</small>
-              </div>
-              <button type="button" className="btn btn-secondary admin-sm-btn"
-                aria-label={`Modifier les horaires du ${DAY_NAMES[day.dayOfWeek].toLowerCase()}`}
-                onClick={() => editHours(day)}>Modifier</button>
+              <div><strong>{DAY_NAMES[day.dayOfWeek]}</strong><small>{day.isClosed ? 'Fermé' : `${day.opensAt} – ${day.closesAt} · pauses : ${breaksLabel(day.breaks)}`}</small></div>
+              <button type="button" className="btn btn-secondary admin-sm-btn" aria-label={`Modifier les horaires du ${DAY_NAMES[day.dayOfWeek].toLowerCase()}`} onClick={() => editHours(day)}>Modifier</button>
             </li>
           ))}
         </ul>
@@ -301,19 +319,14 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
       <section className="admin-card" aria-labelledby="exceptions">
         <div className="admin-agenda-head">
           <h2 id="exceptions">Exceptions datées</h2>
-          <button type="button" className="btn btn-primary admin-sm-btn" onClick={addException}><Plus size={14} /> Ajouter</button>
+          <button type="button" className="btn btn-primary admin-sm-btn" onClick={() => addException()}><Plus size={14} /> Ajouter</button>
         </div>
         {exceptions.length === 0 ? <p className="admin-table-empty">Aucune exception enregistrée.</p> : (
           <ul className="admin-hours-list">
             {exceptions.map((exception) => (
               <li key={exception.id}>
-                <div>
-                  <strong>{exception.date}</strong>
-                  <small>{exception.isClosed ? 'Fermé' : `${exception.opensAt} – ${exception.closesAt}`} · {exception.reason}</small>
-                </div>
-                <button type="button" className="btn btn-secondary admin-sm-btn text-danger" onClick={() => removeException(exception)}>
-                  <Trash2 size={14} /> Supprimer
-                </button>
+                <div><strong>{exception.date}</strong><small>{exception.isClosed ? 'Fermé' : `${exception.opensAt} – ${exception.closesAt}`} · {exception.reason}</small></div>
+                <button type="button" className="btn btn-secondary admin-sm-btn text-danger" onClick={() => removeException(exception)}><Trash2 size={14} /> Supprimer</button>
               </li>
             ))}
           </ul>
@@ -322,20 +335,30 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
 
       <section className="admin-card" aria-labelledby="booking-rules">
         <div className="admin-agenda-head">
-          <h2 id="booking-rules">Règles de réservation</h2>
-          <button type="button" className="btn btn-secondary admin-sm-btn"
-            aria-label="Modifier les règles de réservation" onClick={editRules}>Modifier</button>
+          <div><h2 id="booking-rules">Règles de réservation</h2><p className="admin-record-hint">La règle générale s’applique par défaut ; une dérogation ne modifie qu’une formule.</p></div>
+          <button type="button" className="btn btn-secondary admin-sm-btn" aria-label="Modifier les règles générales de réservation" onClick={() => editRules()}>Modifier le défaut</button>
         </div>
-        {rules ? (
+        {rules ? <>
           <dl className="admin-health-grid">
             <div><dt>Délai minimum</dt><dd>{rules.effectiveGlobal.minNoticeMinutes ? `${rules.effectiveGlobal.minNoticeMinutes} min` : 'Aucun'}</dd></div>
             <div><dt>Horizon</dt><dd>{rules.effectiveGlobal.horizonDays ? `${rules.effectiveGlobal.horizonDays} jours` : 'Illimité'}</dd></div>
             <div><dt>Capacité quotidienne</dt><dd>{rules.effectiveGlobal.dailyCapacity ?? 'Illimitée'}</dd></div>
             <div><dt>Battement</dt><dd>{rules.effectiveGlobal.bufferMinutes ? `${rules.effectiveGlobal.bufferMinutes} min` : 'Aucun'}</dd></div>
           </dl>
-        ) : <p className="admin-table-empty">Chargement…</p>}
+          <ul className="admin-hours-list admin-package-rules">
+            {rules.packages.map((package_) => {
+              const override = rules.perPackage.find((item) => item.packageId === package_.id) ?? null;
+              const effective = effectivePackageRule(package_);
+              return <li key={package_.id}>
+                <div><strong>{package_.name}</strong><small>{override
+                  ? `Dérogation : ${effective.minNoticeMinutes ? `${effective.minNoticeMinutes} min de délai` : 'sans délai'} · ${effective.horizonDays ? `${effective.horizonDays} j` : 'horizon illimité'} · ${effective.dailyCapacity ?? 'capacité illimitée'}`
+                  : 'Utilise les règles générales'}</small></div>
+                <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => editRules(override, package_)}>{override ? 'Modifier la dérogation' : 'Créer une dérogation'}</button>
+              </li>;
+            })}
+          </ul>
+        </> : <p className="admin-table-empty">Chargement…</p>}
       </section>
-
       <section className="admin-card" aria-labelledby="blocks">
         <div className="admin-agenda-head">
           <h2 id="blocks">Blocages ponctuels</h2>
