@@ -244,11 +244,7 @@ export const adminExportUrl = (kind, filters = {}) =>
   apiUrl(`/api/admin/${kind}/export.csv?${adminQuery(filters)}`);
 
 export const getAdminFinancialTasks = async (filters = {}) => {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
-  }
-  const payload = await apiFetch(`/api/admin/financial-tasks?${params.toString()}`);
+  const payload = await apiFetch(`/api/admin/financial-tasks?${adminQuery(filters)}`);
   return { items: payload.data, meta: payload.meta };
 };
 
@@ -283,6 +279,10 @@ export const saveAdminBookingRule = async (body) =>
 export const getAdminPlanning = async (from, to) =>
   (await apiFetch(`/api/admin/schedule/planning?${adminQuery({ from, to })}`)).data;
 export const getAdminCalendarHealth = async () => (await apiFetch('/api/admin/calendar/health')).data;
+export const getAdminCalendarSyncLogs = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/calendar/sync-logs?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta };
+};
 
 export const getAdminDashboard = async () => (await apiFetch('/api/admin/dashboard')).data;
 

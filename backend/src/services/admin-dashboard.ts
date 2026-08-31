@@ -102,7 +102,7 @@ export const buildAdminDashboard = async (now = new Date()) => {
       queue('paymentsToVerify', 'Paiements à vérifier', paymentsToVerify, '/admin/paiements/verification?open=true'),
       queue('reservationsToDecide', 'Réservations à décider', reservationsToDecide, '/admin/reservations?status=PENDING_CONFIRMATION'),
       queue('informationRequired', 'Informations manquantes', informationRequired, '/admin/paiements/verification?status=PAYMENT_INFO_REQUIRED'),
-      queue('reschedulesPending', 'Reports en attente', reschedulesPending, '/admin/reservations?status=CONFIRMED&status=PENDING_CONFIRMATION'),
+      queue('reschedulesPending', 'Reports en attente', reschedulesPending, '/admin/reservations?rescheduleStatus=PENDING'),
     ],
     // Zone 2 — Aujourd'hui.
     today: [
@@ -110,16 +110,16 @@ export const buildAdminDashboard = async (now = new Date()) => {
     ],
     // Zone 3 — Finances.
     finance: [
-      queue('refundsToProcess', 'Remboursements à traiter', refundsToProcess, '/admin/paiements/remboursements?status=PENDING'),
+      queue('refundsToProcess', 'Remboursements à traiter', refundsToProcess, '/admin/paiements/remboursements?status=PENDING&status=IN_PROGRESS'),
     ],
     // Zone 4 — Intégrations.
     integrations: [
-      queue('calendarFailures', 'Échecs Cal.com', calendarFailures, '/admin/planning'),
-      queue('emailFailures', 'Envois en échec', emailFailures, '/admin/messages'),
+      queue('calendarFailures', 'Échecs Cal.com', calendarFailures, '/admin/planning?calendarStatus=FAILED&calendarStatus=RETRYING'),
+      queue('emailFailures', 'Envois en échec', emailFailures, '/admin/messages?status=FAILED&actionableOnly=true'),
     ],
     // Zone 5 — Demandes reçues.
     requests: [
-      queue('newRequests', 'Demandes non lues', newRequests, '/admin/demandes'),
+      queue('newRequests', 'Demandes non lues', newRequests, '/admin/demandes?status=NEW'),
     ],
     // Zone 6 — Résumé. Revenue is stated net, with the deductions shown rather than
     // folded away, because a verified payment on a cancelled booking is not income.

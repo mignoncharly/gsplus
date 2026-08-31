@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Info, RotateCcw, Search } from 'lucide-react';
 
-import { searchAdminReservations } from '../lib/api';
+import { getAdminPackages, searchAdminReservations } from '../lib/api';
 import { formatBusinessDateTime } from '../lib/business-time';
 import { statusLabel } from '../lib/status-labels';
 import './AdminReservationsPanel.css';
@@ -28,6 +28,8 @@ const filtersFromParams = (params) => ({
   q: params.get('q') || '',
   status: params.getAll('status'),
   payment: params.getAll('payment'),
+  packageId: params.get('packageId') || '',
+  rescheduleStatus: params.getAll('rescheduleStatus'),
   from: params.get('from') || '',
   to: params.get('to') || '',
   sort: params.get('sort') || 'startAt',
@@ -41,6 +43,7 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
   const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
 
   const [items, setItems] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [meta, setMeta] = useState({ total: 0, limit: PAGE_SIZE, offset: 0 });
   const [error, setError] = useState('');
   const [loadedKey, setLoadedKey] = useState(null);
@@ -49,6 +52,12 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
   // Loading is exactly "the results on screen do not answer the current query", so it
   // is derived rather than stored, and no state is set synchronously in the effect.
   const loading = loadedKey !== queryKey;
+
+  useEffect(() => {
+    let cancelled = false;
+    void getAdminPackages().then((items) => { if (!cancelled) setPackages(items); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +82,8 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
     if (next.q) params.set('q', next.q);
     for (const status of next.status) params.append('status', status);
     for (const payment of next.payment) params.append('payment', payment);
+    for (const rescheduleStatus of next.rescheduleStatus) params.append('rescheduleStatus', rescheduleStatus);
+    if (next.packageId) params.set('packageId', next.packageId);
     if (next.from) params.set('from', next.from);
     if (next.to) params.set('to', next.to);
     if (next.sort && next.sort !== 'startAt') params.set('sort', next.sort);
@@ -88,6 +99,8 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
       q: String(form.get('q') || '').trim(),
       status: form.getAll('status').map(String),
       payment: form.getAll('payment').map(String),
+      rescheduleStatus: form.getAll('rescheduleStatus').map(String),
+      packageId: String(form.get('packageId') || ''),
       from: String(form.get('from') || ''),
       to: String(form.get('to') || ''),
       sort: String(form.get('sort') || 'startAt'),
@@ -96,8 +109,8 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
     });
   };
 
-  const activeFilterCount = filters.status.length + filters.payment.length
-    + (filters.q ? 1 : 0) + (filters.from ? 1 : 0) + (filters.to ? 1 : 0);
+  const activeFilterCount = filters.status.length + filters.payment.length + filters.rescheduleStatus.length
+    + (filters.packageId ? 1 : 0) + (filters.q ? 1 : 0) + (filters.from ? 1 : 0) + (filters.to ? 1 : 0);
 
   const pages = Math.max(1, Math.ceil((meta.total || 0) / PAGE_SIZE));
   const page = Math.floor((meta.offset || 0) / PAGE_SIZE) + 1;
@@ -134,6 +147,22 @@ const AdminReservationsPanel = ({ onOpenReservation, busyActions }) => {
               <span>{status === 'NONE' ? 'Aucun paiement' : statusLabel(status)}</span>
             </label>
           ))}
+        </fieldset>
+
+        <div>
+          <label htmlFor="reservation-package">Formule</label>
+          <select id="reservation-package" name="packageId" className="form-input" defaultValue={filters.packageId}>
+            <option value="">Toutes les formules</option>
+            {packages.map((pack) => <option key={pack.id} value={pack.id}>{pack.name}</option>)}
+          </select>
+        </div>
+
+        <fieldset className="admin-filter-group">
+          <legend>Demande de report</legend>
+          <label className="admin-filter-chip">
+            <input type="checkbox" name="rescheduleStatus" value="PENDING" defaultChecked={filters.rescheduleStatus.includes('PENDING')} />
+            <span>En attente</span>
+          </label>
         </fieldset>
 
         <div className="admin-filter-row">

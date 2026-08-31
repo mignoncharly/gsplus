@@ -1481,6 +1481,11 @@ describe('P0-04 payment and reservation decisions', () => {
       .expect(200);
     expect(overdueQueue.body.data).toHaveLength(1);
     expect(overdueQueue.body.data[0]).toMatchObject({ id: pendingTask.id, status: 'IN_PROGRESS' });
+    const inFlightQueue = await agent
+      .get('/api/admin/financial-tasks?status=PENDING&status=IN_PROGRESS')
+      .expect(200);
+    expect(inFlightQueue.body.meta.total).toBe(1);
+    expect(inFlightQueue.body.data[0]).toMatchObject({ id: pendingTask.id, status: 'IN_PROGRESS' });
 
     await agent
       .patch(`/api/admin/payments/${payment.id}/refund`)

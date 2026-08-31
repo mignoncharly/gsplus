@@ -7,7 +7,7 @@ export type FinancialTaskStatus = typeof FINANCIAL_TASK_STATUSES[number];
 export type FinancialTaskListFilters = {
   limit: number;
   offset: number;
-  status?: FinancialTaskStatus;
+  status?: FinancialTaskStatus[];
   overdue?: boolean;
   reservationReference?: string;
   operatorId?: string;
@@ -26,11 +26,14 @@ export const financialTaskInclude = {
 } satisfies Prisma.FinancialTaskInclude;
 
 export const listFinancialTasks = async (filters: FinancialTaskListFilters) => {
+  const statuses = filters.overdue
+    ? (filters.status?.filter((status) => status === 'PENDING' || status === 'IN_PROGRESS') ?? ['PENDING', 'IN_PROGRESS'])
+    : filters.status;
   const where: Prisma.FinancialTaskWhereInput = {
-    ...(filters.status ? { status: filters.status } : {}),
+    ...(statuses?.length ? { status: { in: statuses } } : {}),
     ...(filters.reservationReference ? { reservation: { reference: filters.reservationReference } } : {}),
     ...(filters.operatorId ? { createdById: filters.operatorId } : {}),
-    ...(filters.overdue ? { dueAt: { lt: new Date() }, status: { in: ['PENDING', 'IN_PROGRESS'] } } : {}),
+    ...(filters.overdue ? { dueAt: { lt: new Date() } } : {}),
   };
   const [items, total, operators] = await prisma.$transaction([
     prisma.financialTask.findMany({ where, take: filters.limit, skip: filters.offset, orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }], include: financialTaskInclude }),

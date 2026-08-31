@@ -15,6 +15,7 @@ export type ReservationListFilters = {
   sort?: 'startAt' | 'createdAt' | 'reference';
   direction?: 'asc' | 'desc';
   reference?: string;
+  rescheduleStatus?: string[];
 };
 
 /**
@@ -55,6 +56,7 @@ export const reservationListWhere = (filters: ReservationListFilters): Prisma.Re
   if (filters.reference) and.push({ reference: filters.reference });
   if (filters.q) and.push(searchWhere(filters.q));
   if (filters.status?.length) and.push({ status: { in: filters.status as ReservationStatus[] } });
+  if (filters.rescheduleStatus?.length) and.push({ rescheduleRequests: { some: { status: { in: filters.rescheduleStatus } } } });
   if (filters.payment?.length) {
     and.push(filters.payment.includes('NONE')
       ? { OR: [{ payments: { none: {} } }, { payments: { some: { status: { in: filters.payment.filter((s) => s !== 'NONE') as PaymentStatus[] } } } }] }

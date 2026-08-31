@@ -210,3 +210,20 @@ export const getCalendarHealth = async () => {
     healthy: failing === 0 && pending === 0,
   };
 };
+export type CalendarSyncLogListFilters = {
+  limit: number;
+  offset: number;
+  status?: string[];
+};
+
+export const listCalendarSyncLogs = async (filters: CalendarSyncLogListFilters) => {
+  const where: Prisma.CalendarSyncLogWhereInput = filters.status?.length ? { status: { in: filters.status } } : {};
+  const [items, total] = await prisma.$transaction([
+    prisma.calendarSyncLog.findMany({
+      where, take: filters.limit, skip: filters.offset, orderBy: { createdAt: "desc" },
+      include: { reservation: { select: { id: true, reference: true } } },
+    }),
+    prisma.calendarSyncLog.count({ where }),
+  ]);
+  return { items, total, limit: filters.limit, offset: filters.offset };
+};

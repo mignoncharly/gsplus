@@ -131,6 +131,7 @@ import { templateOverrideStatus } from '../services/message-template-overrides.j
 import {
   deleteScheduleException,
   getCalendarHealth,
+  listCalendarSyncLogs,
   getPlanningWindow,
   listBookingRules,
   listBusinessHours,
@@ -164,6 +165,7 @@ import {
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
   bookingRuleSchema,
+  calendarSyncLogListQuerySchema,
   businessHourUpdateSchema,
   catalogueBenefitCreateSchema,
   catalogueBenefitUpdateSchema,
@@ -1986,6 +1988,16 @@ router.get(
     assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
     const { from, to } = res.locals.validated.query;
     res.json({ data: await getPlanningWindow(from, to) });
+  }),
+);
+
+router.get(
+  '/calendar/sync-logs',
+  validate('query', calendarSyncLogListQuerySchema),
+  asyncHandler(async (_req, res) => {
+    assertAdminPermission(res.locals.admin, 'RESERVATION_RESCHEDULE');
+    const result = await listCalendarSyncLogs(res.locals.validated.query);
+    res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
   }),
 );
 

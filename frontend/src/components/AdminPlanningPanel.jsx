@@ -7,6 +7,7 @@ import {
   getAdminBookingRules,
   getAdminBusinessHours,
   getAdminCalendarHealth,
+  getAdminCalendarSyncLogs,
   getAdminPlanning,
   getAdminScheduleExceptions,
   saveAdminBookingRule,
@@ -32,12 +33,16 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
   const [searchParams, setSearchParams] = useSearchParams();
   const range = RANGES.find((item) => item.key === searchParams.get('vue')) ?? RANGES[1];
   const anchor = searchParams.get('debut') || businessDateKey(new Date());
+  const calendarStatuses = searchParams.getAll('calendarStatus');
+  const calendarStatusKey = calendarStatuses.join(',');
 
   const [hours, setHours] = useState([]);
   const [exceptions, setExceptions] = useState([]);
   const [rules, setRules] = useState(null);
   const [planning, setPlanning] = useState(null);
   const [health, setHealth] = useState(null);
+  const [calendarLogs, setCalendarLogs] = useState([]);
+  const [calendarLogsMeta, setCalendarLogsMeta] = useState({ total: 0 });
   const [error, setError] = useState('');
 
   const window_ = useMemo(() => ({ from: anchor, to: addBusinessDays(anchor, range.days - 1) }), [anchor, range.days]);
@@ -54,19 +59,22 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
       getAdminBookingRules(),
       getAdminPlanning(window_.from, window_.to),
       getAdminCalendarHealth(),
+      calendarStatuses.length ? getAdminCalendarSyncLogs({ status: calendarStatuses, limit: 50 }) : Promise.resolve({ items: [], meta: { total: 0 } }),
     ])
-      .then(([hourRows, exceptionRows, ruleData, planningData, healthData]) => {
+      .then(([hourRows, exceptionRows, ruleData, planningData, healthData, logsResult]) => {
         if (cancelled) return;
         setHours(hourRows);
         setExceptions(exceptionRows);
         setRules(ruleData);
         setPlanning(planningData);
         setHealth(healthData);
+        setCalendarLogs(logsResult.items);
+        setCalendarLogsMeta(logsResult.meta);
         setError('');
       })
       .catch((loadError) => { if (!cancelled) setError(loadError.message || 'Impossible de charger le planning.'); });
     return () => { cancelled = true; };
-  }, [window_.from, window_.to, reloadToken]);
+  }, [window_.from, window_.to, calendarStatusKey, reloadToken]);
 
   const move = (direction) => {
     const params = new URLSearchParams(searchParams);
@@ -201,6 +209,17 @@ const AdminPlanningPanel = ({ openActionDialog, runAction, blocks, onCreateBlock
           </dl>
         ) : <p className="admin-table-empty">Chargement…</p>}
       </section>
+
+      {calendarStatuses.length > 0 && (
+        <section className="admin-card" aria-labelledby="calendar-log-list">
+          <h2 id="calendar-log-list"><Activity size={18} aria-hidden="true" /> Opérations Cal.com ciblées</h2>
+          <p><strong>{calendarLogsMeta.total}</strong> opération(s) correspondent aux statuts demandés.</p>
+          {calendarLogs.length === 0 ? <p className="admin-table-empty">Aucune opération ne correspond à ces statuts.</p> : (
+            <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Date</th><th>Réservation</th><th>Action</th><th>Statut</th><th>Tentatives</th><th>Erreur</th></tr></thead><tbody>{calendarLogs.map((log) => <tr key={log.id}><td>{formatBusinessDateTime(log.createdAt)}</td><td><code>{log.reservation?.reference || '—'}</code></td><td>{log.action}</td><td>{statusLabel(log.status)}</td><td>{log.attemptCount}/{log.maxAttempts}</td><td>{log.error || '—'}</td></tr>)}</tbody></table></div>
+          )}
+        </section>
+      )}
+
 
       <section className="admin-card" aria-labelledby="agenda">
         <div className="admin-agenda-head">

@@ -78,6 +78,12 @@ const businessDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Utilisez le format
 const clockTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Utilisez le format HH:MM.');
 const breakList = z.array(z.object({ start: clockTime, end: clockTime })).max(6).optional();
 
+export const calendarSyncLogListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  status: repeatable(z.enum(['PENDING', 'SYNCING', 'RETRYING', 'SYNCED', 'FAILED'])),
+});
+
 export const notificationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
@@ -157,6 +163,7 @@ export const reservationListQuerySchema = z.object({
   q: z.string().trim().min(1).max(120).optional(),
   status: repeatable(z.enum(['PENDING_CONFIRMATION', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'EXPIRED', 'COMPLETED', 'NO_SHOW'])),
   payment: repeatable(z.enum(['NONE', 'PENDING', 'PAYMENT_INFO_REQUIRED', 'VERIFICATION_BLOCKED', 'VERIFIED', 'PAID', 'REJECTED', 'REFUND_PENDING', 'REFUNDED', 'FAILED'])),
+  rescheduleStatus: repeatable(z.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'])),
   packageId: z.string().trim().min(1).optional(),
   from: businessDate.optional(),
   to: businessDate.optional(),
@@ -194,7 +201,7 @@ export const paymentDuplicateSchema = z.object({
 export const financialTaskListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),
-  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED']).optional(),
+  status: repeatable(z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'])),
   overdue: queryBoolean.optional(),
   reservationReference: z.string().trim().min(1).max(32).transform((value) => value.toUpperCase()).optional(),
   operatorId: cuid.optional(),

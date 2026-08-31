@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, WalletCards } from 'lucide-react';
 import { formatBusinessDateTime } from '../lib/business-time';
 import { formatFcfa } from '../lib/display-formatters';
@@ -19,10 +19,10 @@ const AdminFinanceView = ({ tasks, meta, filters, selectedTask, busy, onFiltersC
   return (
     <div className="admin-finance-panel">
       <form className="admin-card admin-finance-filters" onSubmit={(event) => { event.preventDefault(); onFiltersChange(Object.fromEntries(new FormData(event.currentTarget))); }}>
-        <div><label htmlFor="finance-status">Statut</label><select id="finance-status" name="status" className="form-input" defaultValue={filters.status || ''}><option value="">Tous</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-        <div><label htmlFor="finance-reference">Réservation</label><input id="finance-reference" name="reservationReference" className="form-input" defaultValue={filters.reservationReference || ''} placeholder="GSP-AAMMJJ-XXXX" /></div>
-        <div><label htmlFor="finance-operator">Responsable</label><select id="finance-operator" name="operatorId" className="form-input" defaultValue={filters.operatorId || ''}><option value="">Tous</option>{(meta.operators || []).map((operator) => <option key={operator.id} value={operator.id}>{operator.name}</option>)}</select></div>
-        <label className="admin-finance-overdue"><input name="overdue" type="checkbox" value="true" defaultChecked={filters.overdue === 'true' || filters.overdue === true} /> Échéance dépassée uniquement</label>
+        <div><label htmlFor="finance-status">Statut</label><select id="finance-status" name='status' className="form-input" defaultValue={filters.status?.length === 1 ? filters.status[0] : ''}><option value="">Tous</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+        <div><label htmlFor="finance-reference">Réservation</label><input id="finance-reference" name='reservationReference' className="form-input" defaultValue={filters.reservationReference || ''} placeholder="GSP-AAMMJJ-XXXX" /></div>
+        <div><label htmlFor="finance-operator">Responsable</label><select id="finance-operator" name='operatorId' className="form-input" defaultValue={filters.operatorId || ''}><option value="">Tous</option>{(meta.operators || []).map((operator) => <option key={operator.id} value={operator.id}>{operator.name}</option>)}</select></div>
+        <label className="admin-finance-overdue"><input name='overdue' type="checkbox" value='true' defaultChecked={filters.overdue === 'true' || filters.overdue === true} /> Échéance dépassée uniquement</label>
         <button type="submit" className="btn btn-primary">Filtrer</button>
       </form>
       <div className="admin-card">
@@ -33,7 +33,7 @@ const AdminFinanceView = ({ tasks, meta, filters, selectedTask, busy, onFiltersC
         <div className="admin-pagination"><button className="btn btn-secondary admin-sm-btn" type="button" disabled={page <= 1} onClick={() => onPageChange(Math.max(0, (meta.offset || 0) - (meta.limit || 25)))}>Précédent</button><button className="btn btn-secondary admin-sm-btn" type="button" disabled={page >= pages} onClick={() => onPageChange((meta.offset || 0) + (meta.limit || 25))}>Suivant</button></div>
       </div>
       {selectedTask && <section className="admin-card admin-finance-detail" tabIndex="-1" autoFocus data-financial-task={selectedTask.id}>
-        <div className="admin-finance-detail-heading"><div><h2>Obligation {selectedTask.type === 'FULL_REFUND' ? 'de remboursement intégral' : 'de remboursement partiel'}</h2><p><code>{selectedTask.dedupeKey}</code></p></div>{selectedTask.status === 'COMPLETED' ? <CheckCircle2 aria-hidden="true" /> : <WalletCards aria-hidden="true" />}</div>
+        <div className="admin-finance-detail-heading"><div><h2>Obligation {selectedTask.type === 'FULL_REFUND' ? 'de remboursement intégral' : 'de remboursement partiel'}</h2><p><code>{selectedTask.dedupeKey}</code></p></div>{selectedTask.status === 'COMPLETED' ? <CheckCircle2 aria-hidden='true' /> : <WalletCards aria-hidden='true' />}</div>
         <dl className="admin-finance-grid"><div><dt>Réservation</dt><dd><Link to={'/admin/reservations/' + selectedTask.reservation.reference}>{selectedTask.reservation.reference} <ExternalLink size={13} /></Link></dd></div><div><dt>Paiement</dt><dd>{paymentMethodLabel(selectedTask.payment.method)} · version {selectedTask.payment.version}</dd></div><div><dt>Montant</dt><dd>{formatFcfa(selectedTask.amount)}</dd></div><div><dt>Motif</dt><dd>{selectedTask.reason}</dd></div><div><dt>Échéance</dt><dd>{formatBusinessDateTime(selectedTask.dueAt)}</dd></div><div><dt>Responsable</dt><dd>{selectedTask.createdBy?.name || 'Création système'}</dd></div><div><dt>Canal</dt><dd>{selectedTask.channel || 'À définir lors de l’engagement'}</dd></div><div><dt>Référence opérateur</dt><dd>{selectedTask.providerReference || 'À enregistrer'}</dd></div><div><dt>Créée</dt><dd>{formatBusinessDateTime(selectedTask.createdAt)}</dd></div><div><dt>Engagée</dt><dd>{selectedTask.initiatedAt ? formatBusinessDateTime(selectedTask.initiatedAt) : '—'}</dd></div><div><dt>Terminée</dt><dd>{selectedTask.completedAt ? formatBusinessDateTime(selectedTask.completedAt) : '—'}</dd></div></dl>
         {selectedTask.proof && <div className="admin-finance-proof"><h3>Preuve immuable</h3><p>Canal : {selectedTask.proof.channel}</p><p>Référence : {selectedTask.proof.providerReference}</p><p>Enregistrée : {formatBusinessDateTime(selectedTask.proof.recordedAt)}</p></div>}
         <div className="admin-action-row">{selectedTask.status === 'PENDING' && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => onEngage(selectedTask)}><Clock3 size={16} /> Engager le remboursement</button>}{selectedTask.status === 'IN_PROGRESS' && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => onComplete(selectedTask)}><CheckCircle2 size={16} /> Finaliser avec preuve</button>}</div>
@@ -42,11 +42,16 @@ const AdminFinanceView = ({ tasks, meta, filters, selectedTask, busy, onFiltersC
   );
 };
 
-const DEFAULT_FILTERS = { limit: 25, offset: 0 };
+const filtersFromParams = (params) => ({
+  limit: 25, offset: Number(params.get('offset') || 0), status: params.getAll('status'),
+  reservationReference: params.get('reservationReference') || undefined, operatorId: params.get('operatorId') || undefined,
+  overdue: params.get('overdue') === 'true',
+});
 
 const AdminFinancePanel = ({ destinationId, busy, openActionDialog, runAction, setFeedback }) => {
-  const filtersRef = useRef(DEFAULT_FILTERS);
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useMemo(() => filtersFromParams(searchParams), [searchParams]);
+  const filtersRef = useRef(filters);
   const [tasks, setTasks] = useState([]);
   const [meta, setMeta] = useState({ total: 0, limit: 25, offset: 0, operators: [] });
   const [selectedTask, setSelectedTask] = useState(null);
@@ -63,7 +68,7 @@ const AdminFinancePanel = ({ destinationId, busy, openActionDialog, runAction, s
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { filtersRef.current = filters; void load(); }, [filters, load]);
   useEffect(() => {
     if (!destinationId) return;
     void getAdminFinancialTask(destinationId).then((task) => {
@@ -79,17 +84,19 @@ const AdminFinancePanel = ({ destinationId, busy, openActionDialog, runAction, s
     });
   }, [destinationId, setFeedback]);
 
-  const applyFilters = async (values) => {
-    const next = { limit: 25, offset: 0, status: values.status || undefined, reservationReference: values.reservationReference?.trim().toUpperCase() || undefined, operatorId: values.operatorId || undefined, overdue: values.overdue === 'true' };
-    filtersRef.current = next;
-    setFilters(next);
-    await load();
+  const applyFilters = (values) => {
+    const params = new URLSearchParams();
+    if (values.status) params.append('status', values.status);
+    if (values.reservationReference?.trim()) params.set('reservationReference', values.reservationReference.trim().toUpperCase());
+    if (values.operatorId) params.set('operatorId', values.operatorId);
+    if (values.overdue === 'true') params.set('overdue', 'true');
+    setSearchParams(params);
   };
-  const changePage = async (offset) => {
-    const next = { ...filtersRef.current, offset };
-    filtersRef.current = next;
-    setFilters(next);
-    await load();
+  const changePage = (offset) => {
+    const params = new URLSearchParams(searchParams);
+    if (offset) params.set('offset', String(offset));
+    else params.delete('offset');
+    setSearchParams(params);
   };
   const selectTask = async (task) => {
     const detail = await getAdminFinancialTask(task.id);

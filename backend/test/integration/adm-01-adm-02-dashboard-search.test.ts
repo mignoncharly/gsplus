@@ -161,6 +161,23 @@ describe('ADM-02 reservation search', () => {
     expect(withoutPayment.body.data[0].reference).toBe('GSP-D-0004');
   });
 
+  it('filters reservations by pending reschedule request', async () => {
+    await seed();
+    const agent = await signIn();
+    const reservation = await prisma.reservation.findUniqueOrThrow({ where: { reference: 'GSP-B-0002' } });
+    await prisma.reservationRescheduleRequest.create({
+      data: {
+        reservationId: reservation.id, commandId: 'adm-02-pending-reschedule', reservationVersionAtRequest: reservation.version,
+        oldStartAt: reservation.startAt, oldEndAt: reservation.endAt,
+        requestedStartAt: new Date(reservation.startAt.getTime() + 86_400_000), requestedEndAt: new Date(reservation.endAt.getTime() + 86_400_000),
+        reason: 'Le client demande un autre créneau',
+      },
+    });
+    const response = await agent.get('/api/admin/reservations').query({ rescheduleStatus: 'PENDING' }).expect(200);
+    expect(response.body.meta.total).toBe(1);
+    expect(response.body.data[0].reference).toBe('GSP-B-0002');
+  });
+
   it('keeps the historical exact-reference lookup working', async () => {
     await seed();
     const agent = await signIn();
@@ -214,6 +231,24 @@ describe('ADM-01 decision-first dashboard', () => {
       expect(entry.label).toBeTruthy();
     }
   });
+
+  it('opens the exact set of failed and retrying Cal.com operations', async () => {
+    await seed();
+    const agent = await signIn();
+    await prisma.calendarSyncLog.createMany({ data: [
+      { status: 'FAILED', action: 'CREATE', error: 'Provider unavailable' },
+      { status: 'RETRYING', action: 'UPDATE', error: 'Retry scheduled' },
+      { status: 'SYNCED', action: 'CANCEL' },
+    ] });
+    const dashboard = await agent.get('/api/admin/dashboard').expect(200);
+    const counter = dashboard.body.data.integrations.find((entry: { key: string }) => entry.key === 'calendarFailures');
+    const params = new URLSearchParams(counter.href.split('?')[1]);
+    const list = await agent.get('/api/admin/calendar/sync-logs').query({ status: params.getAll('calendarStatus') }).expect(200);
+    expect(counter.count).toBe(2);
+    expect(list.body.meta.total).toBe(counter.count);
+    expect(list.body.data.map((item: { status: string }) => item.status).sort()).toEqual(['FAILED', 'RETRYING']);
+  });
+
 
   it('agrees with the list its link opens', async () => {
     await seed();
