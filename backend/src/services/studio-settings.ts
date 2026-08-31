@@ -148,18 +148,42 @@ export const getEffectiveSettings = async () => {
   return Object.fromEntries(SETTING_GROUPS.map((group) => [group.key, effectiveGroupValue(group, stored.get(group.key))]));
 };
 
+const MAX_LENGTH_BY_KIND: Record<SettingFieldKind, number> = {
+  text: 160, multiline: 2_000, url: 500, phone: 32, email: 254, number: 0, boolean: 0,
+};
+
+const isValidPublicUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch { return false; }
+};
+
+const validateSettingValue = (field: SettingField, value: string | number | boolean) => {
+  if (field.kind === 'boolean') {
+    if (typeof value !== 'boolean') throw new HttpError(400, 'INVALID_SETTING_VALUE', `${field.label} doit être vrai ou faux.`);
+    return;
+  }
+  if (field.kind === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 10_000) throw new HttpError(400, 'INVALID_SETTING_VALUE', `${field.label} doit être un nombre compris entre 0 et 10 000.`);
+    return;
+  }
+  if (typeof value !== 'string' || value.length > MAX_LENGTH_BY_KIND[field.kind]) throw new HttpError(400, 'INVALID_SETTING_VALUE', `${field.label} dépasse la longueur autorisée.`);
+  if (field.kind === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new HttpError(400, 'INVALID_EMAIL', `${field.label} est invalide.`);
+  if (field.kind === 'phone' && value && !/^\+?[1-9]\d{7,14}$/.test(value.replace(/[\s().-]/g, ''))) throw new HttpError(400, 'INVALID_PHONE', `${field.label} est invalide.`);
+  if (field.kind === 'url' && value && !isValidPublicUrl(value)) throw new HttpError(400, 'INVALID_URL', `${field.label} doit être une URL http(s) valide.`);
+};
+
+const validateGroupValues = (group: SettingGroup, values: Record<string, string | number | boolean>) => {
+  for (const field of group.fields) validateSettingValue(field, values[field.key]);
+};
+
 export const getAdminSettings = async () => {
   const rows = await prisma.studioSetting.findMany({ include: { updatedBy: { select: { id: true, name: true } } } });
   const stored = new Map(rows.map((row) => [row.group, row]));
   return SETTING_GROUPS.map((group) => {
     const row = stored.get(group.key);
-    return {
-      ...group,
-      values: effectiveGroupValue(group, row?.value),
-      isCustomised: Boolean(row),
-      updatedAt: row?.updatedAt ?? null,
-      updatedBy: row?.updatedBy ?? null,
-    };
+    return { ...group, values: effectiveGroupValue(group, row?.value), isCustomised: Boolean(row), updatedAt: row?.updatedAt ?? null, updatedBy: row?.updatedBy ?? null };
   });
 };
 
@@ -169,6 +193,7 @@ export const updateSettingGroup = async (groupKey: string, values: Record<string
 
   // Unknown keys are dropped rather than stored, so the registry stays the contract.
   const cleaned = effectiveGroupValue(group, values);
+  validateGroupValues(group, cleaned);
   const saved = await prisma.studioSetting.upsert({
     where: { group: groupKey },
     update: { value: cleaned, updatedById: adminUserId ?? null },
