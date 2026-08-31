@@ -78,6 +78,39 @@ export const changeAdminPassword = async (data) => {
   return payload.data;
 };
 
+// === Phase 10 governance and security ===
+export const acceptAdminInvitation = async (data) =>
+  (await apiFetch('/api/admin/invitations/accept', { method: 'POST', body: JSON.stringify(data) })).data;
+export const getAdminSecurityAccounts = async () => {
+  const payload = await apiFetch('/api/admin/security/accounts');
+  return { items: payload.data, permissions: payload.meta?.permissions ?? [] };
+};
+export const inviteAdminSecurityAccount = async (data) =>
+  (await apiFetch('/api/admin/security/accounts', { method: 'POST', body: JSON.stringify(data) })).data;
+export const setAdminSecurityAccountActive = async (id, isActive) =>
+  (await apiFetch(`/api/admin/security/accounts/${encodeURIComponent(id)}/active`, { method: 'PATCH', body: JSON.stringify({ isActive }) })).data;
+export const setAdminSecurityAccountRole = async (id, role) =>
+  (await apiFetch(`/api/admin/security/accounts/${encodeURIComponent(id)}/role`, { method: 'PATCH', body: JSON.stringify({ role }) })).data;
+export const setAdminSecurityPermissions = async (id, permissions) =>
+  (await apiFetch(`/api/admin/security/accounts/${encodeURIComponent(id)}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) })).data;
+export const getAdminSecuritySessions = async (all = false) =>
+  (await apiFetch(`/api/admin/security/sessions${all ? '/all' : ''}`)).data;
+export const revokeAdminSecuritySession = async (id, reason = 'REVOKED_BY_ADMIN') =>
+  (await apiFetch(`/api/admin/security/sessions/${encodeURIComponent(id)}/revoke`, { method: 'PATCH', body: JSON.stringify({ reason }) })).data;
+export const getAdminTotpStatus = async () => (await apiFetch('/api/admin/security/totp')).data;
+export const beginAdminTotp = async () => (await apiFetch('/api/admin/security/totp/begin', { method: 'POST' })).data;
+export const confirmAdminTotp = async (code) =>
+  (await apiFetch('/api/admin/security/totp/confirm', { method: 'POST', body: JSON.stringify({ code }) })).data;
+export const disableAdminTotp = async (code) =>
+  apiFetch('/api/admin/security/totp/disable', { method: 'POST', body: JSON.stringify({ code }) });
+export const getAdminSignInActivity = async () => (await apiFetch('/api/admin/security/sign-ins')).data;
+export const getAdminAudit = async (filters = {}) => {
+  const payload = await apiFetch(`/api/admin/audit?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta };
+};
+export const adminAuditExportUrl = (commands = false, filters = {}) =>
+  apiUrl(`/api/admin/audit${commands ? '/commands' : ''}/export.csv?${adminQuery(filters)}`);
+
 export const submitContact = async (data) => {
   const payload = await apiFetch('/api/contact', {
     method: 'POST',

@@ -339,9 +339,42 @@ export const creativeRequestSchema = z.object({
   message: z.string().trim().min(10).max(5000),
 });
 
+export const adminInvitationAcceptSchema = z.object({
+  token: z.string().trim().min(20).max(200),
+  password: z.string().min(12).max(200),
+});
+
+export const adminAccountInviteSchema = z.object({
+  email: z.email(),
+  name: requiredString.max(120),
+  role: z.enum(['OWNER', 'STAFF']),
+});
+
+export const adminAccountRoleSchema = z.object({ role: z.enum(['OWNER', 'STAFF']) });
+export const adminAccountActiveSchema = z.object({ isActive: z.boolean() });
+export const adminPermissionGrantSchema = z.object({
+  permissions: z.array(z.string().trim().min(1).max(60)).max(40),
+});
+export const adminTotpConfirmSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/) });
+export const adminSessionRevokeSchema = z.object({ reason: z.string().trim().max(200).optional() });
+
+export const auditListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  q: z.string().trim().min(1).max(120).optional(),
+  adminUserId: z.string().trim().min(1).max(60).optional(),
+  action: z.string().trim().min(1).max(80).optional(),
+  entityType: z.string().trim().min(1).max(60).optional(),
+  from: businessDate.optional(),
+  to: businessDate.optional(),
+});
+
 export const adminLoginSchema = z.object({
   email: z.email(),
   password: z.string().min(8).max(200),
+  // Six digits for TOTP, or one of the ten-character hexadecimal recovery codes.
+  // Optional because the first password-valid request is what tells the client to ask.
+  totpCode: z.string().trim().min(6).max(20).optional(),
 });
 
 export const adminPasswordChangeSchema = z.object({

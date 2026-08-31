@@ -28,6 +28,7 @@ import {
 import { updatePackageWithVersion } from '../../src/services/packages.js';
 import { transitionReservationStatus } from '../../src/services/status-transitions.js';
 import { packageCreateSchema, packageUpdateSchema } from '../../src/validation/schemas.js';
+import { totpCodeAt } from '../../src/utils/totp.js';
 
 import { addBusinessDays, businessDateKey, businessLocalToInstant } from '../../src/utils/business-time.js';
 const app = createApp();
@@ -43,6 +44,7 @@ const futureDateAt = (hour = 10, minute = 0, dayOffset = 10) => {
 };
 
 const resetDatabase = async () => {
+  await prisma.adminSignInAttempt.deleteMany();
   await prisma.dataRightsRequest.deleteMany();
   await prisma.dataIntegrityIncident.deleteMany();
   await prisma.calendarSyncLog.deleteMany();
@@ -379,6 +381,40 @@ describe('admin flow', () => {
     expect(await prisma.auditLog.count({
       where: { adminUserId: updatedAdmin.id, action: 'admin.password.change' },
     })).toBe(1);
+  });
+
+  it('governs named accounts, TOTP, device sessions, and the audit trail', async () => {
+    const owner = await loginAdmin();
+    const invitation = await owner.post('/api/admin/security/accounts').send({
+      email: 'studio-team@goldenstudioplus.test', name: 'Studio Team', role: AdminRole.STAFF,
+    }).expect(201);
+    const token = new URL(`https://example.test${invitation.body.data.invitationPath}`).searchParams.get('invitation');
+    expect(token).toBeTruthy();
+
+    const team = request.agent(app);
+    await team.post('/api/admin/invitations/accept').send({ token, password: 'team-account-password-2026' }).expect(200);
+    const created = await prisma.adminUser.findUniqueOrThrow({ where: { email: 'studio-team@goldenstudioplus.test' } });
+    expect(created.activatedAt).not.toBeNull();
+
+    const beginning = await owner.post('/api/admin/security/totp/begin').send({}).expect(200);
+    const code = totpCodeAt(beginning.body.data.secret, Date.now());
+    const confirmed = await owner.post('/api/admin/security/totp/confirm').send({ code }).expect(200);
+    expect(confirmed.body.data.recoveryCodes).toHaveLength(8);
+
+    await request(app).post('/api/admin/login').send({ email: 'admin@goldenstudioplus.test', password: adminPassword }).expect(401);
+    const secondOwner = request.agent(app);
+    await secondOwner.post('/api/admin/login').send({ email: 'admin@goldenstudioplus.test', password: adminPassword, totpCode: code }).expect(200);
+
+    const sessions = await secondOwner.get('/api/admin/security/sessions').expect(200);
+    const secondOwnerSession = sessions.body.data
+      .sort((a: { createdAt: string }, b: { createdAt: string }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    expect(secondOwnerSession).toBeTruthy();
+    await owner.patch(`/api/admin/security/sessions/${secondOwnerSession.id}/revoke`).send({ reason: 'TEST_REVOCATION' }).expect(200);
+    await secondOwner.get('/api/admin/me').expect(401);
+
+    const audit = await owner.get('/api/admin/audit?limit=50').expect(200);
+    expect(audit.body.data.some((item: { action: string }) => item.action === 'admin.invitation.create')).toBe(true);
+    expect(audit.body.data.some((item: { action: string }) => item.action === 'admin.totp.enable')).toBe(true);
   });
 
   it('verifies payment without confirming the reservation and records transition history', async () => {

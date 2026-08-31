@@ -28,7 +28,7 @@ import {
 import {
   addAdminReservationPayment,
   cancelAdminReservation,
-  changeAdminPassword,
+  acceptAdminInvitation,
   createAdminAvailabilityBlock,
   createAdminMedia,
   createAdminWithdrawalRequest,
@@ -97,6 +97,7 @@ const AdminReservationsPanel = React.lazy(() => import('../components/AdminReser
 const AdminPlanningPanel = React.lazy(() => import('../components/AdminPlanningPanel'));
 const AdminSettingsPanel = React.lazy(() => import('../components/AdminSettingsPanel'));
 const AdminMessagesPanel = React.lazy(() => import('../components/AdminMessagesPanel'));
+const AdminSecurityPanel = React.lazy(() => import('../components/AdminSecurityPanel'));
 
 const dateTime = formatBusinessDateTime;
 
@@ -122,14 +123,12 @@ const AdminDashboard = () => {
   const [adminUser, setAdminUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [secondFactorRequired, setSecondFactorRequired] = useState(false);
+  const [invitationPassword, setInvitationPassword] = useState('');
+  const [invitationConfirmation, setInvitationConfirmation] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginSubmitting, setLoginSubmitting] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   // The active view lives in the URL, not in component state, so every view has its
   // own address and neither reload nor Back returns to the dashboard (§2.1).
   const location = useLocation();
@@ -147,6 +146,7 @@ const AdminDashboard = () => {
     () => parseAdminDestination(location.pathname, location.search),
     [location.pathname, location.search],
   );
+  const invitationToken = useMemo(() => new URLSearchParams(location.search).get('invitation') || '', [location.search]);
   const isReservationRecordRoute = recordDestination?.area === 'reservations' && Boolean(recordDestination.reference);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadedRes, setLoadedRes] = useState(null);
@@ -361,16 +361,23 @@ const AdminDashboard = () => {
     setLoginSubmitting(true);
 
     try {
-      const admin = await loginAdmin({ email, password });
+      const admin = await loginAdmin({ email, password, ...(totpCode ? { totpCode } : {}) });
       setAdminUser(admin);
       setIsAuthenticated(true);
       setEmail('');
       setPassword('');
+      setTotpCode('');
+      setSecondFactorRequired(false);
       // Return to whatever was requested before the login screen appeared, not to the
       // dashboard. The URL was never navigated away from, so it still holds the target.
       await refreshAdminTab(adminTabFromPath(location.pathname, location.search));
     } catch (err) {
-      setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
+      if (err.code === 'TOTP_REQUIRED') {
+        setSecondFactorRequired(true);
+        setLoginError('Saisissez le code de votre application d’authentification ou un code de récupération.');
+      } else {
+        setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
+      }
     } finally {
       setLoginSubmitting(false);
     }
@@ -389,36 +396,25 @@ const AdminDashboard = () => {
     tabRefreshInFlightRef.current.clear();
     setFeedback(null);
   };
-  const handlePasswordChange = async (event) => {
+  const handleInvitationAcceptance = async (event) => {
     event.preventDefault();
-    setFeedback(null);
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setFeedback({ tab: 'account', type: 'error', message: 'La confirmation ne correspond pas au nouveau mot de passe.' });
+    setLoginError('');
+    if (invitationPassword !== invitationConfirmation) {
+      setLoginError('La confirmation du mot de passe ne correspond pas.');
       return;
     }
-    if (passwordForm.currentPassword === passwordForm.newPassword) {
-      setFeedback({ tab: 'account', type: 'error', message: 'Le nouveau mot de passe doit être différent du mot de passe actuel.' });
-      return;
-    }
-
-    setPasswordSubmitting(true);
+    setLoginSubmitting(true);
     try {
-      const admin = await changeAdminPassword({
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-      });
+      const admin = await acceptAdminInvitation({ token: invitationToken, password: invitationPassword });
       setAdminUser(admin);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setFeedback({
-        tab: 'account',
-        type: 'success',
-        message: 'Mot de passe modifié. Les autres sessions administrateur ont été déconnectées.',
-      });
+      setIsAuthenticated(true);
+      setInvitationPassword('');
+      setInvitationConfirmation('');
+      navigate('/admin/securite', { replace: true });
     } catch (err) {
-      setFeedback({ tab: 'account', type: 'error', message: err.message || 'Impossible de modifier le mot de passe.' });
+      setLoginError(err.message || 'Cette invitation ne peut pas être acceptée.');
     } finally {
-      setPasswordSubmitting(false);
+      setLoginSubmitting(false);
     }
   };
 
@@ -845,8 +841,16 @@ const AdminDashboard = () => {
           <div style={{ background: 'rgba(197, 146, 58, 0.1)', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', color: 'var(--c-gold)' }}>
             <Lock size={30} />
           </div>
-          <h2>Espace <span>Admin</span></h2>
-          <form onSubmit={handleLogin} aria-describedby={loginError ? 'admin-login-error' : undefined}>
+          <h2>{invitationToken ? <>Activation du <span>compte</span></> : <>Espace <span>Admin</span></>}</h2>
+          {invitationToken ? <form onSubmit={handleInvitationAcceptance} aria-describedby={loginError ? 'admin-login-error' : undefined}>
+            <p style={{ color: 'var(--dark-secondary)', marginBottom: '1.25rem' }}>Choisissez le mot de passe de ce compte invité. Il doit contenir au moins 12 caractères.</p>
+            <label htmlFor="admin-invitation-password" className="sr-only">Mot de passe</label>
+            <input id="admin-invitation-password" autoComplete="new-password" type="password" placeholder="Nouveau mot de passe" className="form-input admin-login-input" value={invitationPassword} onChange={(e) => setInvitationPassword(e.target.value)} minLength={12} required />
+            <label htmlFor="admin-invitation-confirmation" className="sr-only">Confirmation du mot de passe</label>
+            <input id="admin-invitation-confirmation" autoComplete="new-password" type="password" placeholder="Confirmer le mot de passe" className="form-input admin-login-input" value={invitationConfirmation} onChange={(e) => setInvitationConfirmation(e.target.value)} minLength={12} required />
+            {loginError && <p id="admin-login-error" role="alert" style={{ color: '#ff8787', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: 600 }}>{loginError}</p>}
+            <button className="btn btn-primary" style={{ width: '100%', padding: '1rem' }} disabled={loginSubmitting}>{loginSubmitting ? 'Activation en cours...' : 'Activer mon compte'}</button>
+          </form> : <form onSubmit={handleLogin} aria-describedby={loginError ? 'admin-login-error' : undefined}>
             <label htmlFor="admin-email" className="sr-only">Adresse email administrateur</label>
             <input 
               id="admin-email"
@@ -860,6 +864,10 @@ const AdminDashboard = () => {
               onChange={(e) => setEmail(e.target.value)} 
               required 
             />
+            {secondFactorRequired && <>
+              <label htmlFor="admin-totp-code" className="sr-only">Code de double authentification</label>
+              <input id="admin-totp-code" name="totpCode" autoComplete="one-time-code" inputMode="numeric" placeholder="Code à 6 chiffres ou récupération" className="form-input admin-login-input" value={totpCode} onChange={(e) => setTotpCode(e.target.value)} required />
+            </>}
             <label htmlFor="admin-password" className="sr-only">Mot de passe</label>
             <input 
               id="admin-password"
@@ -902,7 +910,7 @@ const AdminDashboard = () => {
                 ← Retourner au site
               </Link>
             </div>
-          </form>
+          </form>}
         </Motion.div>
       </div>
     );
@@ -1197,84 +1205,10 @@ const AdminDashboard = () => {
             </Motion.div>
           )}
           {activeTab === 'account' && (
-            <Motion.div
-              key="account"
-              variants={pageTransition}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <div className="admin-page-header">
-                <h1>Sécurité du <span>compte</span></h1>
-              </div>
-
-              <div className="admin-card" style={{ maxWidth: '720px' }}>
-                <h2>Modifier le mot de passe</h2>
-                <p style={{ color: 'var(--dark-secondary)', marginBottom: '0.5rem' }}>
-                  Compte : <strong>{adminUser?.email}</strong>
-                </p>
-                <p style={{ color: 'var(--dark-muted)', marginBottom: '2rem' }}>
-                  Après la modification, les autres sessions administrateur seront automatiquement déconnectées.
-                </p>
-
-                <form onSubmit={handlePasswordChange} style={{ display: 'grid', gap: '1.25rem' }}>
-                  <div>
-                    <label htmlFor="account-current-password">Mot de passe actuel</label>
-                    <input
-                      id="account-current-password"
-                      name="currentPassword"
-                      type="password"
-                      autoComplete="current-password"
-                      className="form-input"
-                      value={passwordForm.currentPassword}
-                      onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
-                      minLength={8}
-                      maxLength={200}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="account-new-password">Nouveau mot de passe</label>
-                    <input
-                      id="account-new-password"
-                      name="newPassword"
-                      type="password"
-                      autoComplete="new-password"
-                      className="form-input"
-                      value={passwordForm.newPassword}
-                      onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
-                      minLength={12}
-                      maxLength={200}
-                      aria-describedby="account-password-help"
-                      required
-                    />
-                    <small id="account-password-help" style={{ display: 'block', color: 'var(--dark-muted)', marginTop: '0.5rem' }}>
-                      Utilisez au moins 12 caractères et un mot de passe différent de l’ancien.
-                    </small>
-                  </div>
-                  <div>
-                    <label htmlFor="account-confirm-password">Confirmer le nouveau mot de passe</label>
-                    <input
-                      id="account-confirm-password"
-                      name="confirmPassword"
-                      type="password"
-                      autoComplete="new-password"
-                      className="form-input"
-                      value={passwordForm.confirmPassword}
-                      onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
-                      minLength={12}
-                      maxLength={200}
-                      required
-                    />
-                  </div>
-                  <div className="admin-action-row" style={{ marginTop: '0.5rem' }}>
-                    <button type="submit" className="btn btn-primary" disabled={passwordSubmitting}>
-                      <KeyRound size={17} aria-hidden="true" />
-                      {passwordSubmitting ? 'Modification…' : 'Modifier le mot de passe'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+            <Motion.div key="account" variants={pageTransition} initial="initial" animate="animate" exit="exit">
+              <React.Suspense fallback={<div className="admin-card">Chargement de la sécurité…</div>}>
+                <AdminSecurityPanel adminUser={adminUser} onAdminUserChange={setAdminUser} onFeedback={setFeedback} />
+              </React.Suspense>
             </Motion.div>
           )}
 

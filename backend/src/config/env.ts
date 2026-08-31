@@ -33,6 +33,13 @@ export const env = {
   PRIVATE_MEDIA_DIR: path.resolve(process.env.PRIVATE_MEDIA_DIR ?? path.join(process.cwd(), '..', 'private-media')),
   UPLOAD_PUBLIC_PATH: process.env.UPLOAD_PUBLIC_PATH ?? '/uploads',
   ADMIN_SESSION_SECRET: adminSessionSecret,
+  // Keep database encryption independent from JWT signing so routine session-key
+  // rotation does not invalidate enrolled authenticators. The fallback eases rollout;
+  // production should set the dedicated value before the first enrolment.
+  ADMIN_TOTP_ENCRYPTION_KEY: process.env.ADMIN_TOTP_ENCRYPTION_KEY ?? adminSessionSecret,
+  // Temporary, during a controlled TOTP-key rotation only. Successful sign-ins reseal
+  // their TOTP secret with the current key; remove this once every active account has.
+  ADMIN_TOTP_ENCRYPTION_PREVIOUS_KEY: process.env.ADMIN_TOTP_ENCRYPTION_PREVIOUS_KEY,
   ADMIN_SESSION_TTL_SECONDS: parsePort(process.env.ADMIN_SESSION_TTL_SECONDS, 60 * 60 * 8),
   ADMIN_NOTIFICATION_EMAIL: process.env.ADMIN_NOTIFICATION_EMAIL ?? 'info@gsplus.vip',
   QA_NOTIFICATION_OVERRIDE_RESERVATION_IDS: (process.env.QA_NOTIFICATION_OVERRIDE_RESERVATION_IDS ?? '')

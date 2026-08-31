@@ -1,0 +1,23 @@
+.admin-security-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+.admin-security-grid .admin-card { margin-bottom: 0; }
+.admin-security-panel .admin-card h2 svg { vertical-align: -0.15em; margin-right: 0.45rem; }
+.admin-security-muted { color: var(--dark-secondary); margin: -0.8rem 0 1.25rem; }
+.admin-security-form { display: grid; gap: 1rem; }
+.admin-security-inline { display: flex; align-items: end; gap: 0.75rem; flex-wrap: wrap; }
+.admin-security-inline label { flex: 1 1 180px; }
+.admin-security-inline .form-input { min-width: 180px; }
+.admin-security-enrolment code, .admin-recovery-codes code, .admin-invitation-link .form-input { display: block; width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; margin: 0.75rem 0; }
+.admin-security-enrolment details { margin: 0.75rem 0; color: var(--dark-secondary); }
+.admin-recovery-codes, .admin-invitation-link, .admin-security-alert { margin-top: 1rem; padding: 1rem; border: 1px solid rgba(197, 146, 58, 0.35); border-radius: var(--radius-sm); background: rgba(197, 146, 58, 0.09); color: var(--dark-primary); }
+.admin-recovery-codes code { letter-spacing: 0.08em; line-height: 1.8; }
+.admin-security-alert { border-color: rgba(231, 76, 60, 0.42); background: rgba(231, 76, 60, 0.1); }
+.admin-account-list { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.admin-account-card { padding: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02); }
+.admin-account-card header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.admin-account-card h3, .admin-security-panel .admin-card h3 { color: var(--dark-primary); margin: 1.25rem 0 0.7rem; font-size: 1rem; }
+.admin-account-card header h3 { margin: 0; }
+.admin-account-card p { color: var(--dark-secondary); margin: 0.3rem 0; }
+.admin-permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem 1rem; margin: 1rem 0 0; border: 0; padding: 0; }
+.admin-permission-grid legend { color: var(--c-gold-light); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.6rem; }
+.admin-permission-grid label { color: var(--dark-secondary) !important; font-size: 0.85rem !important; letter-spacing: normal !important; text-transform: none !important; }
+@media (max-width: 900px) { .admin-security-grid, .admin-permission-grid { grid-template-columns: 1fr; } }

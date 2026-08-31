@@ -91,8 +91,26 @@ model AdminUser {
   role                              AdminRole                         @default(STAFF)
   isActive                          Boolean                           @default(true)
   sessionVersion                    Int                               @default(0)
+  // Invitation. The hash only: a token readable from the database would let anyone with
+  // read access take over an account that has not been claimed yet.
+  invitationTokenHash               String?                           @unique
+  invitationExpiresAt               DateTime?
+  invitedById                       String?
+  activatedAt                       DateTime?
+  deactivatedAt                     DateTime?
+  // Two-factor. The secret is stored encrypted, never in clear.
+  totpSecretEncrypted               String?
+  totpConfirmedAt                   DateTime?
+  lastSignInAt                      DateTime?
   createdAt                         DateTime                          @default(now())
   updatedAt                         DateTime                          @updatedAt
+  invitedBy                         AdminUser?                        @relation("AdminUserInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedUsers                      AdminUser[]                       @relation("AdminUserInvitedBy")
+  permissionGrants                  AdminPermissionGrant[]            @relation("AdminPermissionGrantAdmin")
+  grantedPermissions                AdminPermissionGrant[]            @relation("AdminPermissionGrantGrantedBy")
+  sessions                          AdminSession[]
+  revokedSessions                   AdminSession[]                    @relation("AdminSessionRevokedBy")
+  recoveryCodes                     AdminRecoveryCode[]
   auditLogs                         AuditLog[]
   packageVersions                   PackageVersion[]                  @relation("PackageVersionCreatedBy")
   validatedPackageVersions          PackageVersion[]                  @relation("PackageVersionValidatedBy")
@@ -1216,4 +1234,82 @@ model CalendarSyncLog {
   @@index([reservationId, createdAt])
   @@index([externalEventId])
   @@index([status, nextAttemptAt, lockedAt])
+}
+
+/**
+ * A permission granted to one account on top of what its role carries.
+ *
+ * Roles stay as the coarse default; a grant is how the owner opens one module to one
+ * person without promoting them. There is no "deny" row on purpose: a permission a role
+ * carries is removed by changing the role, so nobody has to reason about two directions
+ * of override at once.
+ */
+model AdminPermissionGrant {
+  id           String    @id @default(cuid())
+  adminUserId  String
+  permission   String
+  grantedById  String?
+  grantedAt    DateTime  @default(now())
+  admin        AdminUser @relation("AdminPermissionGrantAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+  grantedBy    AdminUser? @relation("AdminPermissionGrantGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([adminUserId, permission])
+  @@index([grantedById])
+}
+
+/**
+ * One signed-in device.
+ *
+ * The session cookie is a JWT, which cannot be withdrawn on its own; `sessionVersion`
+ * only ever revoked *all* of an account's sessions at once. This row is what makes a
+ * single device revocable, and what lets someone see where they are signed in.
+ */
+model AdminSession {
+  id           String    @id @default(cuid())
+  adminUserId  String
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokedById  String?
+  revokedReason String?
+  admin        AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  revokedBy    AdminUser? @relation("AdminSessionRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, revokedAt])
+  @@index([expiresAt])
+  @@index([revokedById])
+}
+
+/** Single-use codes for the day the authenticator app is gone. Hashed, never stored in clear. */
+model AdminRecoveryCode {
+  id          String    @id @default(cuid())
+  adminUserId String
+  codeHash    String
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  admin       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, usedAt])
+}
+
+/**
+ * Every sign-in attempt, successful or not.
+ *
+ * Kept by e-mail rather than by account so an attempt against an address that does not
+ * exist is recorded too — that is exactly the pattern worth seeing.
+ */
+model AdminSignInAttempt {
+  id          String   @id @default(cuid())
+  email       String
+  ipAddress   String?
+  userAgent   String?
+  succeeded   Boolean
+  failureCode String?
+  createdAt   DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([createdAt])
 }

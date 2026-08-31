@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import type { ZodType } from 'zod';
 
 import { HttpError, notFound } from '../errors/http-error.js';
@@ -31,7 +31,9 @@ import {
   changeAdminPassword,
   getAdminFromRequest,
   publicAdminUser,
+  recordSignInAttempt,
   setAdminSessionCookie,
+  startAdminSession,
   verifyAdminCredentials,
 } from '../services/admin-auth.js';
 import { assertAdminPermission } from '../services/admin-permissions.js';
@@ -94,6 +96,23 @@ import { buildAdminDashboard } from '../services/admin-dashboard.js';
 import { getAdminSettings, updateSettingGroup } from '../services/studio-settings.js';
 import { listAdminContent, publishContent, saveContentDraft } from '../services/site-content.js';
 import { messageRuleStatus } from '../services/message-rules.js';
+import {
+  acceptAdminInvitation,
+  beginTotpEnrolment,
+  confirmTotpEnrolment,
+  disableTotp,
+  inviteAdminAccount,
+  listAdminAccounts,
+  listAdminSessions,
+  remainingRecoveryCodes,
+  revokeAdminSession,
+  setAdminAccountActive,
+  setAdminAccountRole,
+  setAdminPermissionGrants,
+  verifySecondFactor,
+  ADMIN_PERMISSION_CATALOGUE,
+} from '../services/admin-accounts.js';
+import { adminCommandCsv, auditActionFacets, auditLogCsv, listAdminCommands, listAuditLog, signInActivity } from '../services/admin-audit.js';
 import { listReceivedRequests, receivedRequestsCsv, updateReceivedRequest } from '../services/received-requests.js';
 import { mediaIntegrity, mediaIntegritySummary } from '../services/media-integrity.js';
 import { DATA_RIGHTS_RESPONSE_TEMPLATES, dataRightsCsv, listDataRightsRequests, renderResponseTemplate } from '../services/data-rights-queue.js';
@@ -132,8 +151,16 @@ import { transitionReservationStatus } from '../services/status-transitions.js';
 import { resolveCustomerDecisionCopy, type CustomerReasonCode } from '../services/customer-decision-copy.js';
 import { normalizePaymentReference } from '../utils/payment-reference.js';
 import {
+  adminAccountActiveSchema,
+  adminAccountInviteSchema,
+  adminAccountRoleSchema,
+  adminInvitationAcceptSchema,
   adminLoginSchema,
   adminPasswordChangeSchema,
+  adminPermissionGrantSchema,
+  adminSessionRevokeSchema,
+  adminTotpConfirmSchema,
+  auditListQuerySchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
   bookingRuleSchema,
@@ -248,8 +275,47 @@ router.post(
   adminLoginRateLimiter,
   validate('body', adminLoginSchema),
   asyncHandler(async (req, res) => {
-    const admin = await verifyAdminCredentials(req.body.email, req.body.password);
-    setAdminSessionCookie(res, admin);
+    let admin;
+    try {
+      admin = await verifyAdminCredentials(req.body.email, req.body.password);
+    } catch (error) {
+      await recordSignInAttempt(req.body.email, req, false, 'INVALID_CREDENTIALS');
+      throw error;
+    }
+
+    // The second factor is asked for only once the password is right, so the prompt never
+    // reveals whether an address has an account.
+    if (admin.totpConfirmedAt) {
+      if (!req.body.totpCode) {
+        await recordSignInAttempt(req.body.email, req, false, 'TOTP_REQUIRED');
+        throw new HttpError(401, 'TOTP_REQUIRED', 'Saisissez le code de votre application d’authentification.');
+      }
+      if (!await verifySecondFactor(admin, req.body.totpCode)) {
+        await recordSignInAttempt(req.body.email, req, false, 'TOTP_INVALID');
+        throw new HttpError(401, 'INVALID_CREDENTIALS', 'Identifiants ou code incorrects.');
+      }
+    }
+
+    const session = await startAdminSession(admin, req);
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { lastSignInAt: new Date() } });
+    await recordSignInAttempt(req.body.email, req, true);
+    setAdminSessionCookie(res, admin, session.id);
+    res.json({ data: publicAdminUser(admin) });
+  }),
+);
+
+// Accepting an invitation is by definition unauthenticated: the account has no password yet.
+router.post(
+  '/invitations/accept',
+  adminLoginRateLimiter,
+  validate('body', adminInvitationAcceptSchema),
+  asyncHandler(async (req, res) => {
+    const admin = await acceptAdminInvitation(req.body.token, req.body.password);
+    await writeAuditLog(admin.id, 'admin.invitation.accept', 'AdminUser', admin.id);
+    const session = await startAdminSession(admin, req);
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { lastSignInAt: new Date() } });
+    await recordSignInAttempt(admin.email, req, true);
+    setAdminSessionCookie(res, admin, session.id);
     res.json({ data: publicAdminUser(admin) });
   }),
 );
@@ -288,13 +354,150 @@ router.post(
   asyncHandler(async (req, res) => {
     const admin = res.locals.admin!;
     const updatedAdmin = await changeAdminPassword(admin, req.body.currentPassword, req.body.newPassword);
-    setAdminSessionCookie(res, updatedAdmin);
+    const session = await startAdminSession(updatedAdmin, req);
+    setAdminSessionCookie(res, updatedAdmin, session.id);
     res.json({
       data: publicAdminUser(updatedAdmin),
       message: 'Mot de passe modifié avec succès.',
     });
   }),
 );
+
+// === Phase 10 (§12): named accounts, two-factor, sessions and audit ===
+
+const requireOwner = (res: Response) => {
+  const admin = res.locals.admin;
+  if (!admin || admin.role !== 'OWNER') {
+    throw new HttpError(403, 'OWNER_REQUIRED', 'Cette section est réservée au propriétaire.');
+  }
+  return admin;
+};
+
+router.get('/security/accounts', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  res.json({ data: await listAdminAccounts(), meta: { permissions: ADMIN_PERMISSION_CATALOGUE } });
+}));
+
+router.post('/security/accounts', validate('body', adminAccountInviteSchema), asyncHandler(async (req, res) => {
+  const actor = requireOwner(res);
+  const invitation = await inviteAdminAccount(req.body, actor.id);
+  await writeAuditLog(actor.id, 'admin.invitation.create', 'AdminUser', invitation.account.id, {
+    email: invitation.account.email, role: invitation.account.role, expiresAt: invitation.account.invitationExpiresAt,
+  });
+  res.status(201).json({
+    data: {
+      accountId: invitation.account.id,
+      invitationPath: `/admin/securite?invitation=${encodeURIComponent(invitation.token)}`,
+      expiresAt: invitation.account.invitationExpiresAt,
+    },
+  });
+}));
+
+router.patch('/security/accounts/:id/active', validate('params', idParamsSchema), validate('body', adminAccountActiveSchema), asyncHandler(async (req, res) => {
+  const actor = requireOwner(res);
+  const id = routeParam(req.params.id);
+  const account = await setAdminAccountActive(id, req.body.isActive, actor.id);
+  await writeAuditLog(actor.id, req.body.isActive ? 'admin.account.activate' : 'admin.account.deactivate', 'AdminUser', id);
+  res.json({ data: account });
+}));
+
+router.patch('/security/accounts/:id/role', validate('params', idParamsSchema), validate('body', adminAccountRoleSchema), asyncHandler(async (req, res) => {
+  const actor = requireOwner(res);
+  const id = routeParam(req.params.id);
+  const account = await setAdminAccountRole(id, req.body.role, actor.id);
+  await writeAuditLog(actor.id, 'admin.account.role', 'AdminUser', id, { role: req.body.role });
+  res.json({ data: account });
+}));
+
+router.put('/security/accounts/:id/permissions', validate('params', idParamsSchema), validate('body', adminPermissionGrantSchema), asyncHandler(async (req, res) => {
+  const actor = requireOwner(res);
+  const id = routeParam(req.params.id);
+  const grants = await setAdminPermissionGrants(id, req.body.permissions, actor.id);
+  await writeAuditLog(actor.id, 'admin.account.permissions', 'AdminUser', id, { permissions: req.body.permissions });
+  res.json({ data: grants });
+}));
+
+router.get('/security/sessions', asyncHandler(async (_req, res) => {
+  const actor = res.locals.admin!;
+  res.json({ data: await listAdminSessions(actor.id) });
+}));
+
+router.get('/security/sessions/all', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  res.json({ data: await listAdminSessions() });
+}));
+
+router.patch('/security/sessions/:id/revoke', validate('params', idParamsSchema), validate('body', adminSessionRevokeSchema), asyncHandler(async (req, res) => {
+  const actor = res.locals.admin!;
+  const id = routeParam(req.params.id);
+  const session = await prisma.adminSession.findUnique({ where: { id } });
+  if (!session) throw new HttpError(404, 'ADMIN_SESSION_NOT_FOUND', 'Session introuvable.');
+  if (session.adminUserId !== actor.id && actor.role !== 'OWNER') {
+    throw new HttpError(403, 'OWNER_REQUIRED', 'Vous ne pouvez retirer que vos propres sessions.');
+  }
+  const revoked = await revokeAdminSession(id, actor.id, req.body.reason);
+  await writeAuditLog(actor.id, 'admin.session.revoke', 'AdminSession', id, { accountId: session.adminUserId, reason: req.body.reason });
+  res.json({ data: revoked });
+}));
+
+router.get('/security/totp', asyncHandler(async (_req, res) => {
+  const actor = res.locals.admin!;
+  res.json({ data: { enabled: Boolean(actor.totpConfirmedAt), recoveryCodesRemaining: await remainingRecoveryCodes(actor.id) } });
+}));
+
+router.post('/security/totp/begin', asyncHandler(async (_req, res) => {
+  const actor = res.locals.admin!;
+  const enrolment = await beginTotpEnrolment(actor);
+  await writeAuditLog(actor.id, 'admin.totp.begin', 'AdminUser', actor.id);
+  res.json({ data: enrolment });
+}));
+
+router.post('/security/totp/confirm', validate('body', adminTotpConfirmSchema), asyncHandler(async (req, res) => {
+  const actor = res.locals.admin!;
+  const result = await confirmTotpEnrolment(actor, req.body.code);
+  await writeAuditLog(actor.id, 'admin.totp.enable', 'AdminUser', actor.id, { recoveryCodeCount: result.recoveryCodes.length });
+  res.json({ data: result });
+}));
+
+router.post('/security/totp/disable', validate('body', adminTotpConfirmSchema), asyncHandler(async (req, res) => {
+  const actor = res.locals.admin!;
+  if (!await verifySecondFactor(actor, req.body.code)) throw new HttpError(422, 'TOTP_CODE_INVALID', 'Ce code est incorrect ou expiré.');
+  await disableTotp(actor.id);
+  await writeAuditLog(actor.id, 'admin.totp.disable', 'AdminUser', actor.id);
+  res.status(204).send();
+}));
+
+router.get('/security/sign-ins', asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  res.json({ data: await signInActivity() });
+}));
+
+router.get('/audit', validate('query', auditListQuerySchema), asyncHandler(async (_req, res) => {
+  requireOwner(res);
+  const query = res.locals.validated.query;
+  const [logs, commands, facets] = await Promise.all([listAuditLog(query), listAdminCommands(query), auditActionFacets()]);
+  res.json({ data: logs.items, meta: { total: logs.total, limit: logs.limit, offset: logs.offset, commands: commands.items, commandTotal: commands.total, facets } });
+}));
+
+router.get('/audit/export.csv', validate('query', auditListQuerySchema), asyncHandler(async (_req, res) => {
+  const actor = requireOwner(res);
+  const query = { ...res.locals.validated.query, limit: 1000, offset: 0 };
+  const result = await listAuditLog(query);
+  await writeAuditLog(actor.id, 'admin.audit.export', 'AuditLog', undefined, { rows: result.items.length });
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="journal-audit.csv"');
+  res.send(auditLogCsv(result.items));
+}));
+
+router.get('/audit/commands/export.csv', validate('query', auditListQuerySchema), asyncHandler(async (_req, res) => {
+  const actor = requireOwner(res);
+  const query = { ...res.locals.validated.query, limit: 1000, offset: 0 };
+  const result = await listAdminCommands(query);
+  await writeAuditLog(actor.id, 'admin.command.export', 'AdminCommand', undefined, { rows: result.items.length });
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="commandes-admin.csv"');
+  res.send(adminCommandCsv(result.items));
+}));
 router.get(
   '/data-governance',
   asyncHandler(async (_req, res) => {

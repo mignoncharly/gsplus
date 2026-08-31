@@ -16,7 +16,22 @@ type AdminSessionPayload = JwtPayload & {
   sub: string;
   role: AdminUser['role'];
   sessionVersion: number;
+  /**
+   * The session record this cookie belongs to.
+   *
+   * `sessionVersion` is a kill switch for *every* device at once, which is the wrong tool
+   * for "sign out my old phone". Absent on cookies issued before this existed, and those
+   * keep working until they expire rather than logging everyone out on deployment.
+   */
+  sid?: string;
 };
+
+export type SessionContext = { userAgent?: string | null; ipAddress?: string | null };
+
+const requestContext = (req: Request): SessionContext => ({
+  userAgent: req.get('user-agent')?.slice(0, 300) ?? null,
+  ipAddress: req.ip ?? null,
+});
 
 const adminSessionCookieName = () =>
   env.NODE_ENV === 'production' ? ADMIN_SESSION_COOKIE_PRODUCTION : ADMIN_SESSION_COOKIE;
@@ -34,13 +49,15 @@ export const publicAdminUser = (admin: AdminUser) => ({
   email: admin.email,
   name: admin.name,
   role: admin.role,
+  twoFactorEnabled: Boolean(admin.totpConfirmedAt),
 });
 
-export const setAdminSessionCookie = (res: Response, admin: AdminUser) => {
+export const setAdminSessionCookie = (res: Response, admin: AdminUser, sessionId?: string) => {
   const token = jwt.sign(
     {
       role: admin.role,
       sessionVersion: admin.sessionVersion,
+      ...(sessionId ? { sid: sessionId } : {}),
     },
     env.ADMIN_SESSION_SECRET,
     {
@@ -121,6 +138,10 @@ export const changeAdminPassword = async (
     }
 
     const updatedAdmin = await transaction.adminUser.findUniqueOrThrow({ where: { id: admin.id } });
+    await transaction.adminSession.updateMany({
+      where: { adminUserId: admin.id, revokedAt: null },
+      data: { revokedAt: new Date(), revokedById: admin.id, revokedReason: 'PASSWORD_CHANGED' },
+    });
     await transaction.auditLog.create({
       data: {
         adminUserId: admin.id,
@@ -133,6 +154,19 @@ export const changeAdminPassword = async (
     return updatedAdmin;
   });
 };
+/** Record a signed-in device, so it can be listed and withdrawn on its own. */
+export const startAdminSession = async (admin: AdminUser, req: Request) => {
+  const context = requestContext(req);
+  return prisma.adminSession.create({
+    data: {
+      adminUserId: admin.id,
+      userAgent: context.userAgent,
+      ipAddress: context.ipAddress,
+      expiresAt: new Date(Date.now() + env.ADMIN_SESSION_TTL_SECONDS * 1000),
+    },
+  });
+};
+
 export const getAdminFromRequest = async (req: Request) => {
   const token = req.cookies?.[adminSessionCookieName()];
   if (!token) {
@@ -162,5 +196,30 @@ export const getAdminFromRequest = async (req: Request) => {
     throw new HttpError(401, 'UNAUTHENTICATED', 'Admin session is invalid or expired.');
   }
 
+  if (payload.sid) {
+    const session = await prisma.adminSession.findUnique({ where: { id: payload.sid } });
+    // A cookie whose session was withdrawn, expired or deleted is no longer a session.
+    if (!session || session.adminUserId !== admin.id || session.revokedAt || session.expiresAt <= new Date()) {
+      throw new HttpError(401, 'UNAUTHENTICATED', 'Admin session is invalid or expired.');
+    }
+    // Best effort: "last seen" is worth having, and is never worth failing a request for.
+    void prisma.adminSession
+      .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
+      .catch(() => undefined);
+  }
+
   return admin;
+};
+
+export const recordSignInAttempt = async (
+  email: string,
+  req: Request,
+  succeeded: boolean,
+  failureCode?: string,
+) => {
+  const context = requestContext(req);
+  // Never let the record of an attempt decide whether the attempt itself succeeds.
+  await prisma.adminSignInAttempt
+    .create({ data: { email: email.trim().toLowerCase(), ipAddress: context.ipAddress, userAgent: context.userAgent, succeeded, failureCode } })
+    .catch(() => undefined);
 };
