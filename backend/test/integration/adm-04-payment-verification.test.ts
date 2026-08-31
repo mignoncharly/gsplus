@@ -120,6 +120,20 @@ describe('ADM-04 payment verification queue', () => {
     expect(mismatch.body.data).toHaveLength(1);
     expect(mismatch.body.data[0].reservation.reference).toBe('GSP-ADM04-0002');
   });
+  it("filters amount variance before pagination and counts every match", async () => {
+    const { second, third } = await seed();
+    await prisma.payment.update({ where: { id: third.payment.id }, data: { createdAt: new Date("2030-05-03T09:00:00.000Z") } });
+    await prisma.payment.update({ where: { id: second.payment.id }, data: { createdAt: new Date("2030-05-02T09:00:00.000Z") } });
+    const agent = await signIn("adm-04-owner@example.test");
+
+    // The newest declared amount matches exactly. The older row is the mismatch that
+    // must still occupy page one when the predicate is evaluated before pagination.
+    const response = await agent.get("/api/admin/payments").query({ mismatch: "true", limit: "1", offset: "0" }).expect(200);
+    expect(response.body.meta.total).toBe(1);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].reservation.reference).toBe("GSP-ADM04-0002");
+  });
+
 
   it('surfaces the duplicate the unique index can only refuse', async () => {
     const { first, second } = await seed();

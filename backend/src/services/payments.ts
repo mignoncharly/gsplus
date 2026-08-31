@@ -96,23 +96,37 @@ const listWhere = (filters: PaymentListFilters): Prisma.PaymentWhereInput => {
 
 export const listPayments = async (filters: PaymentListFilters) => {
   const where = listWhere(filters);
+  const orderBy = [{ createdAt: "desc" as const }, { id: "desc" as const }];
+
+  // Prisma cannot compare two columns in a where clause. Resolve that one predicate
+  // before applying pagination so a matching payment cannot disappear behind an
+  // equal-amount row and the reported total stays correct.
+  if (filters.mismatch) {
+    const candidates = await prisma.payment.findMany({ where, orderBy, include: paymentListInclude });
+    const matches = candidates
+      .map((payment) => ({ ...payment, amountVariance: paymentAmountVariance(payment) }))
+      .filter((payment) => payment.amountVariance !== null && payment.amountVariance !== 0);
+    return {
+      items: matches.slice(filters.offset, filters.offset + filters.limit),
+      total: matches.length,
+      limit: filters.limit,
+      offset: filters.offset,
+    };
+  }
+
   const [rows, total] = await prisma.$transaction([
     prisma.payment.findMany({
       where,
       take: filters.limit,
       skip: filters.offset,
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy,
       include: paymentListInclude,
     }),
     prisma.payment.count({ where }),
   ]);
 
   const items = rows.map((payment) => ({ ...payment, amountVariance: paymentAmountVariance(payment) }));
-  // A declared amount equal to the expected one is not a mismatch; filtering that in
-  // SQL would need a column comparison Prisma cannot express in a where clause.
-  const filtered = filters.mismatch ? items.filter((item) => item.amountVariance !== null && item.amountVariance !== 0) : items;
-
-  return { items: filtered, total: filters.mismatch ? filtered.length : total, limit: filters.limit, offset: filters.offset };
+  return { items, total, limit: filters.limit, offset: filters.offset };
 };
 
 export const getPayment = async (id: string) => {
