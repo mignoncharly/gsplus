@@ -1,16 +1,16 @@
 /* === Admin Dashboard Layout === */
 .admin-layout {
   display: flex;
-  height: 100vh;
-  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow: hidden;
-  align-items: stretch;
+  align-items: flex-start;
   background-color: #080c0b; /* Extra dark base background */
   font-family: var(--font-body);
   color: var(--dark-secondary);
 }
+
+/* Admin pages may be taller than the viewport. Keep the surrounding document dark too. */
+body:has(.admin-layout) { background-color: #080c0b; }
 
 .admin-mobile-header,
 .admin-sidebar-close,
@@ -83,6 +83,8 @@
 .admin-sidebar {
   flex: 0 0 280px;
   width: 280px;
+  position: sticky;
+  top: 0;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
@@ -201,11 +203,7 @@
 .admin-main {
   flex: 1;
   min-width: 0;
-  min-height: 0;
-  height: 100%;
-  box-sizing: border-box;
   padding: 3.5rem 4rem;
-  overflow-y: auto;
   background-color: #080c0b;
 }
 
