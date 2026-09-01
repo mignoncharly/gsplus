@@ -36,7 +36,7 @@ import {
   startAdminSession,
   verifyAdminCredentials,
 } from '../services/admin-auth.js';
-import { assertAdminPermission, requiresAdminTotp } from '../services/admin-permissions.js';
+import { assertAdminPermission } from '../services/admin-permissions.js';
 import {
   executeAddPayment,
   executeCancellationDecision,
@@ -293,11 +293,8 @@ router.post(
     }
 
     // The second factor is asked for only once the password is right, so the prompt never
-    // reveals whether an address has an account. Invitation acceptance is the authenticated bootstrap session.
-    if (requiresAdminTotp(admin) && !admin.totpConfirmedAt) {
-      await recordSignInAttempt(req.body.email, req, false, 'TOTP_ENROLMENT_REQUIRED');
-      throw new HttpError(403, 'TOTP_ENROLMENT_REQUIRED', 'La double authentification doit être configurée depuis votre session d’activation avant toute nouvelle connexion.');
-    }
+    // reveals whether an address has an account. Existing owners may bootstrap from the
+    // security screen; once configured, the second factor is always enforced here.
     if (admin.totpConfirmedAt) {
       if (!req.body.totpCode) {
         await recordSignInAttempt(req.body.email, req, false, 'TOTP_REQUIRED');
