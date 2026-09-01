@@ -93,8 +93,10 @@ export const setAdminSecurityAccountRole = async (id, role) =>
   (await apiFetch(`/api/admin/security/accounts/${encodeURIComponent(id)}/role`, { method: 'PATCH', body: JSON.stringify({ role }) })).data;
 export const setAdminSecurityPermissions = async (id, permissions) =>
   (await apiFetch(`/api/admin/security/accounts/${encodeURIComponent(id)}/permissions`, { method: 'PUT', body: JSON.stringify({ permissions }) })).data;
-export const getAdminSecuritySessions = async (all = false) =>
-  (await apiFetch(`/api/admin/security/sessions${all ? '/all' : ''}`)).data;
+export const getAdminSecuritySessions = async (all = false, filters = {}) => {
+  const payload = await apiFetch(`/api/admin/security/sessions${all ? '/all' : ''}?${adminQuery(filters)}`);
+  return { items: payload.data, meta: payload.meta ?? { total: payload.data.length, limit: payload.data.length, offset: 0 } };
+};
 export const revokeAdminSecuritySession = async (id, reason = 'REVOKED_BY_ADMIN') =>
   (await apiFetch(`/api/admin/security/sessions/${encodeURIComponent(id)}/revoke`, { method: 'PATCH', body: JSON.stringify({ reason }) })).data;
 export const getAdminTotpStatus = async () => (await apiFetch('/api/admin/security/totp')).data;

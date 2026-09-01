@@ -16,7 +16,7 @@ const mediaRightsStatus = (item) => {
 };
 
 const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle, onRemove, onArchive, onReorder }) => {
-  const owner = adminUser?.role === 'OWNER';
+  const canManage = adminUser?.effectivePermissions?.includes('MEDIA_RIGHTS_MANAGE');
   const [alertsOnly, setAlertsOnly] = useState(false);
   const [moving, setMoving] = useState('');
   const [selected, setSelected] = useState([]);
@@ -98,23 +98,23 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
         <form onSubmit={onCreate} className="admin-form-grid portfolio-form-grid" style={{ gap: '1.5rem 1.5rem' }}>
           <div>
             <label htmlFor="portfolio-title" style={{ display: 'block', marginBottom: '0.5rem' }}>Titre *</label>
-            <input id="portfolio-title" autoComplete="off" name="title" placeholder="Ex: Portrait Studio Luxe" required className="form-input" disabled={!owner} />
+            <input id="portfolio-title" autoComplete="off" name="title" placeholder="Ex: Portrait Studio Luxe" required className="form-input" disabled={!canManage} />
           </div>
           <div>
             <label htmlFor="portfolio-reservation-reference" style={{ display: 'block', marginBottom: '0.5rem' }}>Référence de réservation *</label>
-            <input id="portfolio-reservation-reference" autoComplete="off" name="reservationReference" placeholder="GSP-…" required className="form-input" disabled={!owner} />
+            <input id="portfolio-reservation-reference" autoComplete="off" name="reservationReference" placeholder="GSP-…" required className="form-input" disabled={!canManage} />
           </div>
           <div>
             <label htmlFor="portfolio-file" style={{ display: 'block', marginBottom: '0.5rem' }}>Fichier Image *</label>
-            <input id="portfolio-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required className="form-input" style={{ paddingTop: '0.6rem' }} disabled={!owner} />
+            <input id="portfolio-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required className="form-input" style={{ paddingTop: '0.6rem' }} disabled={!canManage} />
           </div>
           <div>
             <label htmlFor="portfolio-alt" style={{ display: 'block', marginBottom: '0.5rem' }}>Texte alternatif *</label>
-            <input id="portfolio-alt" autoComplete="off" name="altText" placeholder="Décrire précisément le sujet de la photo" className="form-input" required disabled={!owner} />
+            <input id="portfolio-alt" autoComplete="off" name="altText" placeholder="Décrire précisément le sujet de la photo" className="form-input" required disabled={!canManage} />
           </div>
           <div>
             <label htmlFor="portfolio-category" style={{ display: 'block', marginBottom: '0.5rem' }}>Catégorie *</label>
-            <select id="portfolio-category" name="category" className="form-input" required defaultValue="" disabled={!owner}>
+            <select id="portfolio-category" name="category" className="form-input" required defaultValue="" disabled={!canManage}>
               <option value="" disabled>Choisir une catégorie éditoriale</option>
               {PORTFOLIO_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
             </select>
@@ -122,30 +122,30 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
           <div>
 
             <label htmlFor="portfolio-position" style={{ display: 'block', marginBottom: '0.5rem' }}>Position de l'image (CSS)</label>
-            <input id="portfolio-position" autoComplete="off" name="objectPosition" placeholder="Ex: center top, center center" className="form-input" defaultValue="center top" disabled={!owner} />
+            <input id="portfolio-position" autoComplete="off" name="objectPosition" placeholder="Ex: center top, center center" className="form-input" defaultValue="center top" disabled={!canManage} />
           </div>
           <div>
             <label htmlFor="portfolio-sort-order" style={{ display: 'block', marginBottom: '0.5rem' }}>Ordre d’affichage</label>
-            <input id="portfolio-sort-order" name="sortOrder" type="number" min="0" step="1" defaultValue="0" className="form-input" disabled={!owner} />
+            <input id="portfolio-sort-order" name="sortOrder" type="number" min="0" step="1" defaultValue="0" className="form-input" disabled={!canManage} />
           </div>
           <div style={{ display: 'flex', gap: '2rem', paddingBottom: '0.5rem' }}>
-            <label htmlFor="portfolio-featured" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: owner ? 'pointer' : 'not-allowed' }}>
-              <input id="portfolio-featured" name="isFeatured" type="checkbox" disabled={!owner} />
+            <label htmlFor="portfolio-featured" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: canManage ? 'pointer' : 'not-allowed' }}>
+              <input id="portfolio-featured" name="isFeatured" type="checkbox" disabled={!canManage} />
               <span>Mis en avant</span>
             </label>
-            <label htmlFor="portfolio-published" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: owner ? 'pointer' : 'not-allowed' }}>
-              <input id="portfolio-published" name="isPublished" type="checkbox" disabled={!owner} />
+            <label htmlFor="portfolio-published" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: canManage ? 'pointer' : 'not-allowed' }}>
+              <input id="portfolio-published" name="isPublished" type="checkbox" disabled={!canManage} />
               <span>Publier directement</span>
             </label>
           </div>
-          <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', padding: '1rem' }} disabled={!owner}>
+          <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', padding: '1rem' }} disabled={!canManage}>
             <Upload size={18} /> Téléverser l'image dans la Galerie
           </button>
         </form>
       </div>
 
       {previewItem && <section className="admin-card" role="dialog" aria-label="Aperçu public"><div className="admin-action-row"><h2>Aperçu avant publication</h2><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewItem(null)}>Fermer</button></div><img src={mediaUrl(previewItem.url)} alt={previewItem.altText || previewItem.title} style={{ width: '100%', maxHeight: '480px', objectFit: 'cover', objectPosition: previewItem.objectPosition || 'center center' }} /><p><strong>{previewItem.title}</strong><br /><small>Rendu et cadrage visibles publiquement après publication.</small></p></section>}
-      {selected.length > 0 && <section className="admin-card"><strong>{selected.length} média(s) sélectionné(s)</strong><div className="admin-action-row"><button type="button" className="btn btn-primary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(true)}>Publier</button><button type="button" className="btn btn-secondary admin-sm-btn" disabled={!owner || Boolean(moving)} onClick={() => void bulkPublication(false)}>Masquer</button><button type="button" className="btn btn-secondary admin-sm-btn text-danger" disabled={!owner || Boolean(moving)} onClick={() => void bulkArchive()}>Archiver</button><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setSelected([])}>Annuler</button></div></section>}
+      {selected.length > 0 && <section className="admin-card"><strong>{selected.length} média(s) sélectionné(s)</strong><div className="admin-action-row"><button type="button" className="btn btn-primary admin-sm-btn" disabled={!canManage || Boolean(moving)} onClick={() => void bulkPublication(true)}>Publier</button><button type="button" className="btn btn-secondary admin-sm-btn" disabled={!canManage || Boolean(moving)} onClick={() => void bulkPublication(false)}>Masquer</button><button type="button" className="btn btn-secondary admin-sm-btn text-danger" disabled={!canManage || Boolean(moving)} onClick={() => void bulkArchive()}>Archiver</button><button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setSelected([])}>Annuler</button></div></section>}
       <div className="grid md:grid-cols-3 gap-6">
         {shown.map((item) => (
           <div key={item.id} className="admin-stat-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -160,7 +160,7 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
             />
             <div style={{ padding: '1.5rem' }}>
               <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'block', marginBottom: '0.25rem' }}>{item.title}</strong>
-              <label className="admin-check"><input type="checkbox" checked={selected.includes(item.id)} disabled={!owner || Boolean(moving)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /> Sélectionner</label>
+              <label className="admin-check"><input type="checkbox" checked={selected.includes(item.id)} disabled={!canManage || Boolean(moving)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /> Sélectionner</label>
               <p style={{ color: 'var(--dark-muted)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{item.category || 'Sans catégorie'}</p>
               <p style={{ color: 'var(--dark-muted)', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
                 {item.width && item.height ? item.width + ' × ' + item.height + ' px' : 'Dimensions inconnues'}
@@ -187,25 +187,25 @@ const AdminMediaRightsPanel = ({ media, integrity, adminUser, onCreate, onToggle
               )}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button type="button" className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewItem(item)} style={{ flex: 1 }}>Aperçu public</button>
-                <button type="button" className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onArchive(item)} disabled={!owner} style={{ flex: 1 }}>Archiver</button>
-                <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isPublished')} disabled={!owner} style={{ flex: 1 }}>
+                <button type="button" className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onArchive(item)} disabled={!canManage} style={{ flex: 1 }}>Archiver</button>
+                <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isPublished')} disabled={!canManage} style={{ flex: 1 }}>
                   {item.isPublished ? 'Masquer' : 'Publier'}
                 </button>
-                <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isFeatured')} disabled={!owner} style={{ flex: 1 }}>
+                <button className="btn btn-secondary admin-sm-btn" onClick={() => onToggle(item, 'isFeatured')} disabled={!canManage} style={{ flex: 1 }}>
                   {item.isFeatured ? 'Standard' : 'Vedette'}
                 </button>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, -1)}
-                  disabled={!owner || alertsOnly || Boolean(moving) || activeMedia[0]?.id === item.id}
+                  disabled={!canManage || alertsOnly || Boolean(moving) || activeMedia[0]?.id === item.id}
                   aria-label={`Monter ${item.title}`} style={{ flex: 1 }}>↑</button>
                 <button className="btn btn-secondary admin-sm-btn" onClick={() => move(item, 1)}
-                  disabled={!owner || alertsOnly || Boolean(moving) || activeMedia[activeMedia.length - 1]?.id === item.id}
+                  disabled={!canManage || alertsOnly || Boolean(moving) || activeMedia[activeMedia.length - 1]?.id === item.id}
                   aria-label={`Descendre ${item.title}`} style={{ flex: 1 }}>↓</button>
-                <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onRemove(item)} disabled={!owner} style={{ width: '100%', marginTop: '0.5rem' }}>
+                <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => onRemove(item)} disabled={!canManage} style={{ width: '100%', marginTop: '0.5rem' }}>
                   <Trash2 size={12} /> Supprimer
                 </button>
-                <label className="btn btn-secondary admin-sm-btn" style={{ flex: 1, cursor: owner ? 'pointer' : 'not-allowed' }}>
+                <label className="btn btn-secondary admin-sm-btn" style={{ flex: 1, cursor: canManage ? 'pointer' : 'not-allowed' }}>
                   Remplacer
-                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={!owner || Boolean(moving)} onChange={(event) => { void replaceFile(item, event.target.files?.[0]); event.target.value = ''; }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={!canManage || Boolean(moving)} onChange={(event) => { void replaceFile(item, event.target.files?.[0]); event.target.value = ''; }} />
                 </label>
               </div>
             </div>

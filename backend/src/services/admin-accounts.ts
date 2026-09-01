@@ -170,18 +170,20 @@ export const setAdminPermissionGrants = async (adminUserId: string, permissions:
   return prisma.adminPermissionGrant.findMany({ where: { adminUserId } });
 };
 
-export const listAdminSessions = async (adminUserId?: string) => {
-  const sessions = await prisma.adminSession.findMany({
-    where: adminUserId ? { adminUserId } : {},
-    orderBy: [{ revokedAt: 'asc' }, { lastSeenAt: 'desc' }],
-    take: 200,
-    include: { admin: { select: { id: true, name: true, email: true } }, revokedBy: { select: { id: true, name: true } } },
-  });
+export const listAdminSessions = async (query: { adminUserId?: string; limit: number; offset: number; status?: 'active' | 'revoked' | 'expired'; q?: string }) => {
   const now = new Date();
-  return sessions.map((session) => ({
-    ...session,
-    isCurrentlyValid: !session.revokedAt && session.expiresAt > now,
-  }));
+  const and: import('../generated/prisma/client.js').Prisma.AdminSessionWhereInput[] = [];
+  if (query.adminUserId) and.push({ adminUserId: query.adminUserId });
+  if (query.status === 'active') and.push({ revokedAt: null, expiresAt: { gt: now } });
+  if (query.status === 'revoked') and.push({ revokedAt: { not: null } });
+  if (query.status === 'expired') and.push({ revokedAt: null, expiresAt: { lte: now } });
+  if (query.q) { const text = { contains: query.q.trim(), mode: 'insensitive' as const }; and.push({ OR: [{ ipAddress: text }, { userAgent: text }, { admin: { is: { name: text } } }, { admin: { is: { email: text } } }] }); }
+  const where = and.length ? { AND: and } : {};
+  const [sessions, total] = await Promise.all([
+    prisma.adminSession.findMany({ where, orderBy: [{ revokedAt: 'asc' }, { lastSeenAt: 'desc' }], take: query.limit, skip: query.offset, include: { admin: { select: { id: true, name: true, email: true } }, revokedBy: { select: { id: true, name: true } } } }),
+    prisma.adminSession.count({ where }),
+  ]);
+  return { items: sessions.map((session) => ({ ...session, isCurrentlyValid: !session.revokedAt && session.expiresAt > now })), total, limit: query.limit, offset: query.offset };
 };
 
 export const revokeAdminSession = async (sessionId: string, actorId: string, reason = 'REVOKED_BY_ADMIN') => {

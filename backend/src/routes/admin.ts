@@ -36,7 +36,7 @@ import {
   startAdminSession,
   verifyAdminCredentials,
 } from '../services/admin-auth.js';
-import { assertAdminPermission } from '../services/admin-permissions.js';
+import { assertAdminPermission, requiresAdminTotp } from '../services/admin-permissions.js';
 import {
   executeAddPayment,
   executeCancellationDecision,
@@ -166,6 +166,7 @@ import {
   adminPasswordChangeSchema,
   adminPermissionGrantSchema,
   adminSessionRevokeSchema,
+  adminSessionListQuerySchema,
   adminTotpConfirmSchema,
   auditListQuerySchema,
   availabilityBlockCreateSchema,
@@ -292,7 +293,11 @@ router.post(
     }
 
     // The second factor is asked for only once the password is right, so the prompt never
-    // reveals whether an address has an account.
+    // reveals whether an address has an account. Invitation acceptance is the authenticated bootstrap session.
+    if (requiresAdminTotp(admin) && !admin.totpConfirmedAt) {
+      await recordSignInAttempt(req.body.email, req, false, 'TOTP_ENROLMENT_REQUIRED');
+      throw new HttpError(403, 'TOTP_ENROLMENT_REQUIRED', 'La double authentification doit être configurée depuis votre session d’activation avant toute nouvelle connexion.');
+    }
     if (admin.totpConfirmedAt) {
       if (!req.body.totpCode) {
         await recordSignInAttempt(req.body.email, req, false, 'TOTP_REQUIRED');
@@ -425,14 +430,16 @@ router.put('/security/accounts/:id/permissions', validate('params', idParamsSche
   res.json({ data: grants });
 }));
 
-router.get('/security/sessions', asyncHandler(async (_req, res) => {
+router.get('/security/sessions', validate('query', adminSessionListQuerySchema), asyncHandler(async (_req, res) => {
   const actor = res.locals.admin!;
-  res.json({ data: await listAdminSessions(actor.id) });
+  const result = await listAdminSessions({ ...res.locals.validated.query, adminUserId: actor.id });
+  res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
 }));
 
-router.get('/security/sessions/all', asyncHandler(async (_req, res) => {
+router.get('/security/sessions/all', validate('query', adminSessionListQuerySchema), asyncHandler(async (_req, res) => {
   requireOwner(res);
-  res.json({ data: await listAdminSessions() });
+  const result = await listAdminSessions(res.locals.validated.query);
+  res.json({ data: result.items, meta: { total: result.total, limit: result.limit, offset: result.offset } });
 }));
 
 router.patch('/security/sessions/:id/revoke', validate('params', idParamsSchema), validate('body', adminSessionRevokeSchema), asyncHandler(async (req, res) => {

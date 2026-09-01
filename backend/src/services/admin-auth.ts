@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { HttpError } from '../errors/http-error.js';
 import type { AdminUser } from '../generated/prisma/client.js';
 import { prisma } from '../db/prisma.js';
+import { effectiveAdminPermissions } from './admin-permissions.js';
 
 export const ADMIN_SESSION_COOKIE = 'gsp_admin_session';
 export const ADMIN_SESSION_COOKIE_PRODUCTION = '__Host-gsp_admin_session';
@@ -50,6 +51,7 @@ export const publicAdminUser = (admin: AdminUser) => ({
   name: admin.name,
   role: admin.role,
   twoFactorEnabled: Boolean(admin.totpConfirmedAt),
+  effectivePermissions: effectiveAdminPermissions(admin),
 });
 
 export const setAdminSessionCookie = (res: Response, admin: AdminUser, sessionId?: string) => {

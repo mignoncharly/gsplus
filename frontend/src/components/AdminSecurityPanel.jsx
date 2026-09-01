@@ -45,7 +45,8 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [accounts, setAccounts] = useState([]);
   const [permissions, setPermissions] = useState([]);
-  const [sessions, setSessions] = useState([]);
+  const [sessions, setSessions] = useState({ items: [], meta: { total: 0, limit: 25, offset: 0 } });
+  const [sessionFilters, setSessionFilters] = useState({ q: '', status: 'active', limit: 25, offset: 0 });
   const [totp, setTotp] = useState({ enabled: Boolean(adminUser?.twoFactorEnabled), recoveryCodesRemaining: 0 });
   const [enrolment, setEnrolment] = useState(null);
   const [totpCode, setTotpCode] = useState('');
@@ -58,7 +59,7 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
 
   const report = useCallback((type, message) => onFeedback?.({ tab: 'account', type, message }), [onFeedback]);
   const reload = useCallback(async () => {
-    const [sessionRows, totpState] = await Promise.all([getAdminSecuritySessions(owner), getAdminTotpStatus()]);
+    const [sessionRows, totpState] = await Promise.all([getAdminSecuritySessions(owner, sessionFilters), getAdminTotpStatus()]);
     setSessions(sessionRows);
     setTotp(totpState);
     if (owner) {
@@ -70,7 +71,7 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
       setSignIns(activity);
       setAudit(auditResult);
     }
-  }, [auditFilters, owner]);
+  }, [auditFilters, owner, sessionFilters]);
 
   useEffect(() => { reload().catch((error) => report('error', error.message)); }, [reload, report]);
 
@@ -167,9 +168,10 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
       <section className="admin-card">
         <h2>Sessions actives</h2>
         <div className="admin-table-wrap admin-security-sessions"><table className="admin-table"><thead><tr><th>Compte / appareil</th><th>Adresse IP</th><th>Dernière activité</th><th>Expiration</th><th>État</th><th>Action</th></tr></thead><tbody>
-          {sessions.map((session) => <tr key={session.id}><td><strong>{session.admin?.name}</strong><small>{session.userAgent || 'Appareil non identifié'}</small></td><td>{session.ipAddress || '—'}</td><td>{when(session.lastSeenAt)}</td><td>{when(session.expiresAt)}</td><td><span className={`admin-pill ${session.isCurrentlyValid ? 'pill-active' : 'pill-archived'}`}>{session.isCurrentlyValid ? 'Active' : 'Retirée / expirée'}</span></td><td>{session.isCurrentlyValid && <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => perform('Révocation de la session', () => revokeAdminSecuritySession(session.id))}>Retirer</button>}</td></tr>)}
-          {!sessions.length && <tr><td colSpan="6">Aucune session enregistrée.</td></tr>}
+          {sessions.items.map((session) => <tr key={session.id}><td><strong>{session.admin?.name}</strong><small>{session.userAgent || 'Appareil non identifié'}</small></td><td>{session.ipAddress || '—'}</td><td>{when(session.lastSeenAt)}</td><td>{when(session.expiresAt)}</td><td><span className={`admin-pill ${session.isCurrentlyValid ? 'pill-active' : 'pill-archived'}`}>{session.isCurrentlyValid ? 'Active' : 'Retirée / expirée'}</span></td><td>{session.isCurrentlyValid && <button className="btn btn-secondary" disabled={Boolean(busy)} onClick={() => perform('Révocation de la session', () => revokeAdminSecuritySession(session.id))}>Retirer</button>}</td></tr>)}
+          {!sessions.items.length && <tr><td colSpan="6">Aucune session enregistrée.</td></tr>}
         </tbody></table></div>
+        <div className="admin-action-row"><label>Filtrer <select className="form-input" value={sessionFilters.status} onChange={(event) => setSessionFilters({ ...sessionFilters, status: event.target.value, offset: 0 })}><option value="active">Actives</option><option value="revoked">Retirées</option><option value="expired">Expirées</option></select></label><label>Recherche<input className="form-input" value={sessionFilters.q} onChange={(event) => setSessionFilters({ ...sessionFilters, q: event.target.value, offset: 0 })} placeholder="Compte, IP, appareil" /></label><span>{sessions.meta.total} session(s)</span><button className="btn btn-secondary" disabled={sessionFilters.offset === 0} onClick={() => setSessionFilters({ ...sessionFilters, offset: Math.max(0, sessionFilters.offset - sessionFilters.limit) })}>Précédent</button><button className="btn btn-secondary" disabled={sessionFilters.offset + sessionFilters.limit >= sessions.meta.total} onClick={() => setSessionFilters({ ...sessionFilters, offset: sessionFilters.offset + sessionFilters.limit })}>Suivant</button></div>
       </section>
 
       {owner && <>
@@ -197,6 +199,7 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
           <form className="admin-form-grid" onSubmit={applyAuditFilters}><label>Recherche<input className="form-input" name="q" defaultValue={auditFilters.q} /></label><label>Action<select className="form-input" name="action" defaultValue={auditFilters.action}><option value="">Toutes</option>{(audit.meta.facets ?? []).map((facet) => <option key={facet.action} value={facet.action}>{facet.action} ({facet.count})</option>)}</select></label><label>Du<input className="form-input" type="date" name="from" defaultValue={auditFilters.from} /></label><label>Au<input className="form-input" type="date" name="to" defaultValue={auditFilters.to} /></label><button className="btn btn-primary">Filtrer</button></form>
           <div className="admin-action-row"><a className="btn btn-secondary" href={adminAuditExportUrl(false, auditFilters)}><Download size={16} /> Exporter le journal</a><a className="btn btn-secondary" href={adminAuditExportUrl(true, auditFilters)}><Download size={16} /> Exporter les commandes</a></div>
           <h3>{audit.meta.total ?? 0} événement(s)</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Objet</th></tr></thead><tbody>{audit.items.map((item) => <tr key={item.id}><td>{when(item.createdAt)}</td><td>{item.adminUser?.name || 'Système'}<small>{item.adminUser?.email}</small></td><td><code>{item.action}</code></td><td>{item.entityType}<small>{item.entityId}</small></td></tr>)}</tbody></table></div>
+          <div className="admin-action-row"><span>Page {Math.floor((auditFilters.offset || 0) / auditFilters.limit) + 1}</span><button className="btn btn-secondary" disabled={auditFilters.offset === 0} onClick={() => setAuditFilters({ ...auditFilters, offset: Math.max(0, auditFilters.offset - auditFilters.limit) })}>Précédent</button><button className="btn btn-secondary" disabled={auditFilters.offset + auditFilters.limit >= Math.max(audit.meta.total ?? 0, audit.meta.commandTotal ?? 0)} onClick={() => setAuditFilters({ ...auditFilters, offset: auditFilters.offset + auditFilters.limit })}>Suivant</button></div>
           <h3>Commandes versionnées ({audit.meta.commandTotal ?? 0})</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Objet</th><th>État</th></tr></thead><tbody>{(audit.meta.commands ?? []).map((item) => <tr key={item.id}><td>{when(item.createdAt)}</td><td>{item.adminUser?.name || 'Système'}</td><td><code>{item.action}</code></td><td>{item.entityType}<small>{item.entityId}</small></td><td><span className={`admin-pill pill-${item.status.toLowerCase()}`}>{item.status}</span></td></tr>)}</tbody></table></div>
         </section>
       </>}

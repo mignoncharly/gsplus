@@ -37,6 +37,7 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
   const [editingPack, setEditingPack] = useState(null);
   const [previewPack, setPreviewPack] = useState(null);
   const [actionDialog, setActionDialog] = useState(null);
+  const canPublish = adminUser?.effectivePermissions?.includes('PACKAGE_PUBLISH');
 
   const closeDialog = () => setActionDialog(null);
   const runAction = async (label, action) => {
@@ -326,7 +327,7 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
     <>
       <div className="admin-page-header">
         <h1>Édition des <span>Tarifs</span></h1>
-        <button className="btn btn-primary admin-sm-btn" onClick={createItem} disabled={taxonomyOptions.length === 0}
+        <button className="btn btn-primary admin-sm-btn" onClick={createItem} disabled={!canPublish || taxonomyOptions.length === 0}
           title={taxonomyOptions.length === 0 ? 'Les rubriques publiques n’ont pas pu être chargées.' : undefined}>Créer un brouillon</button>
       </div>
       <div className="admin-card">
@@ -340,16 +341,16 @@ const AdminPackagesPanel = ({ packs, taxonomy = [], adminUser, onRefresh, onFeed
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => setPreviewPack(pack)}>Aperçu avant publication</button>
-              <button className="btn btn-secondary admin-sm-btn" onClick={() => editItem(pack)} disabled={editingPack === pack.id}>{editingPack === pack.id ? 'Modification...' : 'Modifier le brouillon'}</button>
-              <button className="btn btn-secondary admin-sm-btn" onClick={() => duplicateItem(pack)}>Dupliquer</button>
+              <button className="btn btn-secondary admin-sm-btn" onClick={() => editItem(pack)} disabled={!canPublish || editingPack === pack.id}>{editingPack === pack.id ? 'Modification...' : 'Modifier le brouillon'}</button>
+              <button className="btn btn-secondary admin-sm-btn" onClick={() => duplicateItem(pack)} disabled={!canPublish}>Dupliquer</button>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, -1)}
-                disabled={orderedPacks[0]?.id === pack.id} aria-label={`Monter ${pack.name}`}>↑</button>
+                disabled={!canPublish || orderedPacks[0]?.id === pack.id} aria-label={`Monter ${pack.name}`}>↑</button>
               <button className="btn btn-secondary admin-sm-btn" onClick={() => moveItem(pack, 1)}
-                disabled={orderedPacks[orderedPacks.length - 1]?.id === pack.id} aria-label={`Descendre ${pack.name}`}>↓</button>
-              {pack.publicationStatus === 'DRAFT' && <button className="btn btn-secondary admin-sm-btn" onClick={() => validateItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Valider les mentions</button>}
-              {pack.publicationStatus === 'VALIDATED' && <button className="btn btn-primary admin-sm-btn" onClick={() => publishItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Publier la formule</button>}
-              {pack.publishedVersion && !pack.isArchived && <button className="btn btn-secondary admin-sm-btn" onClick={() => archiveItem(pack)} disabled={adminUser?.role !== 'OWNER'}>Archiver</button>}
-              <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => removeItem(pack)} disabled={packageReferenceCount(pack) > 0}><Trash2 size={12} /> Supprimer</button>
+                disabled={!canPublish || orderedPacks[orderedPacks.length - 1]?.id === pack.id} aria-label={`Descendre ${pack.name}`}>↓</button>
+              {pack.publicationStatus === 'DRAFT' && <button className="btn btn-secondary admin-sm-btn" onClick={() => validateItem(pack)} disabled={!canPublish}>Valider les mentions</button>}
+              {pack.publicationStatus === 'VALIDATED' && <button className="btn btn-primary admin-sm-btn" onClick={() => publishItem(pack)} disabled={!canPublish}>Publier la formule</button>}
+              {pack.publishedVersion && !pack.isArchived && <button className="btn btn-secondary admin-sm-btn" onClick={() => archiveItem(pack)} disabled={!canPublish}>Archiver</button>}
+              <button className="btn btn-secondary admin-sm-btn text-danger" onClick={() => removeItem(pack)} disabled={!canPublish || packageReferenceCount(pack) > 0}><Trash2 size={12} /> Supprimer</button>
             </div>
           </div>
         ))}

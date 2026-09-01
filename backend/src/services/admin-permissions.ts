@@ -112,6 +112,8 @@ export const effectiveAdminPermissions = (admin: { id: string; role: AdminRole }
   ADMIN_PERMISSIONS.filter((permission) =>
     ROLE_PERMISSIONS[admin.role].has(permission) || Boolean(grants.get(admin.id)?.has(permission)));
 
+export const requiresAdminTotp = (admin: AdminUser) => admin.role === AdminRole.OWNER || effectiveAdminPermissions(admin).some((permission) => !ROLE_PERMISSIONS[AdminRole.STAFF].has(permission));
+
 export const assertAdminPermission = (admin: AdminUser | undefined, permission: AdminPermission) => {
   if (!admin) {
     throw new HttpError(401, 'UNAUTHENTICATED', 'Authentification administrateur requise.');

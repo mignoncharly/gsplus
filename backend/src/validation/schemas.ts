@@ -385,6 +385,7 @@ export const adminPermissionGrantSchema = z.object({
 });
 export const adminTotpConfirmSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/) });
 export const adminSessionRevokeSchema = z.object({ reason: z.string().trim().max(200).optional() });
+export const adminSessionListQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(25), offset: z.coerce.number().int().min(0).default(0), status: z.enum(['active', 'revoked', 'expired']).optional(), q: z.string().trim().min(1).max(120).optional() });
 
 export const auditListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
