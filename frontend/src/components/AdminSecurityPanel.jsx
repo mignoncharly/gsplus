@@ -59,10 +59,11 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
 
   const report = useCallback((type, message) => onFeedback?.({ tab: 'account', type, message }), [onFeedback]);
   const reload = useCallback(async () => {
-    const [sessionRows, totpState] = await Promise.all([getAdminSecuritySessions(owner, sessionFilters), getAdminTotpStatus()]);
+    const totpState = await getAdminTotpStatus();
+    const sessionRows = totpState.enabled ? await getAdminSecuritySessions(owner, sessionFilters) : { items: [], meta: { total: 0, limit: 25, offset: 0 } };
     setSessions(sessionRows);
     setTotp(totpState);
-    if (owner) {
+    if (owner && totpState.enabled) {
       const [accountResult, activity, auditResult] = await Promise.all([
         getAdminSecurityAccounts(), getAdminSignInActivity(), getAdminAudit(auditFilters),
       ]);
