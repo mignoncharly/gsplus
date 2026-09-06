@@ -401,9 +401,6 @@ export const auditListQuerySchema = z.object({
 export const adminLoginSchema = z.object({
   email: z.email(),
   password: z.string().min(8).max(200),
-  // Six digits for TOTP, or one of the ten-character hexadecimal recovery codes.
-  // Optional because the first password-valid request is what tells the client to ask.
-  totpCode: z.string().trim().min(6).max(20).optional(),
 });
 
 export const adminPasswordChangeSchema = z.object({

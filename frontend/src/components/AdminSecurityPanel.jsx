@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, KeyRound, ShieldCheck, UserPlus } from 'lucide-react';
+import { Download, KeyRound, UserPlus } from 'lucide-react';
 
 import './AdminSecurityPanel.css';
 import './AdminFinancePanel.css';
 
 import {
   adminAuditExportUrl,
-  beginAdminTotp,
   changeAdminPassword,
-  confirmAdminTotp,
-  disableAdminTotp,
   getAdminAudit,
   getAdminSecurityAccounts,
   getAdminSecuritySessions,
   getAdminSignInActivity,
-  getAdminTotpStatus,
   inviteAdminSecurityAccount,
   revokeAdminSecuritySession,
   setAdminSecurityAccountActive,
@@ -47,10 +43,6 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
   const [permissions, setPermissions] = useState([]);
   const [sessions, setSessions] = useState({ items: [], meta: { total: 0, limit: 25, offset: 0 } });
   const [sessionFilters, setSessionFilters] = useState({ q: '', status: 'active', limit: 25, offset: 0 });
-  const [totp, setTotp] = useState({ enabled: Boolean(adminUser?.twoFactorEnabled), recoveryCodesRemaining: 0 });
-  const [enrolment, setEnrolment] = useState(null);
-  const [totpCode, setTotpCode] = useState('');
-  const [recoveryCodes, setRecoveryCodes] = useState([]);
   const [signIns, setSignIns] = useState(null);
   const [audit, setAudit] = useState(emptyAudit);
   const [auditFilters, setAuditFilters] = useState({ q: '', action: '', from: '', to: '', limit: 50, offset: 0 });
@@ -59,11 +51,9 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
 
   const report = useCallback((type, message) => onFeedback?.({ tab: 'account', type, message }), [onFeedback]);
   const reload = useCallback(async () => {
-    const totpState = await getAdminTotpStatus();
-    const sessionRows = totpState.enabled ? await getAdminSecuritySessions(owner, sessionFilters) : { items: [], meta: { total: 0, limit: 25, offset: 0 } };
+    const sessionRows = await getAdminSecuritySessions(owner, sessionFilters);
     setSessions(sessionRows);
-    setTotp(totpState);
-    if (owner && totpState.enabled) {
+    if (owner) {
       const [accountResult, activity, auditResult] = await Promise.all([
         getAdminSecurityAccounts(), getAdminSignInActivity(), getAdminAudit(auditFilters),
       ]);
@@ -74,7 +64,7 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
     }
   }, [auditFilters, owner, sessionFilters]);
 
-  useEffect(() => { reload().catch((error) => report('error', error.message)); }, [reload, report]);
+  useEffect(() => { void Promise.resolve().then(reload).catch((error) => report('error', error.message)); }, [reload, report]);
 
   const perform = async (label, action) => {
     setBusy(label);
@@ -116,13 +106,6 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
     return perform('Mise à jour des droits', () => setAdminSecurityPermissions(account.id, [...current]));
   };
 
-  const confirmTotp = () => perform('Activation de la double authentification', async () => {
-    const result = await confirmAdminTotp(totpCode);
-    setRecoveryCodes(result.recoveryCodes);
-    setEnrolment(null);
-    setTotpCode('');
-    onAdminUserChange?.({ ...adminUser, twoFactorEnabled: true });
-  });
 
   const applyAuditFilters = (event) => {
     event.preventDefault();
@@ -146,24 +129,6 @@ export default function AdminSecurityPanel({ adminUser, onAdminUserChange, onFee
           </form>
         </section>
 
-        <section className="admin-card">
-          <h2><ShieldCheck size={20} /> Double authentification</h2>
-          <p className="admin-security-muted">État : <span className={`admin-pill ${totp.enabled ? 'pill-active' : 'pill-pending'}`}>{totp.enabled ? 'Activée' : 'Non activée'}</span></p>
-          {totp.enabled ? (
-            <>
-              <p>{totp.recoveryCodesRemaining} code(s) de récupération disponible(s).</p>
-              <div className="admin-security-inline"><input className="form-input" inputMode="numeric" placeholder="Code à 6 chiffres" value={totpCode} onChange={(e) => setTotpCode(e.target.value)} /><button className="btn btn-secondary" disabled={Boolean(busy) || !/^\d{6}$/.test(totpCode)} onClick={() => perform('Désactivation de la double authentification', async () => { await disableAdminTotp(totpCode); setTotpCode(''); onAdminUserChange?.({ ...adminUser, twoFactorEnabled: false }); })}>Désactiver</button></div>
-            </>
-          ) : enrolment ? (
-            <div className="admin-security-enrolment">
-              <p>Ajoutez ce secret dans votre application d’authentification, puis saisissez le code affiché.</p>
-              <code>{enrolment.secret}</code>
-              <details><summary>URI de configuration</summary><code>{enrolment.uri}</code></details>
-              <div className="admin-security-inline"><input className="form-input" inputMode="numeric" maxLength="6" placeholder="123456" value={totpCode} onChange={(e) => setTotpCode(e.target.value)} /><button className="btn btn-primary" disabled={Boolean(busy) || !/^\d{6}$/.test(totpCode)} onClick={confirmTotp}>Confirmer</button></div>
-            </div>
-          ) : <button className="btn btn-primary" disabled={Boolean(busy)} onClick={() => perform('Préparation de la double authentification', async () => setEnrolment(await beginAdminTotp()))}>Configurer</button>}
-          {recoveryCodes.length > 0 && <div className="admin-recovery-codes" role="alert"><strong>Copiez ces codes maintenant : ils ne seront plus affichés.</strong><code>{recoveryCodes.join('\n')}</code></div>}
-        </section>
       </div>
 
       <section className="admin-card">

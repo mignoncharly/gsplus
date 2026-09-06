@@ -124,8 +124,6 @@ const AdminDashboard = () => {
   const [adminUser, setAdminUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totpCode, setTotpCode] = useState('');
-  const [secondFactorRequired, setSecondFactorRequired] = useState(false);
   const [invitationPassword, setInvitationPassword] = useState('');
   const [invitationConfirmation, setInvitationConfirmation] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -362,23 +360,16 @@ const AdminDashboard = () => {
     setLoginSubmitting(true);
 
     try {
-      const admin = await loginAdmin({ email, password, ...(totpCode ? { totpCode } : {}) });
+      const admin = await loginAdmin({ email, password });
       setAdminUser(admin);
       setIsAuthenticated(true);
       setEmail('');
       setPassword('');
-      setTotpCode('');
-      setSecondFactorRequired(false);
       // Return to whatever was requested before the login screen appeared, not to the
       // dashboard. The URL was never navigated away from, so it still holds the target.
       await refreshAdminTab(adminTabFromPath(location.pathname, location.search));
     } catch (err) {
-      if (err.code === 'TOTP_REQUIRED') {
-        setSecondFactorRequired(true);
-        setLoginError('Saisissez le code de votre application d’authentification ou un code de récupération.');
-      } else {
-        setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
-      }
+      setLoginError(err.message || 'Connexion impossible. Identifiants incorrects.');
     } finally {
       setLoginSubmitting(false);
     }
@@ -870,10 +861,6 @@ const AdminDashboard = () => {
               onChange={(e) => setEmail(e.target.value)} 
               required 
             />
-            {secondFactorRequired && <>
-              <label htmlFor="admin-totp-code" className="sr-only">Code de double authentification</label>
-              <input id="admin-totp-code" name="totpCode" autoComplete="one-time-code" inputMode="numeric" placeholder="Code à 6 chiffres ou récupération" className="form-input admin-login-input" value={totpCode} onChange={(e) => setTotpCode(e.target.value)} required />
-            </>}
             <label htmlFor="admin-password" className="sr-only">Mot de passe</label>
             <input 
               id="admin-password"

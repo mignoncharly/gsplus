@@ -28,7 +28,6 @@ import {
 import { updatePackageWithVersion } from '../../src/services/packages.js';
 import { transitionReservationStatus } from '../../src/services/status-transitions.js';
 import { packageCreateSchema, packageUpdateSchema } from '../../src/validation/schemas.js';
-import { totpCodeAt } from '../../src/utils/totp.js';
 
 import { addBusinessDays, businessDateKey, businessLocalToInstant } from '../../src/utils/business-time.js';
 const app = createApp();
@@ -383,7 +382,7 @@ describe('admin flow', () => {
     })).toBe(1);
   });
 
-  it('governs named accounts, TOTP, device sessions, and the audit trail', async () => {
+  it('governs named accounts, device sessions, and the audit trail without TOTP', async () => {
     const owner = await loginAdmin();
     const invitation = await owner.post('/api/admin/security/accounts').send({
       email: 'studio-team@goldenstudioplus.test', name: 'Studio Team', role: AdminRole.STAFF,
@@ -396,14 +395,13 @@ describe('admin flow', () => {
     const created = await prisma.adminUser.findUniqueOrThrow({ where: { email: 'studio-team@goldenstudioplus.test' } });
     expect(created.activatedAt).not.toBeNull();
 
-    const beginning = await owner.post('/api/admin/security/totp/begin').send({}).expect(200);
-    const code = totpCodeAt(beginning.body.data.secret, Date.now());
-    const confirmed = await owner.post('/api/admin/security/totp/confirm').send({ code }).expect(200);
-    expect(confirmed.body.data.recoveryCodes).toHaveLength(8);
-
-    await request(app).post('/api/admin/login').send({ email: 'admin@goldenstudioplus.test', password: adminPassword }).expect(401);
+    await owner.get('/api/admin/security/totp').expect(404);
+    await prisma.adminUser.update({
+      where: { email: 'admin@goldenstudioplus.test' },
+      data: { totpConfirmedAt: new Date(), totpSecretEncrypted: 'temporarily-disabled-factor' },
+    });
     const secondOwner = request.agent(app);
-    await secondOwner.post('/api/admin/login').send({ email: 'admin@goldenstudioplus.test', password: adminPassword, totpCode: code }).expect(200);
+    await secondOwner.post('/api/admin/login').send({ email: 'admin@goldenstudioplus.test', password: adminPassword }).expect(200);
 
     const sessions = await secondOwner.get('/api/admin/security/sessions').expect(200);
     const secondOwnerSession = sessions.body.data
@@ -414,7 +412,6 @@ describe('admin flow', () => {
 
     const audit = await owner.get('/api/admin/audit?limit=50').expect(200);
     expect(audit.body.data.some((item: { action: string }) => item.action === 'admin.invitation.create')).toBe(true);
-    expect(audit.body.data.some((item: { action: string }) => item.action === 'admin.totp.enable')).toBe(true);
   });
 
   it('verifies payment without confirming the reservation and records transition history', async () => {

@@ -102,18 +102,13 @@ import { generateEnglishTranslation, listAdminContent, markEnglishTranslationRev
 import { messageRuleStatus } from '../services/message-rules.js';
 import {
   acceptAdminInvitation,
-  beginTotpEnrolment,
-  confirmTotpEnrolment,
-  disableTotp,
   inviteAdminAccount,
   listAdminAccounts,
   listAdminSessions,
-  remainingRecoveryCodes,
   revokeAdminSession,
   setAdminAccountActive,
   setAdminAccountRole,
   setAdminPermissionGrants,
-  verifySecondFactor,
   ADMIN_PERMISSION_CATALOGUE,
 } from '../services/admin-accounts.js';
 import { adminCommandCsv, auditActionFacets, auditLogCsv, listAdminCommands, listAuditLog, signInActivity } from '../services/admin-audit.js';
@@ -167,7 +162,6 @@ import {
   adminPermissionGrantSchema,
   adminSessionRevokeSchema,
   adminSessionListQuerySchema,
-  adminTotpConfirmSchema,
   auditListQuerySchema,
   availabilityBlockCreateSchema,
   availabilityBlockUpdateSchema,
@@ -292,19 +286,6 @@ router.post(
       throw error;
     }
 
-    // The second factor is asked for only once the password is right, so the prompt never
-    // reveals whether an address has an account. Existing owners may bootstrap from the
-    // security screen; once configured, the second factor is always enforced here.
-    if (admin.totpConfirmedAt) {
-      if (!req.body.totpCode) {
-        await recordSignInAttempt(req.body.email, req, false, 'TOTP_REQUIRED');
-        throw new HttpError(401, 'TOTP_REQUIRED', 'Saisissez le code de votre application d’authentification.');
-      }
-      if (!await verifySecondFactor(admin, req.body.totpCode)) {
-        await recordSignInAttempt(req.body.email, req, false, 'TOTP_INVALID');
-        throw new HttpError(401, 'INVALID_CREDENTIALS', 'Identifiants ou code incorrects.');
-      }
-    }
 
     const session = await startAdminSession(admin, req);
     await prisma.adminUser.update({ where: { id: admin.id }, data: { lastSignInAt: new Date() } });
@@ -373,7 +354,7 @@ router.post(
   }),
 );
 
-// === Phase 10 (§12): named accounts, two-factor, sessions and audit ===
+// === Phase 10 (§12): named accounts, sessions and audit ===
 
 const requireOwner = (res: Response) => {
   const admin = res.locals.admin;
@@ -452,32 +433,6 @@ router.patch('/security/sessions/:id/revoke', validate('params', idParamsSchema)
   res.json({ data: revoked });
 }));
 
-router.get('/security/totp', asyncHandler(async (_req, res) => {
-  const actor = res.locals.admin!;
-  res.json({ data: { enabled: Boolean(actor.totpConfirmedAt), recoveryCodesRemaining: await remainingRecoveryCodes(actor.id) } });
-}));
-
-router.post('/security/totp/begin', asyncHandler(async (_req, res) => {
-  const actor = res.locals.admin!;
-  const enrolment = await beginTotpEnrolment(actor);
-  await writeAuditLog(actor.id, 'admin.totp.begin', 'AdminUser', actor.id);
-  res.json({ data: enrolment });
-}));
-
-router.post('/security/totp/confirm', validate('body', adminTotpConfirmSchema), asyncHandler(async (req, res) => {
-  const actor = res.locals.admin!;
-  const result = await confirmTotpEnrolment(actor, req.body.code);
-  await writeAuditLog(actor.id, 'admin.totp.enable', 'AdminUser', actor.id, { recoveryCodeCount: result.recoveryCodes.length });
-  res.json({ data: result });
-}));
-
-router.post('/security/totp/disable', validate('body', adminTotpConfirmSchema), asyncHandler(async (req, res) => {
-  const actor = res.locals.admin!;
-  if (!await verifySecondFactor(actor, req.body.code)) throw new HttpError(422, 'TOTP_CODE_INVALID', 'Ce code est incorrect ou expiré.');
-  await disableTotp(actor.id);
-  await writeAuditLog(actor.id, 'admin.totp.disable', 'AdminUser', actor.id);
-  res.status(204).send();
-}));
 
 router.get('/security/sign-ins', asyncHandler(async (_req, res) => {
   requireOwner(res);

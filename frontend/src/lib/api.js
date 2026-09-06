@@ -99,12 +99,6 @@ export const getAdminSecuritySessions = async (all = false, filters = {}) => {
 };
 export const revokeAdminSecuritySession = async (id, reason = 'REVOKED_BY_ADMIN') =>
   (await apiFetch(`/api/admin/security/sessions/${encodeURIComponent(id)}/revoke`, { method: 'PATCH', body: JSON.stringify({ reason }) })).data;
-export const getAdminTotpStatus = async () => (await apiFetch('/api/admin/security/totp')).data;
-export const beginAdminTotp = async () => (await apiFetch('/api/admin/security/totp/begin', { method: 'POST' })).data;
-export const confirmAdminTotp = async (code) =>
-  (await apiFetch('/api/admin/security/totp/confirm', { method: 'POST', body: JSON.stringify({ code }) })).data;
-export const disableAdminTotp = async (code) =>
-  apiFetch('/api/admin/security/totp/disable', { method: 'POST', body: JSON.stringify({ code }) });
 export const getAdminSignInActivity = async () => (await apiFetch('/api/admin/security/sign-ins')).data;
 export const getAdminAudit = async (filters = {}) => {
   const payload = await apiFetch(`/api/admin/audit?${adminQuery(filters)}`);
